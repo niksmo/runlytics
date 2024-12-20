@@ -9,7 +9,7 @@ type serverConfig struct {
 	port int
 }
 
-func New() *serverConfig {
+func NewServerConfig() *serverConfig {
 	return &serverConfig{"127.0.0.1", 8080}
 }
 

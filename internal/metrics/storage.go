@@ -1,13 +1,20 @@
-package storage
+package metrics
 
 import "log"
 
-type MemStorage struct {
-	count map[string]int
+type memStorage struct {
+	count map[string]int64
 	gauge map[string]float64
 }
 
-func (ms *MemStorage) addCount(name string, value int) {
+func NewMemStorage() *memStorage {
+	return &memStorage{
+		make(map[string]int64),
+		make(map[string]float64),
+	}
+}
+
+func (ms *memStorage) AddCount(name string, value int64) {
 	ms.count[name] += value
 	log.Printf(
 		"Add count metric: name=%q value=%v currentValue=%v\n",
@@ -15,7 +22,7 @@ func (ms *MemStorage) addCount(name string, value int) {
 	)
 }
 
-func (ms *MemStorage) addGauge(name string, value float64) {
+func (ms *memStorage) AddGauge(name string, value float64) {
 	ms.gauge[name] = value
 	log.Printf(
 		"Add gauge metric: name=%q value=%v currentValue=%v\n",

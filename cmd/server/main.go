@@ -5,7 +5,7 @@ import (
 	"net/http"
 
 	"github.com/niksmo/runlytics/internal/config"
-	"github.com/niksmo/runlytics/internal/handler"
+	"github.com/niksmo/runlytics/internal/metrics"
 )
 
 type ServerConfig interface {
@@ -14,10 +14,11 @@ type ServerConfig interface {
 
 func main() {
 	log.Println("Bootstrap server...")
-	config := config.New()
-	mux := http.NewServeMux()
 
-	handler.NewUpdate(mux)
+	config := config.NewServerConfig()
+	mux := http.NewServeMux()
+	storage := metrics.NewMemStorage()
+	metrics.NewHandler(mux, storage)
 
 	err := run(config, mux)
 	if err != nil {
@@ -31,6 +32,6 @@ func run(c ServerConfig, handler *http.ServeMux) error {
 		Addr:    c.Addr(),
 		Handler: handler,
 	}
-	log.Println("Listen host", s.Addr)
+	log.Println("Listen", s.Addr)
 	return s.ListenAndServe()
 }
