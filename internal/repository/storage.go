@@ -14,7 +14,7 @@ func NewMemStorage() *memStorage {
 	}
 }
 
-func (ms *memStorage) AddCount(name string, value int64) {
+func (ms *memStorage) AddCounter(name string, value int64) {
 	ms.count[name] += value
 	log.Printf(
 		"Add count metric: name=%q value=%v currentValue=%v\n",

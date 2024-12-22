@@ -14,7 +14,7 @@ type ServerConfig interface {
 }
 
 func main() {
-	log.Println("Bootstrap server...")
+	log.Println("Bootstrap server")
 
 	config := config.NewServerConfig()
 	mux := http.NewServeMux()

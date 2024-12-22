@@ -7,12 +7,12 @@ import (
 )
 
 const (
-	counter = "counter"
-	gauge   = "gauge"
+	Counter = "counter"
+	Gauge   = "gauge"
 )
 
 type Repository interface {
-	AddCount(name string, value int64)
+	AddCounter(name string, value int64)
 	AddGauge(name string, value float64)
 }
 
@@ -35,15 +35,15 @@ func (h *MetricsHandler) Update() http.HandlerFunc {
 		v := r.PathValue("value")
 
 		switch t {
-		case counter:
+		case Counter:
 			cV, err := strconv.ParseInt(v, 10, 64)
 			if err != nil {
 				log.Println(err)
 				w.WriteHeader(http.StatusBadRequest)
 				return
 			}
-			h.repo.AddCount(n, cV)
-		case gauge:
+			h.repo.AddCounter(n, cV)
+		case Gauge:
 			gV, err := strconv.ParseFloat(v, 64)
 			if err != nil {
 				log.Println(err)
