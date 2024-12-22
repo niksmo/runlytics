@@ -1,4 +1,4 @@
-package metrics
+package server
 
 import (
 	"log"
@@ -6,24 +6,22 @@ import (
 	"strconv"
 )
 
-type metric string
-
 const (
-	counter metric = "counter"
-	gauge   metric = "gauge"
+	counter = "counter"
+	gauge   = "gauge"
 )
 
-type Storage interface {
+type Repository interface {
 	AddCount(name string, value int64)
 	AddGauge(name string, value float64)
 }
 
 type MetricsHandler struct {
-	storage Storage
+	repo Repository
 }
 
-func NewHandler(mux *http.ServeMux, storage Storage) {
-	h := &MetricsHandler{storage}
+func NewHandler(mux *http.ServeMux, repo Repository) {
+	h := &MetricsHandler{repo}
 	mux.HandleFunc(`POST /update/{type}/{name}/{value}`, h.Update())
 	log.Println("Register endpoint: /update/{type}/{name}/{value}")
 }
@@ -32,7 +30,7 @@ func (h *MetricsHandler) Update() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		log.Println(r.Method, r.URL.EscapedPath())
 
-		t := metric(r.PathValue("type"))
+		t := r.PathValue("type")
 		n := r.PathValue("name")
 		v := r.PathValue("value")
 
@@ -44,7 +42,7 @@ func (h *MetricsHandler) Update() http.HandlerFunc {
 				w.WriteHeader(http.StatusBadRequest)
 				return
 			}
-			h.storage.AddCount(n, cV)
+			h.repo.AddCount(n, cV)
 		case gauge:
 			gV, err := strconv.ParseFloat(v, 64)
 			if err != nil {
@@ -52,7 +50,7 @@ func (h *MetricsHandler) Update() http.HandlerFunc {
 				w.WriteHeader(http.StatusBadRequest)
 				return
 			}
-			h.storage.AddGauge(n, gV)
+			h.repo.AddGauge(n, gV)
 		default:
 			log.Println("Unexpected type")
 			w.WriteHeader(http.StatusBadRequest)

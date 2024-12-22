@@ -5,7 +5,8 @@ import (
 	"net/http"
 
 	"github.com/niksmo/runlytics/internal/config"
-	"github.com/niksmo/runlytics/internal/metrics"
+	"github.com/niksmo/runlytics/internal/repository"
+	"github.com/niksmo/runlytics/internal/server"
 )
 
 type ServerConfig interface {
@@ -17,8 +18,8 @@ func main() {
 
 	config := config.NewServerConfig()
 	mux := http.NewServeMux()
-	storage := metrics.NewMemStorage()
-	metrics.NewHandler(mux, storage)
+	storage := repository.NewMemStorage()
+	server.NewHandler(mux, storage)
 
 	err := run(config, mux)
 	if err != nil {
