@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"time"
 
@@ -15,7 +16,12 @@ func main() {
 	collector := agent.NewCollector(
 		pollInterval,
 		reportInterval,
-		func() { log.Println("Report", time.Now()) },
+		func(data map[string]agent.Metric) {
+			log.Println("[HANDLER]: Reporting", time.Now())
+			for name, metric := range data {
+				fmt.Println(name, metric.T, metric.V)
+			}
+		},
 	)
 
 	collector.Run()

@@ -5,8 +5,8 @@ import (
 	"net/http"
 
 	"github.com/niksmo/runlytics/internal/config"
-	"github.com/niksmo/runlytics/internal/repository"
 	"github.com/niksmo/runlytics/internal/server"
+	"github.com/niksmo/runlytics/internal/storage"
 )
 
 type ServerConfig interface {
@@ -17,11 +17,11 @@ func main() {
 	log.Println("Bootstrap server")
 
 	config := config.NewServerConfig()
-	mux := http.NewServeMux()
-	storage := repository.NewMemStorage()
-	server.NewHandler(mux, storage)
+	router := http.NewServeMux()
+	storage := storage.NewMemStorage()
+	server.NewHandler(router, storage)
 
-	err := run(config, mux)
+	err := run(config, router)
 	if err != nil {
 		log.Fatal(err)
 	}

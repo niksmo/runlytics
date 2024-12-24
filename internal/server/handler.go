@@ -20,9 +20,9 @@ type MetricsHandler struct {
 	repo Repository
 }
 
-func NewHandler(mux *http.ServeMux, repo Repository) {
+func NewHandler(router *http.ServeMux, repo Repository) {
 	h := &MetricsHandler{repo}
-	mux.HandleFunc(`POST /update/{type}/{name}/{value}`, h.Update())
+	router.HandleFunc(`POST /update/{type}/{name}/{value}`, h.Update())
 	log.Println("Register endpoint: /update/{type}/{name}/{value}")
 }
 
