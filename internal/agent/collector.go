@@ -1,24 +1,41 @@
 package agent
 
 import (
+	"errors"
 	"log"
 	"sync"
 	"time"
 )
 
+var (
+	ErrReportIntLessPollInt = errors.New("report interval should be more or equal to poll interval")
+	ErrMinIntervalValue     = errors.New("both intervals should be more or equal 1s")
+)
+
 type Collector struct {
-	pollInt, reportInt time.Duration
-	handler            func(data map[string]Metric)
+	poll, report time.Duration
+	rh           ReportHandler
 }
 
-func NewCollector(pollInt, reropInt time.Duration, handler func(data map[string]Metric)) *Collector {
-	return &Collector{pollInt, reropInt, handler}
+type ReportHandler func(data map[string]Metric)
+
+func NewCollector(poll, report time.Duration, rh ReportHandler) (*Collector, error) {
+	s := time.Duration(1 * time.Second)
+	if poll < s || report < s {
+		return nil, ErrMinIntervalValue
+	}
+
+	if report < poll {
+		return nil, ErrReportIntLessPollInt
+	}
+
+	return &Collector{poll, report, rh}, nil
 }
 
 func (c *Collector) Run() {
 	log.Printf(
 		"Run collector with intervals: poll = %vs, report = %vs\n",
-		c.pollInt.Seconds(), c.reportInt.Seconds(),
+		c.poll.Seconds(), c.report.Seconds(),
 	)
 
 	var wg sync.WaitGroup
@@ -29,25 +46,23 @@ func (c *Collector) Run() {
 	go func() {
 		defer wg.Done()
 		for {
-			log.Println("[POLL]Start collect")
 			m.mu.Lock()
 			getMemMetrics(m.data)
 			getExtraMetrics(m.data)
 			m.mu.Unlock()
-			log.Println("[POLL]Stop collect")
-			log.Println("[POLL]Wait for", c.pollInt.Seconds(), "sec")
-			time.Sleep(c.pollInt)
+			log.Println("[POLL]Wait for", c.poll.Seconds(), "sec")
+			time.Sleep(c.poll)
 		}
 	}()
 
 	go func() {
 		defer wg.Done()
 		for {
-			log.Println("[REPORT]Wait for", c.reportInt.Seconds(), "sec")
-			time.Sleep(c.reportInt)
+			log.Println("[REPORT]Wait for", c.report.Seconds(), "sec")
+			time.Sleep(c.report)
 			log.Println("[REPORT]Call the handler")
 			m.mu.Lock()
-			c.handler(m.data)
+			c.rh(m.data)
 			m.mu.Unlock()
 		}
 	}()

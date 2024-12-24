@@ -1,28 +1,46 @@
 package main
 
 import (
-	"fmt"
 	"log"
+	"strconv"
 	"time"
 
 	"github.com/niksmo/runlytics/internal/agent"
 )
 
-const pollInterval = time.Duration(2 * time.Second)
-const reportInterval = time.Duration(10 * time.Second)
+const (
+	poll        = time.Duration(2 * time.Second)
+	report      = time.Duration(10 * time.Second)
+	defaultHost = "http://127.0.0.1"
+	defaultPort = 8080
+)
 
 func main() {
 	log.Println("Start agent")
-	collector := agent.NewCollector(
-		pollInterval,
-		reportInterval,
-		func(data map[string]agent.Metric) {
-			log.Println("[HANDLER]: Reporting", time.Now())
-			for name, metric := range data {
-				fmt.Println(name, metric.T, metric.V)
-			}
-		},
+	collector, err := agent.NewCollector(
+		poll,
+		report,
+		handler(),
 	)
 
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	collector.Run()
+}
+
+func handler() agent.ReportHandler {
+	addr := defaultHost + ":" + strconv.Itoa(defaultPort)
+	httpEmitter, err := agent.NewHttpEmitter(addr)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	return func(data map[string]agent.Metric) {
+		log.Println("[HANDLER]: Reporting")
+		for name, metric := range data {
+			httpEmitter(metric.T, name, metric.V)
+		}
+	}
 }

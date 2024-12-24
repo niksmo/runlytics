@@ -1,6 +1,7 @@
 package server
 
 import (
+	"errors"
 	"log"
 	"net/http"
 	"strconv"
@@ -37,26 +38,36 @@ func (h *MetricsHandler) Update() http.HandlerFunc {
 		switch t {
 		case Counter:
 			cV, err := strconv.ParseInt(v, 10, 64)
-			if err != nil {
-				log.Println(err)
-				w.WriteHeader(http.StatusBadRequest)
+			if isErr(err, w) {
 				return
 			}
 			h.repo.AddCounter(n, cV)
 		case Gauge:
 			gV, err := strconv.ParseFloat(v, 64)
-			if err != nil {
-				log.Println(err)
-				w.WriteHeader(http.StatusBadRequest)
+			if isErr(err, w) {
 				return
 			}
 			h.repo.AddGauge(n, gV)
 		default:
-			log.Println("Unexpected type")
-			w.WriteHeader(http.StatusBadRequest)
-			return
+			err := errors.New("unexpected metrics type")
+			if isErr(err, w) {
+				return
+			}
 		}
 
 		w.WriteHeader(http.StatusOK)
 	}
+}
+
+func isErr(err error, w http.ResponseWriter) bool {
+	ret := false
+
+	if err != nil {
+		log.Println(err)
+		w.WriteHeader(http.StatusBadRequest)
+		ret = true
+		return ret
+	}
+
+	return ret
 }
