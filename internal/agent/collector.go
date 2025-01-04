@@ -16,8 +16,8 @@ import (
 var count = counter.New(0)
 
 var (
-	ErrReportIntLessPollInt = errors.New("report interval should be more or equal to poll interval")
-	ErrMinIntervalValue     = errors.New("both intervals should be more or equal 1s")
+	ErrReportLessPoll   = errors.New("report interval should be more or equal to poll interval")
+	ErrMinIntervalValue = errors.New("both intervals should be more or equal 1s")
 )
 
 type ReportHandler func(data []Metric)
@@ -35,7 +35,7 @@ func NewCollector(poll, report time.Duration, rh ReportHandler) (*collector, err
 	}
 
 	if report < poll {
-		return nil, ErrReportIntLessPollInt
+		return nil, ErrReportLessPoll
 	}
 
 	return &collector{poll: poll, report: report, rh: rh}, nil
