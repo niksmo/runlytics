@@ -2,7 +2,9 @@ package main
 
 import (
 	"log"
+	"net/http"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/niksmo/runlytics/internal/agent"
@@ -27,20 +29,23 @@ func main() {
 		log.Fatal(err)
 	}
 
-	collector.Run()
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go collector.Run()
+	wg.Wait()
 }
 
 func handler() agent.ReportHandler {
 	addr := defaultHost + ":" + strconv.Itoa(defaultPort)
-	httpEmitter, err := agent.NewHttpEmitter(addr)
+	httpEmittingFunc, err := agent.HttpEmittingFunc(addr, http.DefaultClient)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	return func(data map[string]agent.Metric) {
+	return func(data []agent.Metric) {
 		log.Println("[HANDLER]: Reporting")
-		for name, metric := range data {
-			httpEmitter(metric.T, name, metric.V)
+		for _, metric := range data {
+			httpEmittingFunc(string(metric.Type), metric.Name, metric.Value)
 		}
 	}
 }

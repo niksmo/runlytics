@@ -6,7 +6,6 @@ import (
 	"math/rand/v2"
 	"runtime"
 	"strconv"
-	"sync"
 	"time"
 
 	"github.com/niksmo/runlytics/internal/server"
@@ -21,19 +20,13 @@ var (
 	ErrMinIntervalValue     = errors.New("both intervals should be more or equal 1s")
 )
 
+type ReportHandler func(data []Metric)
+
 type collector struct {
 	poll, report time.Duration
 	rh           ReportHandler
 	data         []Metric
 }
-
-func (c *collector) getData() []Metric {
-	ret := make([]Metric, len(c.data))
-	copy(c.data, ret)
-	return ret
-}
-
-type ReportHandler func(data []Metric)
 
 func NewCollector(poll, report time.Duration, rh ReportHandler) (*collector, error) {
 	s := time.Duration(1 * time.Second)
@@ -45,7 +38,13 @@ func NewCollector(poll, report time.Duration, rh ReportHandler) (*collector, err
 		return nil, ErrReportIntLessPollInt
 	}
 
-	return &collector{poll, report, rh, nil}, nil
+	return &collector{poll: poll, report: report, rh: rh}, nil
+}
+
+func (c *collector) getData() []Metric {
+	ret := make([]Metric, len(c.data))
+	copy(ret, c.data)
+	return ret
 }
 
 func (c *collector) collectMetrics() {
@@ -56,15 +55,11 @@ func (c *collector) collectMetrics() {
 
 func (c *collector) Run() {
 	log.Printf(
-		"Run collector with intervals: poll = %vs, report = %vs\n",
+		"Run metrics collector with intervals: poll = %vs, report = %vs\n",
 		c.poll.Seconds(), c.report.Seconds(),
 	)
 
-	var wg sync.WaitGroup
-
-	wg.Add(2)
 	go func() {
-		defer wg.Done()
 		for {
 			c.collectMetrics()
 			log.Println("[POLL]Wait for", c.poll.Seconds(), "sec")
@@ -73,7 +68,6 @@ func (c *collector) Run() {
 	}()
 
 	go func() {
-		defer wg.Done()
 		for {
 			log.Println("[REPORT]Wait for", c.report.Seconds(), "sec")
 			time.Sleep(c.report)
@@ -81,7 +75,7 @@ func (c *collector) Run() {
 			c.rh(c.getData())
 		}
 	}()
-	wg.Wait()
+
 }
 
 type Metric struct {
