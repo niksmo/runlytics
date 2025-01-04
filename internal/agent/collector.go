@@ -3,23 +3,39 @@ package agent
 import (
 	"errors"
 	"log"
+	"math/rand/v2"
+	"runtime"
+	"strconv"
 	"sync"
 	"time"
+
+	"github.com/niksmo/runlytics/internal/server"
+	"github.com/niksmo/runlytics/pkg/counter"
+	"github.com/niksmo/runlytics/pkg/field"
 )
+
+var count = counter.New(0)
 
 var (
 	ErrReportIntLessPollInt = errors.New("report interval should be more or equal to poll interval")
 	ErrMinIntervalValue     = errors.New("both intervals should be more or equal 1s")
 )
 
-type Collector struct {
+type collector struct {
 	poll, report time.Duration
 	rh           ReportHandler
+	data         []Metric
 }
 
-type ReportHandler func(data map[string]Metric)
+func (c *collector) getData() []Metric {
+	ret := make([]Metric, len(c.data))
+	copy(c.data, ret)
+	return ret
+}
 
-func NewCollector(poll, report time.Duration, rh ReportHandler) (*Collector, error) {
+type ReportHandler func(data []Metric)
+
+func NewCollector(poll, report time.Duration, rh ReportHandler) (*collector, error) {
 	s := time.Duration(1 * time.Second)
 	if poll < s || report < s {
 		return nil, ErrMinIntervalValue
@@ -29,10 +45,16 @@ func NewCollector(poll, report time.Duration, rh ReportHandler) (*Collector, err
 		return nil, ErrReportIntLessPollInt
 	}
 
-	return &Collector{poll, report, rh}, nil
+	return &collector{poll, report, rh, nil}, nil
 }
 
-func (c *Collector) Run() {
+func (c *collector) collectMetrics() {
+	memMetrics := getMemMetrics()
+	extraMetrics := getExtraMetrics()
+	c.data = append(memMetrics, extraMetrics...)
+}
+
+func (c *collector) Run() {
 	log.Printf(
 		"Run collector with intervals: poll = %vs, report = %vs\n",
 		c.poll.Seconds(), c.report.Seconds(),
@@ -40,16 +62,11 @@ func (c *Collector) Run() {
 
 	var wg sync.WaitGroup
 
-	m := &Metrics{data: make(map[string]Metric)}
-
 	wg.Add(2)
 	go func() {
 		defer wg.Done()
 		for {
-			m.mu.Lock()
-			getMemMetrics(m.data)
-			getExtraMetrics(m.data)
-			m.mu.Unlock()
+			c.collectMetrics()
 			log.Println("[POLL]Wait for", c.poll.Seconds(), "sec")
 			time.Sleep(c.poll)
 		}
@@ -61,10 +78,97 @@ func (c *Collector) Run() {
 			log.Println("[REPORT]Wait for", c.report.Seconds(), "sec")
 			time.Sleep(c.report)
 			log.Println("[REPORT]Call the handler")
-			m.mu.Lock()
-			c.rh(m.data)
-			m.mu.Unlock()
+			c.rh(c.getData())
 		}
 	}()
 	wg.Wait()
+}
+
+type Metric struct {
+	Name, Value string
+	Type        server.MetricType
+}
+
+var memMetrics = []string{
+	"Alloc",
+	"BuckHashSys",
+	"Frees",
+	"GCCPUFraction",
+	"GCSys",
+	"HeapAlloc",
+	"HeapIdle",
+	"HeapInuse",
+	"HeapObjects",
+	"HeapReleased",
+	"HeapSys",
+	"LastGC",
+	"Lookups",
+	"MCacheInuse",
+	"MCacheSys",
+	"MSpanInuse",
+	"MSpanSys",
+	"Mallocs",
+	"NextGC",
+	"NumForcedGC",
+	"NumGC",
+	"OtherSys",
+	"PauseTotalNs",
+	"StackInuse",
+	"StackSys",
+	"Sys",
+	"TotalAlloc",
+}
+
+func getMemMetrics() []Metric {
+	ret := make([]Metric, 0, len(memMetrics))
+	memStat := new(runtime.MemStats)
+	runtime.ReadMemStats(memStat)
+
+	for _, name := range memMetrics {
+		v, err := field.Value(memStat, name)
+		if err != nil {
+			log.Println(err)
+		}
+
+		var statValue string
+
+		switch v := v.(type) {
+		case float64:
+			statValue = strconv.FormatFloat(v, 'f', -1, 64)
+		case uint64:
+			statValue = strconv.FormatFloat(float64(v), 'f', -1, 64)
+		case uint32:
+			statValue = strconv.FormatFloat(float64(v), 'f', -1, 64)
+		default:
+			log.Printf("Not converted: name=%s, type=%T, value=%v\n", name, v, v)
+		}
+
+		if statValue != "" {
+			ret = append(ret, Metric{Name: name, Type: server.Gauge, Value: statValue})
+		}
+	}
+	return ret
+}
+
+func getExtraMetrics() []Metric {
+	ret := make([]Metric, 0, 2)
+
+	ret = append(
+		ret, Metric{
+			Name:  "RandomValue",
+			Type:  server.Gauge,
+			Value: strconv.FormatFloat(rand.Float64(), 'f', -1, 64),
+		},
+	)
+
+	ret = append(
+		ret,
+		Metric{
+			Name:  "PollCount",
+			Type:  server.Counter,
+			Value: strconv.Itoa(count()),
+		},
+	)
+
+	return ret
 }

@@ -7,9 +7,11 @@ import (
 	"strconv"
 )
 
+type MetricType string
+
 const (
-	Counter = "counter"
-	Gauge   = "gauge"
+	Counter MetricType = "counter"
+	Gauge   MetricType = "gauge"
 )
 
 type Repository interface {
@@ -31,7 +33,7 @@ func (h *MetricsHandler) Update() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		log.Println(r.Method, r.URL.EscapedPath())
 
-		t := r.PathValue("type")
+		t := MetricType(r.PathValue("type"))
 		n := r.PathValue("name")
 		v := r.PathValue("value")
 
