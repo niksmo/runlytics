@@ -25,7 +25,7 @@ func TestMemStorageAddCount(t *testing.T) {
 func TestMemStorageAddGauge(t *testing.T) {
 	storage := NewMemStorage()
 	expectedName := "testMetricName2"
-	var expectedValue float64 = 0.23984723491234
+	var expectedValue = 0.23984723491234
 	storage.AddGauge(expectedName, expectedValue)
 	value, ok := storage.gauge[expectedName]
 	assert.True(t, ok)

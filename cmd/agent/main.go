@@ -37,7 +37,7 @@ func main() {
 
 func handler() agent.ReportHandler {
 	addr := defaultHost + ":" + strconv.Itoa(defaultPort)
-	httpEmittingFunc, err := agent.HttpEmittingFunc(addr, http.DefaultClient)
+	httpEmittingFunc, err := agent.HTTPEmittingFunc(addr, http.DefaultClient)
 	if err != nil {
 		log.Fatal(err)
 	}

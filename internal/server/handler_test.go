@@ -171,6 +171,7 @@ func TestUpdateHandler(t *testing.T) {
 
 			updateHandler(w, req)
 			res := w.Result()
+			res.Body.Close()
 
 			assert.Equal(t, test.want.statusCode, res.StatusCode)
 

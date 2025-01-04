@@ -12,11 +12,20 @@ type fakeClient struct {
 	url, contentType string
 }
 
+type fakeReadCloser struct{}
+
+func (frc fakeReadCloser) Close() error {
+	return nil
+}
+func (frc fakeReadCloser) Read(b []byte) (int, error) {
+	return 0, nil
+}
+
 func (fc *fakeClient) Post(url string, contentType string, body io.Reader) (resp *http.Response, err error) {
 	fc.url = url
 	fc.contentType = contentType
 
-	return &http.Response{StatusCode: 200}, nil
+	return &http.Response{StatusCode: 200, Body: fakeReadCloser{}}, nil
 }
 
 func TestHttpEmittingFunc(t *testing.T) {
@@ -87,7 +96,7 @@ func TestHttpEmittingFunc(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			emittingFunc, err := HttpEmittingFunc(test.args.addr, test.args.client)
+			emittingFunc, err := HTTPEmittingFunc(test.args.addr, test.args.client)
 			if err != nil {
 				assert.ErrorIs(t, err, test.wantErr)
 				return

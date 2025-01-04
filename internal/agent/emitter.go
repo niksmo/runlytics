@@ -17,13 +17,13 @@ var (
 	ErrHost   = errors.New("pass absolute url with host, e.g. http://one.two.com/path1/id")
 )
 
-type HttpClient interface {
+type HTTPClient interface {
 	Post(url string, contentType string, body io.Reader) (resp *http.Response, err error)
 }
 
 type EmittingFunc func(metricType, name, value string)
 
-func HttpEmittingFunc(addr string, client HttpClient) (EmittingFunc, error) {
+func HTTPEmittingFunc(addr string, client HTTPClient) (EmittingFunc, error) {
 
 	baseURL, err := url.ParseRequestURI(addr)
 	if err != nil {
@@ -42,6 +42,7 @@ func HttpEmittingFunc(addr string, client HttpClient) (EmittingFunc, error) {
 		reqURL := baseURL.JoinPath(updatePath, metricType, name, value).String()
 		log.Println("POST", reqURL, "start")
 		res, err := client.Post(reqURL, contentType, http.NoBody)
+		res.Body.Close()
 		if err != nil {
 			log.Println("POST", reqURL, "error:", err)
 			return
