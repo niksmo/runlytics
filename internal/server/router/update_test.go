@@ -1,13 +1,15 @@
 package router
 
 import (
+	"io"
 	"net/http"
 	"net/http/httptest"
-	"strings"
 	"testing"
 
+	"github.com/go-chi/chi/v5"
 	"github.com/niksmo/runlytics/internal/server"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 type fakeRepo struct {
@@ -22,6 +24,24 @@ func (fr *fakeRepo) AddGauge(name string, value float64) {
 }
 
 func TestUpdateHandler(t *testing.T) {
+
+	testRequest := func(t *testing.T, mux *chi.Mux, method string, path string) (*http.Response, []byte) {
+		ts := httptest.NewServer(mux)
+		defer ts.Close()
+
+		req, err := http.NewRequest(method, ts.URL+path, nil)
+		require.NoError(t, err)
+
+		res, err := ts.Client().Do(req)
+		require.NoError(t, err)
+		defer res.Body.Close()
+
+		body, err := io.ReadAll(res.Body)
+		require.NoError(t, err)
+
+		return res, body
+	}
+
 	type want struct {
 		statusCode int
 		repoCalls  int
@@ -31,14 +51,71 @@ func TestUpdateHandler(t *testing.T) {
 		name       string
 		method     string
 		want       want
-		pathBase   string
-		pathType   string
-		pathName   string
-		pathValue  string
+		path       string
 		metricType server.MetricType
 	}
 
 	tests := []test{
+		{
+			name:   "GET not allowed",
+			method: http.MethodGet,
+			want: want{
+				statusCode: http.StatusMethodNotAllowed,
+				repoCalls:  0,
+			},
+			path:       "/update/gauge/testName/0",
+			metricType: gauge,
+		},
+		{
+			name:   "PUT not allowed",
+			method: http.MethodPut,
+			want: want{
+				statusCode: http.StatusMethodNotAllowed,
+				repoCalls:  0,
+			},
+			path:       "/update/gauge/testName/0",
+			metricType: gauge,
+		},
+		{
+			name:   "PATCH not allowed",
+			method: http.MethodPatch,
+			want: want{
+				statusCode: http.StatusMethodNotAllowed,
+				repoCalls:  0,
+			},
+			path:       "/update/gauge/testName/0",
+			metricType: gauge,
+		},
+		{
+			name:   "DELETE not allowed",
+			method: http.MethodDelete,
+			want: want{
+				statusCode: http.StatusMethodNotAllowed,
+				repoCalls:  0,
+			},
+			path:       "/update/gauge/testName/0",
+			metricType: gauge,
+		},
+		{
+			name:   "HEAD not allowed",
+			method: http.MethodHead,
+			want: want{
+				statusCode: http.StatusMethodNotAllowed,
+				repoCalls:  0,
+			},
+			path:       "/update/gauge/testName/0",
+			metricType: gauge,
+		},
+		{
+			name:   "OPTIONS not allowed",
+			method: http.MethodOptions,
+			want: want{
+				statusCode: http.StatusMethodNotAllowed,
+				repoCalls:  0,
+			},
+			path:       "/update/gauge/testName/0",
+			metricType: gauge,
+		},
 		{
 			name:   "Zero gauge",
 			method: http.MethodPost,
@@ -46,10 +123,7 @@ func TestUpdateHandler(t *testing.T) {
 				statusCode: http.StatusOK,
 				repoCalls:  1,
 			},
-			pathBase:   "/update",
-			pathType:   "gauge",
-			pathName:   "testName",
-			pathValue:  "0",
+			path:       "/update/gauge/testName/0",
 			metricType: gauge,
 		},
 		{
@@ -59,10 +133,7 @@ func TestUpdateHandler(t *testing.T) {
 				statusCode: http.StatusOK,
 				repoCalls:  1,
 			},
-			pathBase:   "/update",
-			pathType:   "gauge",
-			pathName:   "testName",
-			pathValue:  "0.412934812374",
+			path:       "/update/gauge/testName/0.412934812374",
 			metricType: gauge,
 		},
 		{
@@ -72,10 +143,7 @@ func TestUpdateHandler(t *testing.T) {
 				statusCode: http.StatusOK,
 				repoCalls:  1,
 			},
-			pathBase:   "/update",
-			pathType:   "gauge",
-			pathName:   "testName",
-			pathValue:  "-0.412934812374",
+			path:       "/update/gauge/testName/-0.412934812374",
 			metricType: gauge,
 		},
 		{
@@ -85,10 +153,7 @@ func TestUpdateHandler(t *testing.T) {
 				statusCode: http.StatusOK,
 				repoCalls:  1,
 			},
-			pathBase:   "/update",
-			pathType:   "counter",
-			pathName:   "testName",
-			pathValue:  "0",
+			path:       "/update/counter/testName/0",
 			metricType: counter,
 		},
 		{
@@ -98,10 +163,7 @@ func TestUpdateHandler(t *testing.T) {
 				statusCode: http.StatusOK,
 				repoCalls:  1,
 			},
-			pathBase:   "/update",
-			pathType:   "counter",
-			pathName:   "testName",
-			pathValue:  "324567",
+			path:       "/update/counter/testName/324567",
 			metricType: counter,
 		},
 		{
@@ -111,10 +173,7 @@ func TestUpdateHandler(t *testing.T) {
 				statusCode: http.StatusOK,
 				repoCalls:  1,
 			},
-			pathBase:   "/update",
-			pathType:   "counter",
-			pathName:   "testName",
-			pathValue:  "-1234",
+			path:       "/update/counter/testName/-1234",
 			metricType: counter,
 		},
 		{
@@ -124,10 +183,7 @@ func TestUpdateHandler(t *testing.T) {
 				statusCode: http.StatusBadRequest,
 				repoCalls:  0,
 			},
-			pathBase:   "/update",
-			pathType:   "gaugee",
-			pathName:   "testName",
-			pathValue:  "0.23234",
+			path:       "/update/gaugee/testName/0.23234",
 			metricType: gauge,
 		},
 		{
@@ -137,10 +193,7 @@ func TestUpdateHandler(t *testing.T) {
 				statusCode: http.StatusBadRequest,
 				repoCalls:  0,
 			},
-			pathBase:   "/update",
-			pathType:   "counter",
-			pathName:   "testName",
-			pathValue:  "0.2394871234",
+			path:       "/update/counter/testName/0.2394871234",
 			metricType: counter,
 		},
 		{
@@ -150,10 +203,7 @@ func TestUpdateHandler(t *testing.T) {
 				statusCode: http.StatusBadRequest,
 				repoCalls:  0,
 			},
-			pathBase:   "/update",
-			pathType:   "counters",
-			pathName:   "testName",
-			pathValue:  "523",
+			path:       "/update/counters/testName/523",
 			metricType: counter,
 		},
 	}
@@ -161,18 +211,9 @@ func TestUpdateHandler(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			repo := &fakeRepo{}
-			metricHandler := &updateHandler{repo}
-			updateHandler := metricHandler.update()
-			url := strings.Join([]string{test.pathBase, test.pathType, test.pathName, test.pathValue}, "/")
-			req := httptest.NewRequest(test.method, url, nil)
-			req.SetPathValue("type", test.pathType)
-			req.SetPathValue("name", test.pathName)
-			req.SetPathValue("value", test.pathValue)
-			w := httptest.NewRecorder()
-
-			updateHandler(w, req)
-			res := w.Result()
-			defer res.Body.Close()
+			router := chi.NewRouter()
+			SetUpdateRoute(router, repo)
+			res, _ := testRequest(t, router, test.method, test.path)
 
 			assert.Equal(t, test.want.statusCode, res.StatusCode)
 
