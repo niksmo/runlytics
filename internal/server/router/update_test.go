@@ -19,7 +19,7 @@ type fakeRepo struct {
 func (fr *fakeRepo) AddCounter(name string, value int64) {
 	fr.addCounterCalls++
 }
-func (fr *fakeRepo) AddGauge(name string, value float64) {
+func (fr *fakeRepo) SetGauge(name string, value float64) {
 	fr.addGaugeCalls++
 }
 

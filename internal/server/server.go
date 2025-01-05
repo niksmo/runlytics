@@ -7,7 +7,12 @@ const (
 	Gauge   MetricType = "gauge"
 )
 
-type Repository interface {
+type RepositoryUpdate interface {
 	AddCounter(name string, value int64)
-	AddGauge(name string, value float64)
+	SetGauge(name string, value float64)
+}
+
+type RepositoryRead interface {
+	GetCounter(name string)
+	GetGauge()
 }

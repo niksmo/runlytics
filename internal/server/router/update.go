@@ -15,19 +15,19 @@ const (
 	counter = server.Counter
 )
 
-type updateHandler struct {
-	repo server.Repository
-}
-
-func SetUpdateRoute(r *chi.Mux, repo server.Repository) {
+func SetUpdateRoute(r *chi.Mux, repo server.RepositoryUpdate) {
 	h := &updateHandler{repo}
 	r.Route("/update", func(r chi.Router) {
-		r.Post("/{type}/{name}/{value}", h.update())
+		r.Post("/{type}/{name}/{value}", h.postHadleFunc())
 		log.Println("Register endpoint: /update/{type}/{name}/{value}")
 	})
 }
 
-func (h *updateHandler) update() http.HandlerFunc {
+type updateHandler struct {
+	repo server.RepositoryUpdate
+}
+
+func (h *updateHandler) postHadleFunc() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		log.Println(r.Method, r.URL.EscapedPath())
 
@@ -47,7 +47,7 @@ func (h *updateHandler) update() http.HandlerFunc {
 			if isErr(err, w) {
 				return
 			}
-			h.repo.AddGauge(n, gV)
+			h.repo.SetGauge(n, gV)
 		default:
 			err := errors.New("unexpected metrics type")
 			if isErr(err, w) {
