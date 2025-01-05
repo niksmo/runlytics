@@ -10,11 +10,6 @@ import (
 	"github.com/niksmo/runlytics/internal/server"
 )
 
-const (
-	gauge   = server.Gauge
-	counter = server.Counter
-)
-
 func SetUpdateRoute(r *chi.Mux, repo server.RepositoryUpdate) {
 	h := &updateHandler{repo}
 	r.Route("/update", func(r chi.Router) {
@@ -28,6 +23,19 @@ type updateHandler struct {
 }
 
 func (h *updateHandler) postHadleFunc() http.HandlerFunc {
+	isErr := func(err error, w http.ResponseWriter) bool {
+		ret := false
+
+		if err != nil {
+			log.Println(err)
+			w.WriteHeader(http.StatusBadRequest)
+			ret = true
+			return ret
+		}
+
+		return ret
+	}
+
 	return func(w http.ResponseWriter, r *http.Request) {
 		log.Println(r.Method, r.URL.EscapedPath())
 
@@ -57,17 +65,4 @@ func (h *updateHandler) postHadleFunc() http.HandlerFunc {
 
 		w.WriteHeader(http.StatusOK)
 	}
-}
-
-func isErr(err error, w http.ResponseWriter) bool {
-	ret := false
-
-	if err != nil {
-		log.Println(err)
-		w.WriteHeader(http.StatusBadRequest)
-		ret = true
-		return ret
-	}
-
-	return ret
 }

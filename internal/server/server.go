@@ -13,6 +13,6 @@ type RepositoryUpdate interface {
 }
 
 type RepositoryRead interface {
-	GetCounter(name string)
-	GetGauge()
+	GetCounter(name string) (int64, error)
+	GetGauge(name string) (float64, error)
 }

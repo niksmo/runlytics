@@ -1,6 +1,7 @@
 package router
 
 import (
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -12,18 +13,29 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-type fakeRepoUpdate struct {
-	addCounterCalls, setGaugeCalls int
+type fakeRepoRead struct {
+	getCounterCalls, getGaugeCalls int
 }
 
-func (fr *fakeRepoUpdate) AddCounter(name string, value int64) {
-	fr.addCounterCalls++
-}
-func (fr *fakeRepoUpdate) SetGauge(name string, value float64) {
-	fr.setGaugeCalls++
+func (fr *fakeRepoRead) GetCounter(name string) (int64, error) {
+	fr.getCounterCalls++
+	if name != "testName" {
+		return 0, errors.New("metric not exists")
+	}
+	var ret int64 = 123
+	return ret, nil
 }
 
-func TestUpdateHandler(t *testing.T) {
+func (fr *fakeRepoRead) GetGauge(name string) (float64, error) {
+	fr.getGaugeCalls++
+	if name != "testName" {
+		return 0, errors.New("metric not exists")
+	}
+	var ret float64 = 0.123
+	return ret, nil
+}
+
+func TestValueHandler(t *testing.T) {
 
 	testRequest := func(t *testing.T, mux *chi.Mux, method string, path string) (*http.Response, []byte) {
 		ts := httptest.NewServer(mux)
@@ -45,6 +57,7 @@ func TestUpdateHandler(t *testing.T) {
 	type want struct {
 		statusCode int
 		repoCalls  int
+		body       string
 	}
 
 	type test struct {
@@ -57,13 +70,13 @@ func TestUpdateHandler(t *testing.T) {
 
 	tests := []test{
 		{
-			name:   "GET not allowed",
-			method: http.MethodGet,
+			name:   "POST not allowed",
+			method: http.MethodPost,
 			want: want{
 				statusCode: http.StatusMethodNotAllowed,
 				repoCalls:  0,
 			},
-			path:       "/update/gauge/testName/0",
+			path:       "/value/gauge/testName",
 			metricType: gauge,
 		},
 		{
@@ -73,7 +86,7 @@ func TestUpdateHandler(t *testing.T) {
 				statusCode: http.StatusMethodNotAllowed,
 				repoCalls:  0,
 			},
-			path:       "/update/gauge/testName/0",
+			path:       "/value/gauge/testName",
 			metricType: gauge,
 		},
 		{
@@ -83,7 +96,7 @@ func TestUpdateHandler(t *testing.T) {
 				statusCode: http.StatusMethodNotAllowed,
 				repoCalls:  0,
 			},
-			path:       "/update/gauge/testName/0",
+			path:       "/value/gauge/testName",
 			metricType: gauge,
 		},
 		{
@@ -93,7 +106,7 @@ func TestUpdateHandler(t *testing.T) {
 				statusCode: http.StatusMethodNotAllowed,
 				repoCalls:  0,
 			},
-			path:       "/update/gauge/testName/0",
+			path:       "/value/gauge/testName",
 			metricType: gauge,
 		},
 		{
@@ -103,7 +116,7 @@ func TestUpdateHandler(t *testing.T) {
 				statusCode: http.StatusMethodNotAllowed,
 				repoCalls:  0,
 			},
-			path:       "/update/gauge/testName/0",
+			path:       "/value/gauge/testName",
 			metricType: gauge,
 		},
 		{
@@ -113,116 +126,92 @@ func TestUpdateHandler(t *testing.T) {
 				statusCode: http.StatusMethodNotAllowed,
 				repoCalls:  0,
 			},
-			path:       "/update/gauge/testName/0",
+			path:       "/value/gauge/testName",
 			metricType: gauge,
 		},
 		{
-			name:   "Zero gauge",
-			method: http.MethodPost,
+			name:   "Should return gauge value",
+			method: http.MethodGet,
 			want: want{
 				statusCode: http.StatusOK,
 				repoCalls:  1,
+				body:       "0.123",
 			},
-			path:       "/update/gauge/testName/0",
+			path:       "/value/gauge/testName",
 			metricType: gauge,
 		},
 		{
-			name:   "Positive gauge",
-			method: http.MethodPost,
+			name:   "Should return counter value",
+			method: http.MethodGet,
 			want: want{
 				statusCode: http.StatusOK,
 				repoCalls:  1,
+				body:       "123",
 			},
-			path:       "/update/gauge/testName/0.412934812374",
-			metricType: gauge,
-		},
-		{
-			name:   "Negative gauge",
-			method: http.MethodPost,
-			want: want{
-				statusCode: http.StatusOK,
-				repoCalls:  1,
-			},
-			path:       "/update/gauge/testName/-0.412934812374",
-			metricType: gauge,
-		},
-		{
-			name:   "Zero counter",
-			method: http.MethodPost,
-			want: want{
-				statusCode: http.StatusOK,
-				repoCalls:  1,
-			},
-			path:       "/update/counter/testName/0",
+			path:       "/value/counter/testName",
 			metricType: counter,
 		},
 		{
-			name:   "Positive counter",
-			method: http.MethodPost,
+			name:   "Bad gauge metrics name",
+			method: http.MethodGet,
 			want: want{
-				statusCode: http.StatusOK,
+				statusCode: http.StatusNotFound,
 				repoCalls:  1,
 			},
-			path:       "/update/counter/testName/324567",
+			path:       "/value/gauge/testName1",
+			metricType: gauge,
+		},
+		{
+			name:   "Bad counter metrics name",
+			method: http.MethodGet,
+			want: want{
+				statusCode: http.StatusNotFound,
+				repoCalls:  1,
+			},
+			path:       "/value/counter/testName1",
 			metricType: counter,
 		},
 		{
-			name:   "Negative counter",
-			method: http.MethodPost,
+			name:   "Bad gauge type",
+			method: http.MethodGet,
 			want: want{
-				statusCode: http.StatusOK,
-				repoCalls:  1,
-			},
-			path:       "/update/counter/testName/-1234",
-			metricType: counter,
-		},
-		{
-			name:   "Wrong gauge path",
-			method: http.MethodPost,
-			want: want{
-				statusCode: http.StatusBadRequest,
+				statusCode: http.StatusNotFound,
 				repoCalls:  0,
 			},
-			path:       "/update/gaugee/testName/0.23234",
+			path:       "/value/gauge1/testName",
 			metricType: gauge,
 		},
 		{
-			name:   "Float value for counter metric",
-			method: http.MethodPost,
+			name:   "Bad counter type",
+			method: http.MethodGet,
 			want: want{
-				statusCode: http.StatusBadRequest,
+				statusCode: http.StatusNotFound,
 				repoCalls:  0,
 			},
-			path:       "/update/counter/testName/0.2394871234",
-			metricType: counter,
-		},
-		{
-			name:   "Wrong counter path",
-			method: http.MethodPost,
-			want: want{
-				statusCode: http.StatusBadRequest,
-				repoCalls:  0,
-			},
-			path:       "/update/counters/testName/523",
+			path:       "/value/counter1/testName",
 			metricType: counter,
 		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			repo := &fakeRepoUpdate{}
+			repo := &fakeRepoRead{}
 			router := chi.NewRouter()
-			SetUpdateRoute(router, repo)
-			res, _ := testRequest(t, router, test.method, test.path)
+			SetValueRoute(router, repo)
+			res, body := testRequest(t, router, test.method, test.path)
 
 			assert.Equal(t, test.want.statusCode, res.StatusCode)
 
 			if test.metricType == gauge {
-				assert.Equal(t, test.want.repoCalls, repo.setGaugeCalls)
+				assert.Equal(t, test.want.repoCalls, repo.getGaugeCalls)
 			}
 
 			if test.metricType == counter {
-				assert.Equal(t, test.want.repoCalls, repo.addCounterCalls)
+				assert.Equal(t, test.want.repoCalls, repo.getCounterCalls)
+			}
+
+			if res.StatusCode == http.StatusOK {
+				assert.Equal(t, test.want.body, string(body))
 			}
 		})
 	}

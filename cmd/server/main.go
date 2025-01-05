@@ -21,11 +21,9 @@ func main() {
 
 	storage := storage.NewMemStorage()
 	router.SetUpdateRoute(mux, storage)
+	router.SetValueRoute(mux, storage)
 
-	err := run(mux)
-	if err != nil {
-		log.Fatal(err)
-	}
+	log.Fatal(run(mux))
 
 }
 
