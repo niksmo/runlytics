@@ -5,7 +5,8 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/niksmo/runlytics/internal/server"
+	"github.com/go-chi/chi/v5"
+	"github.com/niksmo/runlytics/internal/server/router"
 	"github.com/niksmo/runlytics/internal/storage"
 )
 
@@ -16,19 +17,19 @@ const (
 
 func main() {
 	log.Println("Bootstrap server")
+	mux := chi.NewRouter()
 
-	router := http.NewServeMux()
 	storage := storage.NewMemStorage()
-	server.NewHandler(router, storage)
+	router.SetUpdateRoute(mux, storage)
 
-	err := run(router)
+	err := run(mux)
 	if err != nil {
 		log.Fatal(err)
 	}
 
 }
 
-func run(handler *http.ServeMux) error {
+func run(handler *chi.Mux) error {
 	addr := defaultHost + ":" + strconv.Itoa(defaultPort)
 	s := http.Server{
 		Addr:    addr,

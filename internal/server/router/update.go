@@ -1,50 +1,48 @@
-package server
+package router
 
 import (
 	"errors"
 	"log"
 	"net/http"
 	"strconv"
-)
 
-type MetricType string
+	"github.com/go-chi/chi/v5"
+	"github.com/niksmo/runlytics/internal/server"
+)
 
 const (
-	Counter MetricType = "counter"
-	Gauge   MetricType = "gauge"
+	gauge   = server.Gauge
+	counter = server.Counter
 )
 
-type Repository interface {
-	AddCounter(name string, value int64)
-	AddGauge(name string, value float64)
+type updateHandler struct {
+	repo server.Repository
 }
 
-type MetricsHandler struct {
-	repo Repository
+func SetUpdateRoute(r *chi.Mux, repo server.Repository) {
+	h := &updateHandler{repo}
+	r.Route("/update", func(r chi.Router) {
+		r.Post("/{type}/{name}/{value}", h.update())
+		log.Println("Register endpoint: /update/{type}/{name}/{value}")
+	})
 }
 
-func NewHandler(router *http.ServeMux, repo Repository) {
-	h := &MetricsHandler{repo}
-	router.HandleFunc(`POST /update/{type}/{name}/{value}`, h.Update())
-	log.Println("Register endpoint: /update/{type}/{name}/{value}")
-}
-
-func (h *MetricsHandler) Update() http.HandlerFunc {
+func (h *updateHandler) update() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		log.Println(r.Method, r.URL.EscapedPath())
 
-		t := MetricType(r.PathValue("type"))
-		n := r.PathValue("name")
-		v := r.PathValue("value")
+		t := server.MetricType(chi.URLParam(r, "type"))
+		n := chi.URLParam(r, "name")
+		v := chi.URLParam(r, "value")
 
 		switch t {
-		case Counter:
+		case counter:
 			cV, err := strconv.ParseInt(v, 10, 64)
 			if isErr(err, w) {
 				return
 			}
 			h.repo.AddCounter(n, cV)
-		case Gauge:
+		case gauge:
 			gV, err := strconv.ParseFloat(v, 64)
 			if isErr(err, w) {
 				return

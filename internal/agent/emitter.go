@@ -42,11 +42,11 @@ func HTTPEmittingFunc(addr string, client HTTPClient) (EmittingFunc, error) {
 		reqURL := baseURL.JoinPath(updatePath, metricType, name, value).String()
 		log.Println("POST", reqURL, "start")
 		res, err := client.Post(reqURL, contentType, http.NoBody)
-		res.Body.Close()
 		if err != nil {
 			log.Println("POST", reqURL, "error:", err)
 			return
 		}
+		defer res.Body.Close()
 
 		log.Println("POST", reqURL, "response status:", res.StatusCode)
 	}

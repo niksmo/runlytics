@@ -1,4 +1,4 @@
-package server
+package router
 
 import (
 	"net/http"
@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/niksmo/runlytics/internal/server"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -34,7 +35,7 @@ func TestUpdateHandler(t *testing.T) {
 		pathType   string
 		pathName   string
 		pathValue  string
-		metricType MetricType
+		metricType server.MetricType
 	}
 
 	tests := []test{
@@ -49,7 +50,7 @@ func TestUpdateHandler(t *testing.T) {
 			pathType:   "gauge",
 			pathName:   "testName",
 			pathValue:  "0",
-			metricType: Gauge,
+			metricType: gauge,
 		},
 		{
 			name:   "Positive gauge",
@@ -62,7 +63,7 @@ func TestUpdateHandler(t *testing.T) {
 			pathType:   "gauge",
 			pathName:   "testName",
 			pathValue:  "0.412934812374",
-			metricType: Gauge,
+			metricType: gauge,
 		},
 		{
 			name:   "Negative gauge",
@@ -75,7 +76,7 @@ func TestUpdateHandler(t *testing.T) {
 			pathType:   "gauge",
 			pathName:   "testName",
 			pathValue:  "-0.412934812374",
-			metricType: Gauge,
+			metricType: gauge,
 		},
 		{
 			name:   "Zero counter",
@@ -88,7 +89,7 @@ func TestUpdateHandler(t *testing.T) {
 			pathType:   "counter",
 			pathName:   "testName",
 			pathValue:  "0",
-			metricType: Counter,
+			metricType: counter,
 		},
 		{
 			name:   "Positive counter",
@@ -101,7 +102,7 @@ func TestUpdateHandler(t *testing.T) {
 			pathType:   "counter",
 			pathName:   "testName",
 			pathValue:  "324567",
-			metricType: Counter,
+			metricType: counter,
 		},
 		{
 			name:   "Negative counter",
@@ -114,7 +115,7 @@ func TestUpdateHandler(t *testing.T) {
 			pathType:   "counter",
 			pathName:   "testName",
 			pathValue:  "-1234",
-			metricType: Counter,
+			metricType: counter,
 		},
 		{
 			name:   "Wrong gauge path",
@@ -127,7 +128,7 @@ func TestUpdateHandler(t *testing.T) {
 			pathType:   "gaugee",
 			pathName:   "testName",
 			pathValue:  "0.23234",
-			metricType: Gauge,
+			metricType: gauge,
 		},
 		{
 			name:   "Float value for counter metric",
@@ -140,7 +141,7 @@ func TestUpdateHandler(t *testing.T) {
 			pathType:   "counter",
 			pathName:   "testName",
 			pathValue:  "0.2394871234",
-			metricType: Counter,
+			metricType: counter,
 		},
 		{
 			name:   "Wrong counter path",
@@ -153,15 +154,15 @@ func TestUpdateHandler(t *testing.T) {
 			pathType:   "counters",
 			pathName:   "testName",
 			pathValue:  "523",
-			metricType: Counter,
+			metricType: counter,
 		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			repo := &fakeRepo{}
-			metricHandler := &MetricsHandler{repo}
-			updateHandler := metricHandler.Update()
+			metricHandler := &updateHandler{repo}
+			updateHandler := metricHandler.update()
 			url := strings.Join([]string{test.pathBase, test.pathType, test.pathName, test.pathValue}, "/")
 			req := httptest.NewRequest(test.method, url, nil)
 			req.SetPathValue("type", test.pathType)
@@ -171,15 +172,15 @@ func TestUpdateHandler(t *testing.T) {
 
 			updateHandler(w, req)
 			res := w.Result()
-			res.Body.Close()
+			defer res.Body.Close()
 
 			assert.Equal(t, test.want.statusCode, res.StatusCode)
 
-			if test.metricType == Gauge {
+			if test.metricType == gauge {
 				assert.Equal(t, test.want.repoCalls, repo.addGaugeCalls)
 			}
 
-			if test.metricType == Counter {
+			if test.metricType == counter {
 				assert.Equal(t, test.want.repoCalls, repo.addCounterCalls)
 			}
 		})
