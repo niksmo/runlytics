@@ -1,21 +1,18 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"net/http"
-	"strconv"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/niksmo/runlytics/internal/server/router"
 	"github.com/niksmo/runlytics/internal/storage"
 )
 
-const (
-	defaultHost = "127.0.0.1"
-	defaultPort = 8080
-)
-
 func main() {
+	parseFlags()
+
 	log.Println("Bootstrap server")
 	mux := chi.NewRouter()
 
@@ -28,9 +25,8 @@ func main() {
 }
 
 func run(handler *chi.Mux) error {
-	addr := defaultHost + ":" + strconv.Itoa(defaultPort)
 	s := http.Server{
-		Addr:    addr,
+		Addr:    fmt.Sprint(flagAddr),
 		Handler: handler,
 	}
 	log.Println("Listen", s.Addr)
