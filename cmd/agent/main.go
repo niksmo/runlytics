@@ -3,25 +3,17 @@ package main
 import (
 	"log"
 	"net/http"
-	"strconv"
 	"sync"
-	"time"
 
 	"github.com/niksmo/runlytics/internal/agent"
 )
 
-const (
-	poll        = time.Duration(2 * time.Second)
-	report      = time.Duration(10 * time.Second)
-	defaultHost = "http://127.0.0.1"
-	defaultPort = 8080
-)
-
 func main() {
+	parseFlags()
 	log.Println("Start agent")
 	collector, err := agent.NewCollector(
-		poll,
-		report,
+		flagPoll,
+		flagReport,
 		handler(),
 	)
 
@@ -36,8 +28,7 @@ func main() {
 }
 
 func handler() agent.ReportHandler {
-	addr := defaultHost + ":" + strconv.Itoa(defaultPort)
-	httpEmittingFunc, err := agent.HTTPEmittingFunc(addr, http.DefaultClient)
+	httpEmittingFunc, err := agent.HTTPEmittingFunc(flagAddr.URL(), http.DefaultClient)
 	if err != nil {
 		log.Fatal(err)
 	}

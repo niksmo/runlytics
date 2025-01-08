@@ -3,6 +3,7 @@ package agent
 import (
 	"io"
 	"net/http"
+	"net/url"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -35,7 +36,7 @@ func TestHttpEmittingFunc(t *testing.T) {
 	}
 
 	type args struct {
-		addr        string
+		url         *url.URL
 		client      *fakeClient
 		metricType  string
 		metricName  string
@@ -51,36 +52,9 @@ func TestHttpEmittingFunc(t *testing.T) {
 
 	tests := []test{
 		{
-			name: "Bad address",
-			args: args{
-				addr:   "http://#@.test2.test1",
-				client: &fakeClient{},
-			},
-			want:    want{},
-			wantErr: ErrParse,
-		},
-		{
-			name: "Bad scheme",
-			args: args{
-				addr:   "ftp://test2.test1",
-				client: &fakeClient{},
-			},
-			want:    want{},
-			wantErr: ErrScheme,
-		},
-		{
-			name: "Bad host",
-			args: args{
-				addr:   "http:/test2.test1",
-				client: &fakeClient{},
-			},
-			want:    want{},
-			wantErr: ErrHost,
-		},
-		{
 			name: "Should `Post` to necessary address",
 			args: args{
-				addr:        "http://127.0.0.1:8080",
+				url:         &url.URL{Host: "127.0.0.1:8080", Scheme: "http"},
 				client:      &fakeClient{},
 				metricType:  "testType",
 				metricName:  "testName",
@@ -96,7 +70,7 @@ func TestHttpEmittingFunc(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			emittingFunc, err := HTTPEmittingFunc(test.args.addr, test.args.client)
+			emittingFunc, err := HTTPEmittingFunc(test.args.url, test.args.client)
 			if err != nil {
 				assert.ErrorIs(t, err, test.wantErr)
 				return
