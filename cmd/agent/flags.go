@@ -5,13 +5,12 @@ import (
 	"flag"
 	"strconv"
 	"strings"
-	"time"
 )
 
 var (
 	flagAddr   *addr = &addr{host: "localhost", port: 8080}
-	flagPoll   time.Duration
-	flagReport time.Duration
+	flagPoll   int
+	flagReport int
 )
 
 type addr struct {
@@ -49,16 +48,16 @@ func parseFlags() {
 		"Host address for metrics emitting, example: example.com:8080",
 	)
 
-	flag.DurationVar(&flagPoll,
+	flag.IntVar(&flagPoll,
 		"p",
-		time.Duration(2*time.Second),
-		"Polling collecting metrics interval in sec, example: 5s",
+		2,
+		"Polling collecting metrics interval in sec, example: 5",
 	)
 
-	flag.DurationVar(&flagReport,
+	flag.IntVar(&flagReport,
 		"r",
-		time.Duration(10*time.Second),
-		"Emiting metrics interval in sec, example: 10s",
+		10,
+		"Emiting metrics interval in sec, example: 10",
 	)
 
 	flag.Parse()

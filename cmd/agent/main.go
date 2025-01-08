@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"sync"
+	"time"
 
 	"github.com/niksmo/runlytics/internal/agent"
 )
@@ -13,8 +14,8 @@ func main() {
 	parseFlags()
 	log.Println("Start agent")
 	collector, err := agent.NewCollector(
-		flagPoll,
-		flagReport,
+		time.Duration(flagPoll)*time.Second,
+		time.Duration(flagReport)*time.Second,
 		handler(),
 	)
 
