@@ -34,7 +34,6 @@ func TestUpdateHandler(t *testing.T) {
 
 		res, err := ts.Client().Do(req)
 		require.NoError(t, err)
-		defer res.Body.Close()
 
 		body, err := io.ReadAll(res.Body)
 		require.NoError(t, err)
@@ -214,6 +213,7 @@ func TestUpdateHandler(t *testing.T) {
 			router := chi.NewRouter()
 			SetUpdateRoute(router, repo)
 			res, _ := testRequest(t, router, test.method, test.path)
+			defer res.Body.Close()
 
 			assert.Equal(t, test.want.statusCode, res.StatusCode)
 

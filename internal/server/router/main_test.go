@@ -48,7 +48,6 @@ func TestMainHandelr(t *testing.T) {
 
 		res, err := ts.Client().Do(req)
 		require.NoError(t, err)
-		defer res.Body.Close()
 
 		body, err := io.ReadAll(res.Body)
 		require.NoError(t, err)
@@ -156,6 +155,7 @@ func TestMainHandelr(t *testing.T) {
 			SetMainRoute(router, repo)
 
 			res, body := testRequest(t, router, test.method, test.path)
+			defer res.Body.Close()
 
 			require.Equal(t, test.want.statusCode, res.StatusCode)
 

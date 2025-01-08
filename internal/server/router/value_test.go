@@ -31,7 +31,7 @@ func (fr *fakeRepoRead) GetGauge(name string) (float64, error) {
 	if name != "testName" {
 		return 0, errors.New("metric not exists")
 	}
-	var ret float64 = 0.123
+	var ret = 0.123
 	return ret, nil
 }
 
@@ -46,7 +46,6 @@ func TestValueHandler(t *testing.T) {
 
 		res, err := ts.Client().Do(req)
 		require.NoError(t, err)
-		defer res.Body.Close()
 
 		body, err := io.ReadAll(res.Body)
 		require.NoError(t, err)
@@ -199,6 +198,7 @@ func TestValueHandler(t *testing.T) {
 			router := chi.NewRouter()
 			SetValueRoute(router, repo)
 			res, body := testRequest(t, router, test.method, test.path)
+			defer res.Body.Close()
 
 			assert.Equal(t, test.want.statusCode, res.StatusCode)
 
