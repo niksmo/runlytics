@@ -26,23 +26,24 @@ func NewMemStorage() *memStorage {
 
 func (ms *memStorage) AddCounter(name string, value int64) {
 	ms.mu.Lock()
-	current := ms.counter[name] + value
+	prev := ms.counter[name]
+	current := prev + value
 	ms.counter[name] = current
 	ms.mu.Unlock()
 	log.Printf(
-		"Add count metric: name=%q value=%v currentValue=%v\n",
-		name, value, current,
+		"Add count metric: name=%q prev=%v current=%v\n",
+		name, prev, current,
 	)
 }
 
 func (ms *memStorage) SetGauge(name string, value float64) {
 	ms.mu.Lock()
-	current := ms.gauge[name] + value
-	ms.gauge[name] = current
+	prev := ms.gauge[name]
+	ms.gauge[name] = value
 	ms.mu.Unlock()
 	log.Printf(
-		"Add gauge metric: name=%q value=%v currentValue=%v\n",
-		name, value, current,
+		"Add gauge metric: name=%q prev=%v current=%v\n",
+		name, prev, value,
 	)
 }
 
