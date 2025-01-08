@@ -67,3 +67,20 @@ func (ms *memStorage) GetGauge(name string) (float64, error) {
 	}
 	return value, nil
 }
+
+func (ms *memStorage) GetData() (gauge map[string]float64, counter map[string]int64) {
+	gauge = make(map[string]float64, len(ms.gauge))
+	counter = make(map[string]int64, len(ms.counter))
+
+	ms.mu.Lock()
+	for k, v := range ms.gauge {
+		gauge[k] = v
+	}
+
+	for k, v := range ms.counter {
+		counter[k] = v
+	}
+	ms.mu.Unlock()
+
+	return
+}

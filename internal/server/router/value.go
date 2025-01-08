@@ -11,7 +11,7 @@ import (
 	"github.com/niksmo/runlytics/internal/server"
 )
 
-func SetValueRoute(r *chi.Mux, repo server.RepositoryRead) {
+func SetValueRoute(r *chi.Mux, repo server.RepoReadByName) {
 	h := &valueHandler{repo}
 	r.Route("/value", func(r chi.Router) {
 		r.Get("/{type}/{name}", h.getHandleFunc())
@@ -20,7 +20,7 @@ func SetValueRoute(r *chi.Mux, repo server.RepositoryRead) {
 }
 
 type valueHandler struct {
-	repo server.RepositoryRead
+	repo server.RepoReadByName
 }
 
 func (h *valueHandler) getHandleFunc() http.HandlerFunc {

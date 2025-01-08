@@ -20,11 +20,11 @@ func main() {
 	mux := chi.NewRouter()
 
 	storage := storage.NewMemStorage()
+	router.SetMainRoute(mux, storage)
 	router.SetUpdateRoute(mux, storage)
 	router.SetValueRoute(mux, storage)
 
 	log.Fatal(run(mux))
-
 }
 
 func run(handler *chi.Mux) error {

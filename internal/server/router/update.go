@@ -10,7 +10,7 @@ import (
 	"github.com/niksmo/runlytics/internal/server"
 )
 
-func SetUpdateRoute(r *chi.Mux, repo server.RepositoryUpdate) {
+func SetUpdateRoute(r *chi.Mux, repo server.RepoUpdate) {
 	h := &updateHandler{repo}
 	r.Route("/update", func(r chi.Router) {
 		r.Post("/{type}/{name}/{value}", h.postHadleFunc())
@@ -19,7 +19,7 @@ func SetUpdateRoute(r *chi.Mux, repo server.RepositoryUpdate) {
 }
 
 type updateHandler struct {
-	repo server.RepositoryUpdate
+	repo server.RepoUpdate
 }
 
 func (h *updateHandler) postHadleFunc() http.HandlerFunc {

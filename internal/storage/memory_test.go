@@ -123,3 +123,27 @@ func TestMemStorageGetGauge(t *testing.T) {
 
 	}
 }
+
+func TestMemStorageGetList(t *testing.T) {
+	const (
+		gmN = "gauge1"
+		cmN = "counter1"
+		gmV = 0.1234
+		cmV = 5678
+	)
+	ms := NewMemStorage()
+	ms.gauge[gmN] = gmV
+	ms.counter[cmN] = cmV
+
+	gauge, counter := ms.GetData()
+
+	assert.Equal(t, ms.gauge, gauge)
+	assert.Equal(t, ms.counter, counter)
+
+	gauge[gmN] = 5.6321
+	counter[cmN] = 97634
+
+	assert.NotEqual(t, ms.gauge, gauge)
+	assert.NotEqual(t, ms.counter, counter)
+
+}

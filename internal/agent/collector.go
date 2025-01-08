@@ -44,6 +44,7 @@ func NewCollector(poll, report time.Duration, rh ReportHandler) (*collector, err
 func (c *collector) getData() []Metric {
 	ret := make([]Metric, len(c.data))
 	copy(ret, c.data)
+	count.Reset()
 	return ret
 }
 
@@ -160,7 +161,7 @@ func getExtraMetrics() []Metric {
 		Metric{
 			Name:  "PollCount",
 			Type:  server.Counter,
-			Value: strconv.Itoa(count()),
+			Value: strconv.Itoa(count.Next()),
 		},
 	)
 

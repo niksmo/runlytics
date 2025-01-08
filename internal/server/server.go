@@ -7,12 +7,16 @@ const (
 	Gauge   MetricType = "gauge"
 )
 
-type RepositoryUpdate interface {
+type RepoUpdate interface {
 	AddCounter(name string, value int64)
 	SetGauge(name string, value float64)
 }
 
-type RepositoryRead interface {
+type RepoReadByName interface {
 	GetCounter(name string) (int64, error)
 	GetGauge(name string) (float64, error)
+}
+
+type RepoRead interface {
+	GetData() (map[string]float64, map[string]int64)
 }
