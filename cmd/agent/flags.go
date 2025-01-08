@@ -3,46 +3,42 @@ package main
 import (
 	"errors"
 	"flag"
-	"net/url"
+	"strconv"
+	"strings"
 	"time"
 )
 
 var (
-	flagAddr   *addr = &addr{&url.URL{Host: "localhost:8080", Scheme: "http"}}
+	flagAddr   *addr = &addr{host: "localhost", port: 8080}
 	flagPoll   time.Duration
 	flagReport time.Duration
 )
 
-var ()
-
 type addr struct {
-	url *url.URL
-}
-
-func (a *addr) URL() *url.URL {
-	return a.url.ResolveReference(a.url)
+	host string
+	port int
 }
 
 func (a *addr) String() string {
-	return a.url.String()
+	return a.host + ":" + strconv.Itoa(a.port)
 }
 
 func (a *addr) Set(v string) error {
-	baseURL, err := url.ParseRequestURI(v)
+	var errAddr = errors.New("incorrect address format, usage: example.com:8080")
+	slice := strings.SplitN(v, ":", 2)
+	if len(slice) != 2 {
+		return errAddr
+	}
+
+	a.host = slice[0]
+
+	port, err := strconv.Atoi(slice[1])
+
 	if err != nil {
-		return err
+		return errAddr
 	}
 
-	if !(baseURL.Scheme == "http" || baseURL.Scheme == "https") {
-		return errors.New("supports only http or https scheme")
-	}
-
-	if baseURL.Host == "" {
-		return errors.New("pass absolute URL, e.g. http://one.two.com/path1/id")
-	}
-
-	a.url = baseURL
-
+	a.port = port
 	return nil
 }
 

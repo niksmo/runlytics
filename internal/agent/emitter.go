@@ -1,10 +1,17 @@
 package agent
 
 import (
+	"errors"
 	"io"
 	"log"
 	"net/http"
 	"net/url"
+)
+
+var (
+	ErrParse  = errors.New("used unnecessary url symbols")
+	ErrScheme = errors.New("supports only http or https scheme")
+	ErrHost   = errors.New("pass absolute url with host, e.g. http://one.two.com/path1/id")
 )
 
 const contentType = "text/plain"
@@ -16,8 +23,23 @@ type HTTPClient interface {
 
 type EmittingFunc func(metricType, name, value string)
 
-func HTTPEmittingFunc(baseURL *url.URL, client HTTPClient) (EmittingFunc, error) {
+func HTTPEmittingFunc(addr string, client HTTPClient) (EmittingFunc, error) {
+
+	baseURL, err := url.ParseRequestURI(addr)
+	if err != nil {
+		return nil, errors.Join(ErrParse, err)
+	}
+
+	if !(baseURL.Scheme == "http" || baseURL.Scheme == "https") {
+		return nil, ErrScheme
+	}
+
+	if baseURL.Host == "" {
+		return nil, ErrHost
+	}
+
 	log.Print("Ready for emitting on host ", baseURL)
+
 	emitter := func(metricType, name, value string) {
 		reqURL := baseURL.JoinPath(updatePath, metricType, name, value).String()
 		log.Println("POST", reqURL, "start")

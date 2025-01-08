@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 	"sync"
@@ -28,7 +29,7 @@ func main() {
 }
 
 func handler() agent.ReportHandler {
-	httpEmittingFunc, err := agent.HTTPEmittingFunc(flagAddr.URL(), http.DefaultClient)
+	httpEmittingFunc, err := agent.HTTPEmittingFunc(fmt.Sprintf("http://%s", flagAddr), http.DefaultClient)
 	if err != nil {
 		log.Fatal(err)
 	}

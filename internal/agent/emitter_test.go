@@ -3,7 +3,6 @@ package agent
 import (
 	"io"
 	"net/http"
-	"net/url"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -36,7 +35,7 @@ func TestHttpEmittingFunc(t *testing.T) {
 	}
 
 	type args struct {
-		url         *url.URL
+		url         string
 		client      *fakeClient
 		metricType  string
 		metricName  string
@@ -52,9 +51,9 @@ func TestHttpEmittingFunc(t *testing.T) {
 
 	tests := []test{
 		{
-			name: "Should `Post` to necessary address",
+			name: "Should POST to necessary address",
 			args: args{
-				url:         &url.URL{Host: "127.0.0.1:8080", Scheme: "http"},
+				url:         "http://127.0.0.1:8080",
 				client:      &fakeClient{},
 				metricType:  "testType",
 				metricName:  "testName",
