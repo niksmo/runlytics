@@ -3,6 +3,9 @@ package main
 import (
 	"errors"
 	"flag"
+	"fmt"
+	"log"
+	"os"
 	"strconv"
 	"strings"
 )
@@ -45,20 +48,40 @@ func parseFlags() {
 	flag.Var(
 		flagAddr,
 		"a",
-		"Host address for metrics emitting, example: example.com:8080",
+		"Host address for metrics emitting, e.g. example.com:8080",
 	)
 
 	flag.IntVar(&flagPoll,
 		"p",
 		2,
-		"Polling collecting metrics interval in sec, example: 5",
+		"Polling collecting metrics interval in sec, e.g. 5",
 	)
 
 	flag.IntVar(&flagReport,
 		"r",
 		10,
-		"Emiting metrics interval in sec, example: 10",
+		"Emitting metrics interval in sec, e.g. 10",
 	)
 
 	flag.Parse()
+
+	if envAddr := os.Getenv("ADDRESS"); envAddr != "" {
+		if err := flagAddr.Set(envAddr); err != nil {
+			log.Print(fmt.Errorf("parse env ADDRESS error: %w", err))
+		}
+	}
+
+	getIntervalEnv(&flagPoll, "POLL_INTERVAL")
+	getIntervalEnv(&flagReport, "REPORT_INTERVAL")
+}
+
+func getIntervalEnv(interval *int, param string) {
+	if envValue := os.Getenv(param); envValue != "" {
+		reportInt, err := strconv.Atoi(envValue)
+		if err != nil {
+			log.Print(fmt.Errorf("parse env %s error: %w", param, err))
+		} else {
+			*interval = reportInt
+		}
+	}
 }

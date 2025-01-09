@@ -3,6 +3,9 @@ package main
 import (
 	"errors"
 	"flag"
+	"fmt"
+	"log"
+	"os"
 	"strconv"
 	"strings"
 )
@@ -23,14 +26,13 @@ func (a *addr) Set(v string) error {
 		return errAddr
 	}
 
-	a.host = slice[0]
-
 	port, err := strconv.Atoi(slice[1])
 
 	if err != nil {
 		return errAddr
 	}
 
+	a.host = slice[0]
 	a.port = port
 	return nil
 }
@@ -38,6 +40,12 @@ func (a *addr) Set(v string) error {
 var flagAddr *addr = &addr{host: "localhost", port: 8080}
 
 func parseFlags() {
-	flag.Var(flagAddr, "a", "Input listening server address, example: example.com:8080")
+	flag.Var(flagAddr, "a", "Input listening server address, e.g. example.com:8080")
 	flag.Parse()
+
+	if envAddr := os.Getenv("ADDRESS"); envAddr != "" {
+		if err := flagAddr.Set(envAddr); err != nil {
+			log.Print(fmt.Errorf("parse env ADDRESS error: %w", err))
+		}
+	}
 }
