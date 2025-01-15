@@ -1,26 +1,17 @@
 package counter
 
-import "sync"
+import (
+	"sync/atomic"
+)
 
-type counter struct {
-	mu       sync.Mutex
-	start, n int
+type Counter struct {
+	n atomic.Int64
 }
 
-// Return increment func with started at `n`
-func New(start int) *counter {
-	return &counter{start: start, n: start}
+func New() *Counter {
+	return &Counter{}
 }
 
-func (c *counter) Next() int {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	c.n++
-	return c.n
-}
-
-func (c *counter) Reset() {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	c.n = c.start
+func (c *Counter) Next() int64 {
+	return c.n.Add(1)
 }

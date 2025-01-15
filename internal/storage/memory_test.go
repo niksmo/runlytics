@@ -12,11 +12,11 @@ func TestNewMemStorage(t *testing.T) {
 	assert.Empty(t, storage.gauge)
 }
 
-func TestMemStorageAddCount(t *testing.T) {
+func TestMemStorageSetCounter(t *testing.T) {
 	storage := NewMemStorage()
 	expectedName := "testMetricName1"
 	var expectedValue int64 = 30234
-	storage.AddCounter(expectedName, expectedValue)
+	storage.SetCounter(expectedName, expectedValue)
 	value, ok := storage.counter[expectedName]
 	assert.True(t, ok)
 	assert.Equal(t, expectedValue, value)

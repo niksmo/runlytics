@@ -8,7 +8,7 @@ const (
 )
 
 type RepoUpdate interface {
-	AddCounter(name string, value int64)
+	SetCounter(name string, value int64)
 	SetGauge(name string, value float64)
 }
 

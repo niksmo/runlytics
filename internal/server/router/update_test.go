@@ -16,7 +16,7 @@ type fakeRepoUpdate struct {
 	addCounterCalls, setGaugeCalls int
 }
 
-func (fr *fakeRepoUpdate) AddCounter(name string, value int64) {
+func (fr *fakeRepoUpdate) SetCounter(name string, value int64) {
 	fr.addCounterCalls++
 }
 func (fr *fakeRepoUpdate) SetGauge(name string, value float64) {

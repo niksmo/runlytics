@@ -23,18 +23,6 @@ type updateHandler struct {
 }
 
 func (h *updateHandler) postHadleFunc() http.HandlerFunc {
-	isErr := func(err error, w http.ResponseWriter) bool {
-		ret := false
-
-		if err != nil {
-			log.Println(err)
-			w.WriteHeader(http.StatusBadRequest)
-			ret = true
-			return ret
-		}
-
-		return ret
-	}
 
 	return func(w http.ResponseWriter, r *http.Request) {
 		log.Println(r.Method, r.URL.EscapedPath())
@@ -46,23 +34,34 @@ func (h *updateHandler) postHadleFunc() http.HandlerFunc {
 		switch t {
 		case counter:
 			cV, err := strconv.ParseInt(v, 10, 64)
-			if isErr(err, w) {
+			if isUpdateErr(err, w) {
 				return
 			}
-			h.repo.AddCounter(n, cV)
+			h.repo.SetCounter(n, cV)
 		case gauge:
 			gV, err := strconv.ParseFloat(v, 64)
-			if isErr(err, w) {
+			if isUpdateErr(err, w) {
 				return
 			}
 			h.repo.SetGauge(n, gV)
 		default:
 			err := errors.New("unexpected metrics type")
-			if isErr(err, w) {
+			if isUpdateErr(err, w) {
 				return
 			}
 		}
 
 		w.WriteHeader(http.StatusOK)
 	}
+}
+
+func isUpdateErr(err error, w http.ResponseWriter) bool {
+
+	if err != nil {
+		log.Println(err)
+		w.WriteHeader(http.StatusBadRequest)
+		return true
+	}
+
+	return false
 }

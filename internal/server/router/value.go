@@ -24,18 +24,6 @@ type valueHandler struct {
 }
 
 func (h *valueHandler) getHandleFunc() http.HandlerFunc {
-	isErr := func(err error, w http.ResponseWriter) bool {
-		ret := false
-
-		if err != nil {
-			log.Println(err)
-			w.WriteHeader(http.StatusNotFound)
-			ret = true
-			return ret
-		}
-
-		return ret
-	}
 
 	return func(w http.ResponseWriter, r *http.Request) {
 		log.Println(r.Method, r.URL.EscapedPath())
@@ -47,19 +35,19 @@ func (h *valueHandler) getHandleFunc() http.HandlerFunc {
 		switch t {
 		case counter:
 			cV, err := h.repo.GetCounter(n)
-			if isErr(err, w) {
+			if isValueErr(err, w) {
 				return
 			}
 			v = strconv.FormatInt(cV, 10)
 		case gauge:
 			gV, err := h.repo.GetGauge(n)
-			if isErr(err, w) {
+			if isValueErr(err, w) {
 				return
 			}
 			v = strconv.FormatFloat(gV, 'f', -1, 64)
 		default:
 			err := errors.New("unexpected metrics type")
-			if isErr(err, w) {
+			if isValueErr(err, w) {
 				return
 			}
 		}
@@ -68,4 +56,14 @@ func (h *valueHandler) getHandleFunc() http.HandlerFunc {
 		io.WriteString(w, v)
 	}
 
+}
+
+func isValueErr(err error, w http.ResponseWriter) bool {
+	if err != nil {
+		log.Println(err)
+		w.WriteHeader(http.StatusNotFound)
+		return true
+	}
+
+	return false
 }

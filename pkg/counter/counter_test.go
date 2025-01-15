@@ -9,51 +9,24 @@ import (
 func TestCounterNext(t *testing.T) {
 	type test struct {
 		name string
-		arg  int
-		want int
+		want int64
 	}
 
 	tests := []test{
 		{
 			name: "Init is zero number",
-			arg:  0,
-			want: 3,
-		},
-		{
-			name: "Init is negative number",
-			arg:  -10,
-			want: -7,
-		},
-		{
-			name: "Init is positive number",
-			arg:  10,
 			want: 13,
 		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			count := New(test.arg)
-			var current int
-			for range 3 {
-				current = count.Next()
+			counter := New()
+			var current int64
+			for range test.want {
+				current = counter.Next()
 			}
 			assert.Equal(t, test.want, current)
 		})
 	}
-}
-
-func TestCounterReset(t *testing.T) {
-	start := 10
-	count := New(start)
-	expected := 13
-	var current int
-	for range 3 {
-		current = count.Next()
-	}
-	assert.Equal(t, expected, current)
-
-	count.Reset()
-
-	assert.Equal(t, start, count.n)
 }
