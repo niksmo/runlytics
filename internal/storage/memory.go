@@ -27,11 +27,12 @@ func NewMemStorage() *memStorage {
 func (ms *memStorage) SetCounter(name string, value int64) {
 	ms.mu.Lock()
 	prev := ms.counter[name]
-	ms.counter[name] = value
+	current := prev + value
+	ms.counter[name] = current
 	ms.mu.Unlock()
 	log.Printf(
 		"Add count metric: name=%q prev=%v current=%v\n",
-		name, prev, value,
+		name, prev, current,
 	)
 }
 
