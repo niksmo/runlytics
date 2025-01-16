@@ -9,9 +9,6 @@ import (
 	"time"
 )
 
-const contentType = "text/plain"
-const updatePath = "update"
-
 type HTTPClient interface {
 	Post(url string, contentType string, body io.Reader) (resp *http.Response, err error)
 }
@@ -57,7 +54,7 @@ func (e *HTTPEmitter) Run() {
 func (e *HTTPEmitter) emitGauge() {
 	for name, value := range e.metricsData.GetGaugeMetrics() {
 		sValue := strconv.FormatFloat(value, 'f', -1, 64)
-		reqURL := e.baseURL.JoinPath(updatePath, "gauge", name, sValue).String()
+		reqURL := makeReqURL(e.baseURL, "gauge", name, sValue)
 
 		e.post(reqURL)
 	}
@@ -66,7 +63,7 @@ func (e *HTTPEmitter) emitGauge() {
 func (e *HTTPEmitter) emitCounter() {
 	for name, value := range e.metricsData.GetCounterMetrics() {
 		sValue := strconv.FormatInt(value, 10)
-		reqURL := e.baseURL.JoinPath(updatePath, "counter", name, sValue).String()
+		reqURL := makeReqURL(e.baseURL, "counter", name, sValue)
 
 		e.post(reqURL)
 	}
@@ -74,7 +71,7 @@ func (e *HTTPEmitter) emitCounter() {
 
 func (e *HTTPEmitter) post(reqURL string) {
 	log.Println("POST", reqURL, "start")
-	res, err := e.client.Post(reqURL, contentType, http.NoBody)
+	res, err := e.client.Post(reqURL, "text/plain", http.NoBody)
 	if err != nil {
 		log.Println("POST", reqURL, "error:", err)
 		return
@@ -83,4 +80,13 @@ func (e *HTTPEmitter) post(reqURL string) {
 
 	log.Println("POST", reqURL, "response status:", res.StatusCode)
 
+}
+
+func makeReqURL(
+	baseURL *url.URL,
+	mType string,
+	mName string,
+	mValue string,
+) string {
+	return baseURL.JoinPath("update", mType, mName, mValue).String()
 }

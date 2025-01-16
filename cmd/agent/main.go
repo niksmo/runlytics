@@ -22,6 +22,6 @@ func main() {
 		flagAddr,
 	)
 
-	collector.Run()
+	go collector.Run()
 	HTTPEmitter.Run()
 }

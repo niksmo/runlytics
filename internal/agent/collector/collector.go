@@ -38,13 +38,11 @@ func (c *collector) Run() {
 		c.poll.Seconds(),
 	)
 
-	go func() {
-		for {
-			c.collectMetrics()
-			log.Println("[POLL]Wait for", c.poll.Seconds(), "sec")
-			time.Sleep(c.poll)
-		}
-	}()
+	for {
+		c.collectMetrics()
+		log.Println("[POLL]Wait for", c.poll.Seconds(), "sec")
+		time.Sleep(c.poll)
+	}
 
 }
 
@@ -75,6 +73,9 @@ func (c *collector) GetCounterMetrics() map[string]int64 {
 func (c *collector) collectMetrics() {
 	memStat := new(runtime.MemStats)
 	runtime.ReadMemStats(memStat)
+
+	c.mu.Lock()
+	defer c.mu.Unlock()
 
 	// memory
 	c.data.gauge["Alloc"] = float64(memStat.Alloc)
