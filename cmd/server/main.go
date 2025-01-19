@@ -1,34 +1,33 @@
 package main
 
 import (
-	"fmt"
-	"log"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/niksmo/runlytics/internal/logger"
 	"github.com/niksmo/runlytics/internal/server/router"
 	"github.com/niksmo/runlytics/internal/storage"
+	"go.uber.org/zap"
 )
 
 func main() {
 	parseFlags()
+	if err := logger.Initialize(flagLog); err != nil {
+		panic(err)
+	}
 
-	log.Println("Bootstrap server")
-	mux := chi.NewRouter()
-
+	logger.Log.Debug("Bootstrap server")
 	storage := storage.NewMemStorage()
+	mux := chi.NewRouter()
 	router.SetMainRoute(mux, storage)
 	router.SetUpdateRoute(mux, storage)
 	router.SetValueRoute(mux, storage)
 
-	log.Fatal(run(mux))
-}
-
-func run(handler *chi.Mux) error {
-	s := http.Server{
-		Addr:    fmt.Sprint(flagAddr),
-		Handler: handler,
+	server := http.Server{
+		Addr:    flagAddr.String(),
+		Handler: mux,
 	}
-	log.Println("Listen", s.Addr)
-	return s.ListenAndServe()
+
+	logger.Log.Info("Listen", zap.String("host", server.Addr))
+	logger.Log.Info("Stop listening and serve", zap.Error(server.ListenAndServe()))
 }

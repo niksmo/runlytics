@@ -3,8 +3,10 @@ package storage
 import (
 	"errors"
 	"fmt"
-	"log"
 	"sync"
+
+	"github.com/niksmo/runlytics/internal/logger"
+	"go.uber.org/zap"
 )
 
 var (
@@ -30,9 +32,12 @@ func (ms *memStorage) SetCounter(name string, value int64) {
 	current := prev + value
 	ms.counter[name] = current
 	ms.mu.Unlock()
-	log.Printf(
-		"Add count metric: name=%q prev=%v current=%v\n",
-		name, prev, current,
+
+	logger.Log.Debug(
+		"Set count metric",
+		zap.String("name", name),
+		zap.Int64("prev", prev),
+		zap.Int64("current", current),
 	)
 }
 
@@ -41,10 +46,14 @@ func (ms *memStorage) SetGauge(name string, value float64) {
 	prev := ms.gauge[name]
 	ms.gauge[name] = value
 	ms.mu.Unlock()
-	log.Printf(
-		"Add gauge metric: name=%q prev=%v current=%v\n",
-		name, prev, value,
+
+	logger.Log.Debug(
+		"Set gauge metric",
+		zap.String("name", name),
+		zap.Float64("prev", prev),
+		zap.Float64("current", value),
 	)
+
 }
 
 func (ms *memStorage) GetCounter(name string) (int64, error) {

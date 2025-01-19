@@ -3,19 +3,20 @@ package router
 import (
 	"errors"
 	"io"
-	"log"
 	"net/http"
 	"strconv"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/niksmo/runlytics/internal/logger"
 	"github.com/niksmo/runlytics/internal/server"
+	"go.uber.org/zap"
 )
 
 func SetValueRoute(r *chi.Mux, repo server.RepoReadByName) {
 	h := &valueHandler{repo}
 	r.Route("/value", func(r chi.Router) {
 		r.Get("/{type}/{name}", h.getHandleFunc())
-		log.Println("Register endpoint: /value/{type}/{name}")
+		logRegister("/value/{type}/{name}")
 	})
 }
 
@@ -26,8 +27,6 @@ type valueHandler struct {
 func (h *valueHandler) getHandleFunc() http.HandlerFunc {
 
 	return func(w http.ResponseWriter, r *http.Request) {
-		log.Println(r.Method, r.URL.EscapedPath())
-
 		t := server.MetricType(chi.URLParam(r, "type"))
 		n := chi.URLParam(r, "name")
 		var v string
@@ -60,7 +59,7 @@ func (h *valueHandler) getHandleFunc() http.HandlerFunc {
 
 func isValueErr(err error, w http.ResponseWriter) bool {
 	if err != nil {
-		log.Println(err)
+		logger.Log.Debug("Read metric error", zap.Error(err))
 		w.WriteHeader(http.StatusNotFound)
 		return true
 	}

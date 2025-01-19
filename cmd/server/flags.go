@@ -37,15 +37,23 @@ func (a *addr) Set(v string) error {
 	return nil
 }
 
-var flagAddr *addr = &addr{host: "localhost", port: 8080}
+var (
+	flagAddr *addr = &addr{host: "localhost", port: 8080}
+	flagLog  string
+)
 
 func parseFlags() {
-	flag.Var(flagAddr, "a", "Input listening server address, e.g. example.com:8080")
+	flag.Var(flagAddr, "a", "Set listening server address, e.g. example.com:8080")
+	flag.StringVar(&flagLog, "l", "info", "Set level, e.g. debug")
 	flag.Parse()
 
 	if envAddr := os.Getenv("ADDRESS"); envAddr != "" {
 		if err := flagAddr.Set(envAddr); err != nil {
 			log.Print(fmt.Errorf("parse env ADDRESS error: %w", err))
 		}
+	}
+
+	if envLog := os.Getenv("LOG_LVL"); envLog != "" {
+		flagLog = envLog
 	}
 }
