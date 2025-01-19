@@ -5,6 +5,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/niksmo/runlytics/internal/logger"
+	"github.com/niksmo/runlytics/internal/server/middleware"
 	"github.com/niksmo/runlytics/internal/server/router"
 	"github.com/niksmo/runlytics/internal/storage"
 	"go.uber.org/zap"
@@ -12,13 +13,17 @@ import (
 
 func main() {
 	parseFlags()
+
 	if err := logger.Initialize(flagLog); err != nil {
 		panic(err)
 	}
 
 	logger.Log.Debug("Bootstrap server")
+
 	storage := storage.NewMemStorage()
 	mux := chi.NewRouter()
+	mux.Use(middleware.Logger)
+
 	router.SetMainRoute(mux, storage)
 	router.SetUpdateRoute(mux, storage)
 	router.SetValueRoute(mux, storage)
