@@ -2,11 +2,13 @@ package emitter
 
 import (
 	"io"
-	"log"
 	"net/http"
 	"net/url"
 	"strconv"
 	"time"
+
+	"github.com/niksmo/runlytics/internal/logger"
+	"go.uber.org/zap"
 )
 
 type HTTPClient interface {
@@ -36,22 +38,22 @@ func New(
 }
 
 func (e *HTTPEmitter) Run() {
-	log.Printf(
-		"Run HTTPEmitter with report interval = %vs\n",
-		e.interval.Seconds(),
+	logger.Log.Info(
+		"Run HTTPEmitter",
+		zap.String("addr", e.baseURL.String()),
+		zap.Float64("interval", e.interval.Seconds()),
 	)
+
 	for {
-		log.Print("Ready for emitting on host ", e.baseURL)
-		log.Println("[REPORT]Wait for", e.interval.Seconds(), "sec")
+		logger.Log.Debug("Wait", zap.Float64("seconds", e.interval.Seconds()))
 		time.Sleep(e.interval)
-		log.Println("[REPORT]Emit gauge metrics")
 		e.emitGauge()
-		log.Println("[REPORT]Emit counter metrics")
 		e.emitCounter()
 	}
 }
 
 func (e *HTTPEmitter) emitGauge() {
+	logger.Log.Debug("Emit gauge metrics")
 	for name, value := range e.metricsData.GetGaugeMetrics() {
 		sValue := strconv.FormatFloat(value, 'f', -1, 64)
 		reqURL := makeReqURL(e.baseURL, "gauge", name, sValue)
@@ -61,6 +63,7 @@ func (e *HTTPEmitter) emitGauge() {
 }
 
 func (e *HTTPEmitter) emitCounter() {
+	logger.Log.Debug("Emit gauge metrics")
 	for name, value := range e.metricsData.GetCounterMetrics() {
 		sValue := strconv.FormatInt(value, 10)
 		reqURL := makeReqURL(e.baseURL, "counter", name, sValue)
@@ -70,15 +73,33 @@ func (e *HTTPEmitter) emitCounter() {
 }
 
 func (e *HTTPEmitter) post(reqURL string) {
-	log.Println("POST", reqURL, "start")
+	logger.Log.Info(
+		"Start request",
+		zap.String("URL", reqURL),
+		zap.String("method", "POST"),
+	)
+
+	start := time.Now()
 	res, err := e.client.Post(reqURL, "text/plain", http.NoBody)
 	if err != nil {
-		log.Println("POST", reqURL, "error:", err)
+		logger.Log.Info(
+			"Got response",
+			zap.String("URL", reqURL),
+			zap.String("method", "POST"),
+			zap.Duration("duration", time.Since(start)),
+			zap.Error(err),
+		)
 		return
 	}
 	defer res.Body.Close()
 
-	log.Println("POST", reqURL, "response status:", res.StatusCode)
+	logger.Log.Info(
+		"Got response",
+		zap.String("URL", reqURL),
+		zap.String("method", "POST"),
+		zap.Duration("duration", time.Since(start)),
+		zap.Int("statusCode", res.StatusCode),
+	)
 
 }
 

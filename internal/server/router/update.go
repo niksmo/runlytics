@@ -2,19 +2,21 @@ package router
 
 import (
 	"errors"
-	"log"
+
 	"net/http"
 	"strconv"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/niksmo/runlytics/internal/logger"
 	"github.com/niksmo/runlytics/internal/server"
+	"go.uber.org/zap"
 )
 
 func SetUpdateRoute(r *chi.Mux, repo server.RepoUpdate) {
 	h := &updateHandler{repo}
 	r.Route("/update", func(r chi.Router) {
 		r.Post("/{type}/{name}/{value}", h.postHadleFunc())
-		log.Println("Register endpoint: /update/{type}/{name}/{value}")
+		logRegister("/update/{type}/{name}/{value}")
 	})
 }
 
@@ -25,8 +27,6 @@ type updateHandler struct {
 func (h *updateHandler) postHadleFunc() http.HandlerFunc {
 
 	return func(w http.ResponseWriter, r *http.Request) {
-		log.Println(r.Method, r.URL.EscapedPath())
-
 		t := server.MetricType(chi.URLParam(r, "type"))
 		n := chi.URLParam(r, "name")
 		v := chi.URLParam(r, "value")
@@ -58,7 +58,7 @@ func (h *updateHandler) postHadleFunc() http.HandlerFunc {
 func isUpdateErr(err error, w http.ResponseWriter) bool {
 
 	if err != nil {
-		log.Println(err)
+		logger.Log.Debug("Input metric error", zap.Error(err))
 		w.WriteHeader(http.StatusBadRequest)
 		return true
 	}

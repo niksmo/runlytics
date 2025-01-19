@@ -37,6 +37,7 @@ var (
 	flagAddr   *url.URL
 	flagPoll   time.Duration
 	flagReport time.Duration
+	flagLog    string
 )
 
 func parseFlags() {
@@ -57,6 +58,8 @@ func parseFlags() {
 		"Emitting metrics interval in sec, e.g. 10",
 	)
 
+	flag.StringVar(&flagLog, "l", "info", "Set level, e.g. debug")
+
 	flag.Parse()
 
 	if envAddr := os.Getenv("ADDRESS"); envAddr != "" {
@@ -73,6 +76,10 @@ func parseFlags() {
 	if err != nil {
 		log.Printf("Error on parse REPORT_INTERVAL env: %v", err)
 		log.Printf("Current report flag value is: %v sec\n", flagPoll.Seconds())
+	}
+
+	if envLog := os.Getenv("LOG_LVL"); envLog != "" {
+		flagLog = envLog
 	}
 
 	flagPoll = time.Duration(*poll) * time.Second
