@@ -16,7 +16,7 @@ func SetUpdateRoute(r *chi.Mux, repo server.RepoUpdate) {
 	h := &updateHandler{repo}
 	r.Route("/update", func(r chi.Router) {
 		r.Post("/{type}/{name}/{value}", h.postHadleFunc())
-		logRegister("/update/{type}/{name}/{value}")
+		debugLogRegister("/update/{type}/{name}/{value}")
 	})
 }
 

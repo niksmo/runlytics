@@ -16,7 +16,7 @@ func SetValueRoute(r *chi.Mux, repo server.RepoReadByName) {
 	h := &valueHandler{repo}
 	r.Route("/value", func(r chi.Router) {
 		r.Get("/{type}/{name}", h.getHandleFunc())
-		logRegister("/value/{type}/{name}")
+		debugLogRegister("/value/{type}/{name}")
 	})
 }
 

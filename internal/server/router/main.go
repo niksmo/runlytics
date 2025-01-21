@@ -40,7 +40,7 @@ func SetMainRoute(r *chi.Mux, repo server.RepoRead) {
 	h := &mainHandler{repo}
 	r.Route("/", func(r chi.Router) {
 		r.Get("/", h.getHandleFunc())
-		logRegister("/")
+		debugLogRegister("/")
 	})
 }
 
