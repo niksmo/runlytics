@@ -1,15 +1,42 @@
 package api
 
 import (
+	"bytes"
+	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/niksmo/runlytics/internal/schemas"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func newMetrics(id string, mType string, delta int64, value float64) *schemas.Metrics {
+	return &schemas.Metrics{id, mType, &delta, &value}
+}
+
+type MockUpdateService struct{}
+
+func (service *MockUpdateService) Update(metrics *schemas.Metrics) error {
+	if metrics.ID == "error" {
+		return errors.New("test error")
+	}
+
+	metrics.ID = "update"
+	metrics.MType = "update"
+
+	delta := int64(123)
+	metrics.Delta = &delta
+
+	value := 123.4
+	metrics.Value = &value
+
+	return nil
+}
 
 func TestUpdateHandler(t *testing.T) {
 
@@ -17,6 +44,7 @@ func TestUpdateHandler(t *testing.T) {
 		t *testing.T,
 		mux *chi.Mux,
 		method string,
+		contentType string,
 		body io.Reader,
 	) (*http.Response, []byte) {
 		ts := httptest.NewServer(mux)
@@ -25,6 +53,7 @@ func TestUpdateHandler(t *testing.T) {
 		req, err := http.NewRequest(method, ts.URL+"/update/", body)
 		require.NoError(t, err)
 
+		req.Header.Set("Content-Type", contentType)
 		res, err := ts.Client().Do(req)
 		require.NoError(t, err)
 
@@ -36,185 +65,158 @@ func TestUpdateHandler(t *testing.T) {
 
 	type want struct {
 		statusCode int
-		resData    string
+		resData    *schemas.Metrics
 	}
 
 	type test struct {
-		name   string
-		method string
-		want   want
-		body   map[string]any
+		name        string
+		method      string
+		want        want
+		contentType string
+		reqData     map[string]any
 	}
 
 	tests := []test{
+		// not allowed methods
 		{
 			name:   "GET not allowed",
 			method: http.MethodGet,
 			want: want{
 				statusCode: http.StatusMethodNotAllowed,
-				repoCalls:  0,
+				resData:    nil,
 			},
-			path:       "/update/gauge/testName/0",
-			metricType: gauge,
 		},
 		{
 			name:   "PUT not allowed",
 			method: http.MethodPut,
 			want: want{
 				statusCode: http.StatusMethodNotAllowed,
-				repoCalls:  0,
+				resData:    nil,
 			},
-			path:       "/update/gauge/testName/0",
-			metricType: gauge,
 		},
 		{
 			name:   "PATCH not allowed",
 			method: http.MethodPatch,
 			want: want{
 				statusCode: http.StatusMethodNotAllowed,
-				repoCalls:  0,
+				resData:    nil,
 			},
-			path:       "/update/gauge/testName/0",
-			metricType: gauge,
 		},
 		{
 			name:   "DELETE not allowed",
 			method: http.MethodDelete,
 			want: want{
 				statusCode: http.StatusMethodNotAllowed,
-				repoCalls:  0,
+				resData:    nil,
 			},
-			path:       "/update/gauge/testName/0",
-			metricType: gauge,
 		},
 		{
 			name:   "HEAD not allowed",
 			method: http.MethodHead,
 			want: want{
 				statusCode: http.StatusMethodNotAllowed,
-				repoCalls:  0,
+				resData:    nil,
 			},
-			path:       "/update/gauge/testName/0",
-			metricType: gauge,
 		},
 		{
 			name:   "OPTIONS not allowed",
 			method: http.MethodOptions,
 			want: want{
 				statusCode: http.StatusMethodNotAllowed,
-				repoCalls:  0,
+				resData:    nil,
 			},
-			path:       "/update/gauge/testName/0",
-			metricType: gauge,
 		},
+
+		//post
 		{
-			name:   "Zero gauge",
+			name:   "Should update metrics",
 			method: http.MethodPost,
 			want: want{
 				statusCode: http.StatusOK,
-				repoCalls:  1,
+				resData: newMetrics(
+					"update",
+					"update",
+					123,
+					123.4,
+				),
 			},
-			path:       "/update/gauge/testName/0",
-			metricType: gauge,
+			contentType: "application/json",
+			reqData: map[string]any{
+				"id":    "test",
+				"type":  "test",
+				"delta": 321,
+				"value": 432.1,
+			},
 		},
 		{
-			name:   "Positive gauge",
+			name:   "Wrong Content-Type",
 			method: http.MethodPost,
 			want: want{
-				statusCode: http.StatusOK,
-				repoCalls:  1,
+				statusCode: http.StatusUnsupportedMediaType,
+				resData:    nil,
 			},
-			path:       "/update/gauge/testName/0.412934812374",
-			metricType: gauge,
+			contentType: "text/plain",
+			reqData: map[string]any{
+				"id":    "test",
+				"type":  "test",
+				"delta": 321,
+				"value": 432.1,
+			},
 		},
 		{
-			name:   "Negative gauge",
-			method: http.MethodPost,
-			want: want{
-				statusCode: http.StatusOK,
-				repoCalls:  1,
-			},
-			path:       "/update/gauge/testName/-0.412934812374",
-			metricType: gauge,
-		},
-		{
-			name:   "Zero counter",
-			method: http.MethodPost,
-			want: want{
-				statusCode: http.StatusOK,
-				repoCalls:  1,
-			},
-			path:       "/update/counter/testName/0",
-			metricType: counter,
-		},
-		{
-			name:   "Positive counter",
-			method: http.MethodPost,
-			want: want{
-				statusCode: http.StatusOK,
-				repoCalls:  1,
-			},
-			path:       "/update/counter/testName/324567",
-			metricType: counter,
-		},
-		{
-			name:   "Negative counter",
-			method: http.MethodPost,
-			want: want{
-				statusCode: http.StatusOK,
-				repoCalls:  1,
-			},
-			path:       "/update/counter/testName/-1234",
-			metricType: counter,
-		},
-		{
-			name:   "Wrong gauge path",
+			name:   "Wrong metrics scheme or bad JSON",
 			method: http.MethodPost,
 			want: want{
 				statusCode: http.StatusBadRequest,
-				repoCalls:  0,
+				resData:    nil,
 			},
-			path:       "/update/gaugee/testName/0.23234",
-			metricType: gauge,
+			contentType: "application/json",
+			reqData: map[string]any{
+				"id":    "test",
+				"type":  "test",
+				"delta": 321.77897,
+				"value": 432.1,
+			},
 		},
 		{
-			name:   "Float value for counter metric",
+			name:   "Service return error",
 			method: http.MethodPost,
 			want: want{
 				statusCode: http.StatusBadRequest,
-				repoCalls:  0,
+				resData:    nil,
 			},
-			path:       "/update/counter/testName/0.2394871234",
-			metricType: counter,
-		},
-		{
-			name:   "Wrong counter path",
-			method: http.MethodPost,
-			want: want{
-				statusCode: http.StatusBadRequest,
-				repoCalls:  0,
+			contentType: "application/json",
+			reqData: map[string]any{
+				"id":    "error",
+				"type":  "test",
+				"delta": 321.77897,
+				"value": 432.1,
 			},
-			path:       "/update/counters/testName/523",
-			metricType: counter,
 		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			repo := &fakeRepoUpdate{}
-			router := chi.NewRouter()
-			SetUpdateRoute(router, repo)
-			res, _ := testRequest(t, router, test.method, test.path)
+			mux := chi.NewRouter()
+			mockService := &MockUpdateService{}
+			SetUpdateHandler(mux, mockService)
+			reqBody, err := json.Marshal(test.reqData)
+			require.NoError(t, err)
+
+			res, resBody := testRequest(t,
+				mux,
+				test.method,
+				test.contentType,
+				bytes.NewReader(reqBody),
+			)
 			defer res.Body.Close()
 
 			assert.Equal(t, test.want.statusCode, res.StatusCode)
 
-			if test.metricType == gauge {
-				assert.Equal(t, test.want.repoCalls, repo.setGaugeCalls)
-			}
-
-			if test.metricType == counter {
-				assert.Equal(t, test.want.repoCalls, repo.addCounterCalls)
+			if test.want.resData != nil {
+				var resData schemas.Metrics
+				require.NoError(t, json.Unmarshal(resBody, &resData))
+				assert.Equal(t, *test.want.resData, resData)
 			}
 		})
 	}
