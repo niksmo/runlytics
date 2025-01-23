@@ -26,7 +26,7 @@ func New() *repository {
 	}
 }
 
-func (ms *repository) UpdateCounterByName(name string, value int64) {
+func (ms *repository) UpdateCounterByName(name string, value int64) int64 {
 	ms.mu.Lock()
 	prev := ms.counter[name]
 	current := prev + value
@@ -39,9 +39,11 @@ func (ms *repository) UpdateCounterByName(name string, value int64) {
 		zap.Int64("prev", prev),
 		zap.Int64("current", current),
 	)
+
+	return current
 }
 
-func (ms *repository) UpdateGaugeByName(name string, value float64) {
+func (ms *repository) UpdateGaugeByName(name string, value float64) float64 {
 	ms.mu.Lock()
 	prev := ms.gauge[name]
 	ms.gauge[name] = value
@@ -53,7 +55,7 @@ func (ms *repository) UpdateGaugeByName(name string, value float64) {
 		zap.Float64("prev", prev),
 		zap.Float64("current", value),
 	)
-
+	return value
 }
 
 func (ms *repository) ReadCounterByName(name string) (int64, error) {

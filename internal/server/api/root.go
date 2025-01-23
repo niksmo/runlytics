@@ -16,10 +16,11 @@ type HTMLService interface {
 }
 
 func SetHTMLHandler(mux *chi.Mux, service HTMLService) {
+	path := "/"
 	handler := &HTMLHandler{service}
-	mux.Route("/", func(r chi.Router) {
-		r.Get("/", handler.get())
-		debugLogRegister("/")
+	mux.Route(path, func(r chi.Router) {
+		r.Get(path, handler.get())
+		debugLogRegister(path)
 	})
 }
 
@@ -32,8 +33,8 @@ func (handler *HTMLHandler) get() http.HandlerFunc {
 			return
 		}
 
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		w.WriteHeader(http.StatusOK)
+		w.Header().Set(ContentTypePath, "text/html; charset=utf-8")
 		buf.WriteTo(w)
 	}
 }

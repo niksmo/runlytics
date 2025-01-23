@@ -1,10 +1,10 @@
 package api
 
 import (
-	"bytes"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/niksmo/runlytics/internal/schemas"
 )
 
 type UpdateHandler struct {
@@ -12,21 +12,48 @@ type UpdateHandler struct {
 }
 
 type UpdateService interface {
-	Update()
+	Update(metrics *schemas.Metrics) error
 }
 
 func SetUpdateHandler(mux *chi.Mux, service UpdateService) {
+	path := "/update"
 	handler := &UpdateHandler{service}
-	mux.Route("/update", func(r chi.Router) {
+	mux.Route(path, func(r chi.Router) {
 		r.Post("/", handler.post())
-		debugLogRegister("/update/")
+		debugLogRegister(path + "/")
 	})
 }
 
 func (handler *UpdateHandler) post() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-		buf := bytes.NewBufferString("Hello world!")
-		buf.WriteTo(w)
+		if err := verifyContentType(r, JSONMediaType); err != nil {
+			writeTextErrorResponse(
+				w,
+				http.StatusUnsupportedMediaType,
+				err.Error(),
+			)
+			return
+		}
+
+		var metrics schemas.Metrics
+		if err := decodeJSONSchema(r, &metrics); err != nil {
+			writeTextErrorResponse(
+				w,
+				http.StatusBadRequest,
+				err.Error(),
+			)
+			return
+		}
+
+		if err := handler.service.Update(&metrics); err != nil {
+			writeTextErrorResponse(
+				w,
+				http.StatusBadRequest,
+				err.Error(),
+			)
+			return
+		}
+
+		writeJSONResponse(w, metrics)
 	}
 }
