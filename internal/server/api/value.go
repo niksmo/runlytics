@@ -7,17 +7,17 @@ import (
 	"github.com/niksmo/runlytics/internal/schemas"
 )
 
-type ValueHandler struct {
-	service ValueService
+type ReadHandler struct {
+	service ReadService
 }
 
-type ValueService interface {
+type ReadService interface {
 	Read(metrics *schemas.Metrics) error
 }
 
-func SetReadHandler(mux *chi.Mux, service ValueService) {
+func SetReadHandler(mux *chi.Mux, service ReadService) {
 	path := "/value"
-	handler := &ValueHandler{service}
+	handler := &ReadHandler{service}
 	mux.Route(path, func(r chi.Router) {
 		postPath := "/"
 		r.Post(postPath, handler.post())
@@ -25,7 +25,7 @@ func SetReadHandler(mux *chi.Mux, service ValueService) {
 	})
 }
 
-func (handler *ValueHandler) post() http.HandlerFunc {
+func (handler *ReadHandler) post() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if err := verifyContentType(r, JSONMediaType); err != nil {
 			writeTextErrorResponse(

@@ -6,6 +6,7 @@ import (
 
 	"github.com/niksmo/runlytics/internal/logger"
 	"github.com/niksmo/runlytics/internal/schemas"
+	"github.com/niksmo/runlytics/internal/server"
 	"go.uber.org/zap"
 )
 
@@ -41,7 +42,7 @@ func (service *UpdateService) Update(metrics *schemas.Metrics) error {
 	}
 
 	switch metrics.MType {
-	case MTypeGauge:
+	case server.MTypeGauge:
 		if metrics.Value == nil {
 			errs = append(errs, fmt.Errorf("'value' %s", emptyFieldStatus))
 		} else {
@@ -51,7 +52,7 @@ func (service *UpdateService) Update(metrics *schemas.Metrics) error {
 			)
 			metrics.Value = &v
 		}
-	case MTypeCounter:
+	case server.MTypeCounter:
 		if metrics.Delta == nil {
 			errs = append(errs, fmt.Errorf("'delta' %s", emptyFieldStatus))
 		} else {
@@ -71,6 +72,7 @@ func (service *UpdateService) Update(metrics *schemas.Metrics) error {
 	if len(errs) != 0 {
 		logger.Log.Debug(
 			"The metrics have not been updated",
+			zap.String("metricsID", metrics.ID),
 			zap.Error(errs),
 		)
 		return errs

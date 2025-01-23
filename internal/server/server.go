@@ -1,5 +1,10 @@
 package server
 
+const (
+	MTypeGauge   = "gauge"
+	MTypeCounter = "counter"
+)
+
 type MetricType string
 
 const (

@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/niksmo/runlytics/internal/schemas"
+	"github.com/niksmo/runlytics/internal/server"
 )
 
 type ReadService struct {
@@ -21,13 +22,13 @@ func NewReadService(repository ReadByNameRepository) *ReadService {
 
 func (service *ReadService) Read(metrics *schemas.Metrics) error {
 	switch metrics.MType {
-	case MTypeGauge:
+	case server.MTypeGauge:
 		v, err := service.repository.ReadGaugeByName(metrics.ID)
 		if err != nil {
 			return err
 		}
 		metrics.Value = &v
-	case MTypeCounter:
+	case server.MTypeCounter:
 		vInt, err := service.repository.ReadCounterByName(metrics.ID)
 		if err != nil {
 			return err

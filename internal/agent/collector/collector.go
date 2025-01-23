@@ -57,7 +57,7 @@ func (c *collector) GetGaugeMetrics() map[string]float64 {
 }
 
 func (c *collector) GetCounterMetrics() map[string]int64 {
-	ret := make(map[string]int64, len(c.data.gauge))
+	ret := make(map[string]int64, len(c.data.counter))
 	c.mu.Lock()
 	defer c.mu.Unlock()
 

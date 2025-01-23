@@ -1,13 +1,16 @@
 package emitter
 
 import (
+	"bytes"
+	"encoding/json"
 	"io"
 	"net/http"
 	"net/url"
-	"strconv"
 	"time"
 
 	"github.com/niksmo/runlytics/internal/logger"
+	"github.com/niksmo/runlytics/internal/schemas"
+	"github.com/niksmo/runlytics/internal/server"
 	"go.uber.org/zap"
 )
 
@@ -21,10 +24,11 @@ type MetricsData interface {
 }
 
 type HTTPEmitter struct {
-	interval    time.Duration
-	metricsData MetricsData
-	client      HTTPClient
-	baseURL     *url.URL
+	interval        time.Duration
+	metricsData     MetricsData
+	client          HTTPClient
+	baseURL         *url.URL
+	prevPollCounter int64
 }
 
 func New(
@@ -34,7 +38,7 @@ func New(
 	baseURL *url.URL,
 ) *HTTPEmitter {
 
-	return &HTTPEmitter{interval, metricsData, client, baseURL}
+	return &HTTPEmitter{interval, metricsData, client, baseURL, int64(0)}
 }
 
 func (e *HTTPEmitter) Run() {
@@ -55,32 +59,37 @@ func (e *HTTPEmitter) Run() {
 func (e *HTTPEmitter) emitGauge() {
 	logger.Log.Debug("Emit gauge metrics")
 	for name, value := range e.metricsData.GetGaugeMetrics() {
-		sValue := strconv.FormatFloat(value, 'f', -1, 64)
-		reqURL := makeReqURL(e.baseURL, "gauge", name, sValue)
-
-		e.post(reqURL)
+		gaugeMetrics := schemas.Metrics{ID: name, MType: server.MTypeGauge, Value: &value}
+		e.post(gaugeMetrics)
 	}
 }
 
 func (e *HTTPEmitter) emitCounter() {
-	logger.Log.Debug("Emit gauge metrics")
+	logger.Log.Debug("Emit counter metrics")
 	for name, value := range e.metricsData.GetCounterMetrics() {
-		sValue := strconv.FormatInt(value, 10)
-		reqURL := makeReqURL(e.baseURL, "counter", name, sValue)
+		delta := value - e.prevPollCounter
+		e.prevPollCounter = value
+		counterMetrics := schemas.Metrics{ID: name, MType: server.MTypeCounter, Delta: &delta}
 
-		e.post(reqURL)
+		e.post(counterMetrics)
 	}
 }
 
-func (e *HTTPEmitter) post(reqURL string) {
+func (e *HTTPEmitter) post(metrics schemas.Metrics) {
+	reqURL := e.baseURL.JoinPath("update").String()
 	logger.Log.Info(
 		"Start request",
 		zap.String("URL", reqURL),
 		zap.String("method", "POST"),
 	)
 
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(metrics); err != nil {
+		logger.Log.Debug("Encode to JSON error", zap.Error(err))
+	}
+
 	start := time.Now()
-	res, err := e.client.Post(reqURL, "text/plain", http.NoBody)
+	res, err := e.client.Post(reqURL, "application/json", &buf)
 	if err != nil {
 		logger.Log.Info(
 			"Got response",
@@ -93,21 +102,18 @@ func (e *HTTPEmitter) post(reqURL string) {
 	}
 	defer res.Body.Close()
 
+	data, err := io.ReadAll(res.Body)
+	if err != nil {
+		logger.Log.Error("Read response data error", zap.Error(err))
+	}
+
 	logger.Log.Info(
 		"Got response",
 		zap.String("URL", reqURL),
 		zap.String("method", "POST"),
 		zap.Duration("duration", time.Since(start)),
 		zap.Int("statusCode", res.StatusCode),
+		zap.String("data", string(data)),
 	)
 
-}
-
-func makeReqURL(
-	baseURL *url.URL,
-	mType string,
-	mName string,
-	mValue string,
-) string {
-	return baseURL.JoinPath("update", mType, mName, mValue).String()
 }

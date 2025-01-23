@@ -15,21 +15,18 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-type MockUpdateService struct {
+type MockValueService struct {
 	err bool
 }
 
-func (service *MockUpdateService) Update(metrics *schemas.Metrics) error {
+func (service *MockValueService) Read(metrics *schemas.Metrics) error {
 	if service.err {
 		return errors.New("test error")
 
 	}
 
-	metrics.ID = "update"
-	metrics.MType = "update"
-
-	delta := int64(123)
-	metrics.Delta = &delta
+	metrics.ID = "read"
+	metrics.MType = "read"
 
 	value := 123.4
 	metrics.Value = &value
@@ -37,13 +34,11 @@ func (service *MockUpdateService) Update(metrics *schemas.Metrics) error {
 	return nil
 }
 
-func TestUpdateHandler(t *testing.T) {
-
-	newMetrics := func(id string, mType string, delta int64, value float64) *schemas.Metrics {
+func TestValueHandler(t *testing.T) {
+	newMetrics := func(id string, mType string, value float64) *schemas.Metrics {
 		return &schemas.Metrics{
 			ID:    id,
 			MType: mType,
-			Delta: &delta,
 			Value: &value,
 		}
 	}
@@ -58,7 +53,7 @@ func TestUpdateHandler(t *testing.T) {
 		ts := httptest.NewServer(mux)
 		defer ts.Close()
 
-		req, err := http.NewRequest(method, ts.URL+"/update/", body)
+		req, err := http.NewRequest(method, ts.URL+"/value/", body)
 		require.NoError(t, err)
 
 		req.Header.Set("Content-Type", contentType)
@@ -82,7 +77,7 @@ func TestUpdateHandler(t *testing.T) {
 		want        want
 		contentType string
 		reqData     []byte
-		service     *MockUpdateService
+		service     *MockValueService
 	}
 
 	tests := []test{
@@ -138,25 +133,19 @@ func TestUpdateHandler(t *testing.T) {
 
 		//POST
 		{
-			name:   "Should update metrics",
+			name:   "Should read metrics",
 			method: http.MethodPost,
 			want: want{
 				statusCode: http.StatusOK,
 				resData: newMetrics(
-					"update",
-					"update",
-					123,
+					"read",
+					"read",
 					123.4,
 				),
 			},
 			contentType: "application/json",
-			reqData: []byte(`{
-			    "id":"test",
-		        "type":"test",
-				"delta":321,
-				"value":432.1
-			}`),
-			service: &MockUpdateService{err: false},
+			reqData:     []byte(`{"id": "test", "type": "test"}`),
+			service:     &MockValueService{err: false},
 		},
 		{
 			name:   "Wrong Content-Type",
@@ -166,13 +155,8 @@ func TestUpdateHandler(t *testing.T) {
 				resData:    nil,
 			},
 			contentType: "text/plain",
-			reqData: []byte(`{
-			    "id":"test",
-		        "type":"test",
-				"delta":321,
-				"value":432.1
-			}`),
-			service: &MockUpdateService{err: false},
+			reqData:     []byte(`{"id": "test", "type": "test"}`),
+			service:     &MockValueService{err: false},
 		},
 		{
 			name:   "Wrong metrics scheme or bad JSON",
@@ -182,36 +166,26 @@ func TestUpdateHandler(t *testing.T) {
 				resData:    nil,
 			},
 			contentType: "application/json",
-			reqData: []byte(`{
-			    "id":"test",
-		        "type":"test",
-				"delta":321.77897,
-				"value":432.1
-			}`),
-			service: &MockUpdateService{err: false},
+			reqData:     []byte(`{"id": "test", "type": "test}`),
+			service:     &MockValueService{err: false},
 		},
 		{
 			name:   "Service should return error",
 			method: http.MethodPost,
 			want: want{
-				statusCode: http.StatusBadRequest,
+				statusCode: http.StatusNotFound,
 				resData:    nil,
 			},
 			contentType: "application/json",
-			reqData: []byte(`{
-			    "id":"test",
-		        "type":"test",
-				"delta":321,
-				"value":432.1
-			}`),
-			service: &MockUpdateService{err: true},
+			reqData:     []byte(`{"id": "test", "type": "test"}`),
+			service:     &MockValueService{err: true},
 		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			mux := chi.NewRouter()
-			SetUpdateHandler(mux, test.service)
+			SetReadHandler(mux, test.service)
 			res, resBody := testRequest(t,
 				mux,
 				test.method,
