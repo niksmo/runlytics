@@ -19,8 +19,9 @@ func SetUpdateHandler(mux *chi.Mux, service UpdateService) {
 	path := "/update"
 	handler := &UpdateHandler{service}
 	mux.Route(path, func(r chi.Router) {
-		r.Post("/", handler.post())
-		debugLogRegister(path + "/")
+		postPath := "/"
+		r.Post(postPath, handler.post())
+		debugLogRegister(path + postPath)
 	})
 }
 

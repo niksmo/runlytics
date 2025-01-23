@@ -29,7 +29,7 @@ func verifyContentType(
 	if !(ok && slices.Contains(contentType, mediaType)) {
 		errText := fmt.Sprintf("expect %s content", mediaType)
 		logger.Log.Debug(
-			"Unsupported request media type",
+			"Unsupported request Content-Type",
 			zap.String(ContentTypePath, strings.Join(contentType, "; ")),
 			zap.String("Expected", mediaType),
 		)

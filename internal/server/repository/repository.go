@@ -64,6 +64,7 @@ func (ms *repository) ReadCounterByName(name string) (int64, error) {
 	ms.mu.Unlock()
 
 	if !ok {
+		logger.Log.Debug("Not found counter metric", zap.String("name", name))
 		return 0, fmt.Errorf("metric '%s' is %w", name, ErrNotExists)
 	}
 	return value, nil
@@ -75,6 +76,7 @@ func (ms *repository) ReadGaugeByName(name string) (float64, error) {
 	ms.mu.Unlock()
 
 	if !ok {
+		logger.Log.Debug("Not found gauge metric", zap.String("name", name))
 		return 0, fmt.Errorf("metric '%s' is %w", name, ErrNotExists)
 	}
 	return value, nil

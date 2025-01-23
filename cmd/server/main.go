@@ -8,9 +8,7 @@ import (
 	"github.com/niksmo/runlytics/internal/server/api"
 	"github.com/niksmo/runlytics/internal/server/middleware"
 	"github.com/niksmo/runlytics/internal/server/repository"
-	"github.com/niksmo/runlytics/internal/server/router"
 	"github.com/niksmo/runlytics/internal/server/service"
-	"github.com/niksmo/runlytics/internal/storage"
 	"go.uber.org/zap"
 )
 
@@ -23,20 +21,22 @@ func main() {
 
 	logger.Log.Debug("Bootstrap server")
 
-	storage := storage.NewMemStorage()
+	// storage := storage.NewMemStorage()
 	mux := chi.NewRouter()
 	mux.Use(middleware.Logger)
 
 	repository := repository.New()
 	HTMLService := service.NewHTMLService(repository)
 	updateService := service.NewUpdateService(repository)
+	readService := service.NewReadService(repository)
 
 	api.SetHTMLHandler(mux, HTMLService)
 	api.SetUpdateHandler(mux, updateService)
+	api.SetReadHandler(mux, readService)
 
 	// router.SetMainRoute(mux, storage)
 	// router.SetUpdateRoute(mux, storage)
-	router.SetValueRoute(mux, storage)
+	// router.SetValueRoute(mux, storage)
 
 	server := http.Server{
 		Addr:    flagAddr.String(),
@@ -44,5 +44,5 @@ func main() {
 	}
 
 	logger.Log.Info("Listen", zap.String("host", server.Addr))
-	logger.Log.Info("Stop listening and serve", zap.Error(server.ListenAndServe()))
+	logger.Log.Info("Stop server", zap.Error(server.ListenAndServe()))
 }

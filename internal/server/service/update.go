@@ -41,7 +41,7 @@ func (service *UpdateService) Update(metrics *schemas.Metrics) error {
 	}
 
 	switch metrics.MType {
-	case "gauge":
+	case MTypeGauge:
 		if metrics.Value == nil {
 			errs = append(errs, fmt.Errorf("'value' %s", emptyFieldStatus))
 		} else {
@@ -51,7 +51,7 @@ func (service *UpdateService) Update(metrics *schemas.Metrics) error {
 			)
 			metrics.Value = &v
 		}
-	case "counter":
+	case MTypeCounter:
 		if metrics.Delta == nil {
 			errs = append(errs, fmt.Errorf("'delta' %s", emptyFieldStatus))
 		} else {
