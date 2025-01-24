@@ -21,7 +21,6 @@ func main() {
 
 	logger.Log.Debug("Bootstrap server")
 
-	// storage := storage.NewMemStorage()
 	mux := chi.NewRouter()
 	mux.Use(middleware.Logger)
 
@@ -33,10 +32,6 @@ func main() {
 	api.SetHTMLHandler(mux, HTMLService)
 	api.SetUpdateHandler(mux, updateService)
 	api.SetReadHandler(mux, readService)
-
-	// router.SetMainRoute(mux, storage)
-	// router.SetUpdateRoute(mux, storage)
-	// router.SetValueRoute(mux, storage)
 
 	server := http.Server{
 		Addr:    flagAddr.String(),

@@ -34,7 +34,7 @@ func (service *MockValueService) Read(metrics *schemas.Metrics) error {
 	return nil
 }
 
-func TestValueHandler(t *testing.T) {
+func TestReadByJSONHandler(t *testing.T) {
 	newMetrics := func(id string, mType string, value float64) *schemas.Metrics {
 		return &schemas.Metrics{
 			ID:    id,
@@ -47,13 +47,14 @@ func TestValueHandler(t *testing.T) {
 		t *testing.T,
 		mux *chi.Mux,
 		method string,
+		path string,
 		contentType string,
 		body io.Reader,
 	) (*http.Response, []byte) {
 		ts := httptest.NewServer(mux)
 		defer ts.Close()
 
-		req, err := http.NewRequest(method, ts.URL+"/value/", body)
+		req, err := http.NewRequest(method, ts.URL+path, body)
 		require.NoError(t, err)
 
 		req.Header.Set("Content-Type", contentType)
@@ -74,6 +75,7 @@ func TestValueHandler(t *testing.T) {
 	type test struct {
 		name        string
 		method      string
+		path        string
 		want        want
 		contentType string
 		reqData     []byte
@@ -85,6 +87,7 @@ func TestValueHandler(t *testing.T) {
 		{
 			name:   "GET not allowed",
 			method: http.MethodGet,
+			path:   "/value/",
 			want: want{
 				statusCode: http.StatusMethodNotAllowed,
 				resData:    nil,
@@ -93,6 +96,7 @@ func TestValueHandler(t *testing.T) {
 		{
 			name:   "PUT not allowed",
 			method: http.MethodPut,
+			path:   "/value/",
 			want: want{
 				statusCode: http.StatusMethodNotAllowed,
 				resData:    nil,
@@ -101,6 +105,7 @@ func TestValueHandler(t *testing.T) {
 		{
 			name:   "PATCH not allowed",
 			method: http.MethodPatch,
+			path:   "/value/",
 			want: want{
 				statusCode: http.StatusMethodNotAllowed,
 				resData:    nil,
@@ -109,6 +114,7 @@ func TestValueHandler(t *testing.T) {
 		{
 			name:   "DELETE not allowed",
 			method: http.MethodDelete,
+			path:   "/value/",
 			want: want{
 				statusCode: http.StatusMethodNotAllowed,
 				resData:    nil,
@@ -117,6 +123,7 @@ func TestValueHandler(t *testing.T) {
 		{
 			name:   "HEAD not allowed",
 			method: http.MethodHead,
+			path:   "/value/",
 			want: want{
 				statusCode: http.StatusMethodNotAllowed,
 				resData:    nil,
@@ -125,6 +132,7 @@ func TestValueHandler(t *testing.T) {
 		{
 			name:   "OPTIONS not allowed",
 			method: http.MethodOptions,
+			path:   "/value/",
 			want: want{
 				statusCode: http.StatusMethodNotAllowed,
 				resData:    nil,
@@ -135,6 +143,7 @@ func TestValueHandler(t *testing.T) {
 		{
 			name:   "Should read metrics",
 			method: http.MethodPost,
+			path:   "/value/",
 			want: want{
 				statusCode: http.StatusOK,
 				resData: newMetrics(
@@ -150,6 +159,7 @@ func TestValueHandler(t *testing.T) {
 		{
 			name:   "Wrong Content-Type",
 			method: http.MethodPost,
+			path:   "/value/",
 			want: want{
 				statusCode: http.StatusUnsupportedMediaType,
 				resData:    nil,
@@ -161,6 +171,7 @@ func TestValueHandler(t *testing.T) {
 		{
 			name:   "Wrong metrics scheme or bad JSON",
 			method: http.MethodPost,
+			path:   "/value/",
 			want: want{
 				statusCode: http.StatusBadRequest,
 				resData:    nil,
@@ -172,6 +183,7 @@ func TestValueHandler(t *testing.T) {
 		{
 			name:   "Service should return error",
 			method: http.MethodPost,
+			path:   "/value/",
 			want: want{
 				statusCode: http.StatusNotFound,
 				resData:    nil,
@@ -189,6 +201,7 @@ func TestValueHandler(t *testing.T) {
 			res, resBody := testRequest(t,
 				mux,
 				test.method,
+				test.path,
 				test.contentType,
 				bytes.NewReader(test.reqData),
 			)
@@ -200,6 +213,136 @@ func TestValueHandler(t *testing.T) {
 				var resData schemas.Metrics
 				require.NoError(t, json.Unmarshal(resBody, &resData))
 				assert.Equal(t, *test.want.resData, resData)
+			}
+		})
+	}
+}
+
+func TestReadByURLParamsHandler(t *testing.T) {
+
+	testRequest := func(
+		t *testing.T,
+		mux *chi.Mux,
+		method string,
+		path string,
+		body io.Reader,
+	) (*http.Response, []byte) {
+		ts := httptest.NewServer(mux)
+		defer ts.Close()
+
+		req, err := http.NewRequest(method, ts.URL+path, body)
+		require.NoError(t, err)
+
+		res, err := ts.Client().Do(req)
+		require.NoError(t, err)
+
+		resData, err := io.ReadAll(res.Body)
+		require.NoError(t, err)
+
+		return res, resData
+	}
+
+	type want struct {
+		statusCode int
+		resData    string
+	}
+
+	type test struct {
+		name    string
+		method  string
+		path    string
+		want    want
+		service *MockValueService
+	}
+
+	tests := []test{
+		// not allowed methods
+		{
+			name:   "POST not allowed",
+			method: http.MethodPost,
+			path:   "/value/gauge/testName",
+			want: want{
+				statusCode: http.StatusMethodNotAllowed,
+			},
+		},
+		{
+			name:   "PUT not allowed",
+			method: http.MethodPut,
+			path:   "/value/gauge/testName",
+			want: want{
+				statusCode: http.StatusMethodNotAllowed,
+			},
+		},
+		{
+			name:   "PATCH not allowed",
+			method: http.MethodPatch,
+			path:   "/value/gauge/testName",
+			want: want{
+				statusCode: http.StatusMethodNotAllowed,
+			},
+		},
+		{
+			name:   "DELETE not allowed",
+			method: http.MethodDelete,
+			path:   "/value/gauge/testName",
+			want: want{
+				statusCode: http.StatusMethodNotAllowed,
+			},
+		},
+		{
+			name:   "HEAD not allowed",
+			method: http.MethodHead,
+			path:   "/value/gauge/testName",
+			want: want{
+				statusCode: http.StatusMethodNotAllowed,
+			},
+		},
+		{
+			name:   "OPTIONS not allowed",
+			method: http.MethodOptions,
+			path:   "/value/gauge/testName",
+			want: want{
+				statusCode: http.StatusMethodNotAllowed,
+			},
+		},
+
+		// GET
+		{
+			name:   "Should read metrics",
+			method: http.MethodGet,
+			path:   "/value/gauge/testName",
+			want: want{
+				statusCode: http.StatusOK,
+				resData:    "123.4",
+			},
+			service: &MockValueService{err: false},
+		},
+		{
+			name:   "Service should return error",
+			method: http.MethodGet,
+			want: want{
+				statusCode: http.StatusNotFound,
+			},
+			service: &MockValueService{err: true},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			mux := chi.NewRouter()
+			SetReadHandler(mux, test.service)
+			res, resBody := testRequest(t,
+				mux,
+				test.method,
+				test.path,
+				http.NoBody,
+			)
+			defer res.Body.Close()
+
+			assert.Equal(t, test.want.statusCode, res.StatusCode)
+
+			if test.want.resData != "" {
+				assert.Equal(t, test.want.resData, string(resBody))
 			}
 		})
 	}

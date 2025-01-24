@@ -1,7 +1,9 @@
 package api
 
 import (
+	"io"
 	"net/http"
+	"strconv"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/niksmo/runlytics/internal/schemas"
@@ -19,13 +21,17 @@ func SetReadHandler(mux *chi.Mux, service ReadService) {
 	path := "/value"
 	handler := &ReadHandler{service}
 	mux.Route(path, func(r chi.Router) {
-		postPath := "/"
-		r.Post(postPath, handler.post())
-		debugLogRegister(path + postPath)
+		byJSONPath := "/"
+		r.Post(byJSONPath, handler.readByJSON())
+		debugLogRegister(path + byJSONPath)
+
+		byURLParamsPath := "/{type}/{name}"
+		r.Get(byURLParamsPath, handler.readByURLParams())
+		debugLogRegister(path + byURLParamsPath)
 	})
 }
 
-func (handler *ReadHandler) post() http.HandlerFunc {
+func (handler *ReadHandler) readByJSON() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if err := verifyContentType(r, JSONMediaType); err != nil {
 			writeTextErrorResponse(
@@ -56,5 +62,25 @@ func (handler *ReadHandler) post() http.HandlerFunc {
 		}
 
 		writeJSONResponse(w, metrics)
+	}
+}
+
+func (handler *ReadHandler) readByURLParams() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		metrics := schemas.Metrics{
+			ID:    chi.URLParam(r, "name"),
+			MType: chi.URLParam(r, "type"),
+		}
+
+		if err := handler.service.Read(&metrics); err != nil {
+			writeTextErrorResponse(
+				w,
+				http.StatusNotFound,
+				err.Error(),
+			)
+		}
+
+		w.WriteHeader(http.StatusOK)
+		io.WriteString(w, strconv.FormatFloat(*metrics.Value, 'f', -1, 64))
 	}
 }
