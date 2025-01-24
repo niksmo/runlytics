@@ -2,9 +2,11 @@ package api
 
 import (
 	"net/http"
+	"strconv"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/niksmo/runlytics/internal/schemas"
+	"github.com/niksmo/runlytics/internal/server"
 )
 
 type UpdateHandler struct {
@@ -19,13 +21,17 @@ func SetUpdateHandler(mux *chi.Mux, service UpdateService) {
 	path := "/update"
 	handler := &UpdateHandler{service}
 	mux.Route(path, func(r chi.Router) {
-		postPath := "/"
-		r.Post(postPath, handler.post())
-		debugLogRegister(path + postPath)
+		byJSONPath := "/"
+		r.Post(byJSONPath, handler.updateByJSON())
+		debugLogRegister(path + byJSONPath)
+
+		byURLParamsPath := "/{type}/{name}/{value}"
+		r.Post(byURLParamsPath, handler.updataByURLParams())
+		debugLogRegister(path + byURLParamsPath)
 	})
 }
 
-func (handler *UpdateHandler) post() http.HandlerFunc {
+func (handler *UpdateHandler) updateByJSON() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if err := verifyContentType(r, JSONMediaType); err != nil {
 			writeTextErrorResponse(
@@ -56,5 +62,52 @@ func (handler *UpdateHandler) post() http.HandlerFunc {
 		}
 
 		writeJSONResponse(w, metrics)
+	}
+}
+
+func (handler *UpdateHandler) updataByURLParams() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		metrics := schemas.Metrics{
+			ID:    chi.URLParam(r, "name"),
+			MType: chi.URLParam(r, "type"),
+		}
+		sValue := chi.URLParam(r, "value")
+
+		switch metrics.MType {
+		case server.MTypeCounter:
+			delta, err := strconv.ParseInt(sValue, 10, 64)
+			if err != nil {
+				writeTextErrorResponse(
+					w,
+					http.StatusBadRequest,
+					"counter value format, integer is expected",
+				)
+				return
+			}
+			metrics.Delta = &delta
+
+		case server.MTypeGauge:
+			value, err := strconv.ParseFloat(sValue, 64)
+			if err != nil {
+				writeTextErrorResponse(
+					w,
+					http.StatusBadRequest,
+					"gauge value format, float is expected",
+				)
+				return
+			}
+			metrics.Value = &value
+		}
+
+		if err := handler.service.Update(&metrics); err != nil {
+			writeTextErrorResponse(
+				w,
+				http.StatusBadRequest,
+				err.Error(),
+			)
+			return
+		}
+
+		w.WriteHeader(http.StatusOK)
 	}
 }
