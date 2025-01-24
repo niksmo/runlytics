@@ -236,6 +236,8 @@ func TestUpdateByJSONHandler(t *testing.T) {
 			assert.Equal(t, test.want.statusCode, res.StatusCode)
 
 			if test.want.resData != nil {
+				require.Equal(t, JSONMediaType, res.Header.Get(ContentTypePath))
+
 				var resData schemas.Metrics
 				require.NoError(t, json.Unmarshal(resBody, &resData))
 				assert.Equal(t, *test.want.resData, resData)

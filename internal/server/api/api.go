@@ -55,8 +55,8 @@ func writeJSONResponse(
 	w http.ResponseWriter,
 	scheme any,
 ) {
-	w.WriteHeader(http.StatusOK)
 	w.Header().Set(ContentTypePath, JSONMediaType)
+	w.WriteHeader(http.StatusOK)
 	if err := json.NewEncoder(w).Encode(scheme); err != nil {
 		errText := "Outgoing JSON object is not valid"
 		http.Error(w, errText, http.StatusInternalServerError)
