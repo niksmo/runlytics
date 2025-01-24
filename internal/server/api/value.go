@@ -8,6 +8,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/niksmo/runlytics/internal/logger"
 	"github.com/niksmo/runlytics/internal/schemas"
+	"github.com/niksmo/runlytics/internal/server"
 	"go.uber.org/zap"
 )
 
@@ -92,6 +93,11 @@ func (handler *ReadHandler) readByURLParams() http.HandlerFunc {
 		}
 
 		w.WriteHeader(http.StatusOK)
-		io.WriteString(w, strconv.FormatFloat(*metrics.Value, 'f', -1, 64))
+		switch metrics.MType {
+		case server.MTypeGauge:
+			io.WriteString(w, strconv.FormatFloat(*metrics.Value, 'f', -1, 64))
+		case server.MTypeCounter:
+			io.WriteString(w, strconv.FormatInt(*metrics.Delta, 10))
+		}
 	}
 }
