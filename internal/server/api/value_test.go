@@ -25,20 +25,21 @@ func (service *MockValueService) Read(metrics *schemas.Metrics) error {
 
 	}
 
-	metrics.ID = "read"
-	metrics.MType = "read"
-
 	value := 123.4
 	metrics.Value = &value
+
+	delta := int64(1234)
+	metrics.Delta = &delta
 
 	return nil
 }
 
 func TestReadByJSONHandler(t *testing.T) {
-	newMetrics := func(id string, mType string, value float64) *schemas.Metrics {
+	newMetrics := func(id string, mType string, delta int64, value float64) *schemas.Metrics {
 		return &schemas.Metrics{
 			ID:    id,
 			MType: mType,
+			Delta: &delta,
 			Value: &value,
 		}
 	}
@@ -147,13 +148,14 @@ func TestReadByJSONHandler(t *testing.T) {
 			want: want{
 				statusCode: http.StatusOK,
 				resData: newMetrics(
-					"read",
-					"read",
+					"test",
+					"gauge",
+					int64(1234),
 					123.4,
 				),
 			},
 			contentType: "application/json",
-			reqData:     []byte(`{"id": "test", "type": "test"}`),
+			reqData:     []byte(`{"id": "test", "type": "gauge"}`),
 			service:     &MockValueService{err: false},
 		},
 		{
@@ -165,7 +167,7 @@ func TestReadByJSONHandler(t *testing.T) {
 				resData:    nil,
 			},
 			contentType: "text/plain",
-			reqData:     []byte(`{"id": "test", "type": "test"}`),
+			reqData:     []byte(`{"id": "test", "type": "gauge"}`),
 			service:     &MockValueService{err: false},
 		},
 		{
@@ -177,7 +179,7 @@ func TestReadByJSONHandler(t *testing.T) {
 				resData:    nil,
 			},
 			contentType: "application/json",
-			reqData:     []byte(`{"id": "test", "type": "test}`),
+			reqData:     []byte(`{"id": "test", "type": "gauge}`),
 			service:     &MockValueService{err: false},
 		},
 		{
@@ -189,7 +191,7 @@ func TestReadByJSONHandler(t *testing.T) {
 				resData:    nil,
 			},
 			contentType: "application/json",
-			reqData:     []byte(`{"id": "test", "type": "test"}`),
+			reqData:     []byte(`{"id": "test", "type": "gauge"}`),
 			service:     &MockValueService{err: true},
 		},
 	}
