@@ -78,6 +78,7 @@ func (handler *ReadHandler) readByURLParams() http.HandlerFunc {
 				http.StatusNotFound,
 				err.Error(),
 			)
+			return
 		}
 
 		w.WriteHeader(http.StatusOK)
