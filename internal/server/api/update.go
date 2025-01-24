@@ -5,8 +5,10 @@ import (
 	"strconv"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/niksmo/runlytics/internal/logger"
 	"github.com/niksmo/runlytics/internal/schemas"
 	"github.com/niksmo/runlytics/internal/server"
+	"go.uber.org/zap"
 )
 
 type UpdateHandler struct {
@@ -52,6 +54,10 @@ func (handler *UpdateHandler) updateByJSON() http.HandlerFunc {
 			return
 		}
 
+		logger.Log.Debug(
+			"Decoded from JSON", zap.String("struct", metrics.String()),
+		)
+
 		if err := handler.service.Update(&metrics); err != nil {
 			writeTextErrorResponse(
 				w,
@@ -60,6 +66,10 @@ func (handler *UpdateHandler) updateByJSON() http.HandlerFunc {
 			)
 			return
 		}
+
+		logger.Log.Debug(
+			"For encode to JSON", zap.String("struct", metrics.String()),
+		)
 
 		writeJSONResponse(w, metrics)
 	}

@@ -56,11 +56,11 @@ func (service *UpdateService) Update(metrics *schemas.Metrics) error {
 		if metrics.Delta == nil {
 			errs = append(errs, fmt.Errorf("'delta' %s", emptyFieldStatus))
 		} else {
-			v := float64(service.repository.UpdateCounterByName(
+			v := service.repository.UpdateCounterByName(
 				metrics.ID,
 				*metrics.Delta,
-			))
-			metrics.Value = &v
+			)
+			metrics.Delta = &v
 		}
 	default:
 		errs = append(

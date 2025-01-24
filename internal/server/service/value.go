@@ -29,12 +29,11 @@ func (service *ReadService) Read(metrics *schemas.Metrics) error {
 		}
 		metrics.Value = &v
 	case server.MTypeCounter:
-		vInt, err := service.repository.ReadCounterByName(metrics.ID)
+		v, err := service.repository.ReadCounterByName(metrics.ID)
 		if err != nil {
 			return err
 		}
-		vFloat := float64(vInt)
-		metrics.Value = &vFloat
+		metrics.Delta = &v
 	default:
 		return fmt.Errorf("wrong type value: '%s'. Expect 'counter' or 'gauge'", metrics.MType)
 	}
