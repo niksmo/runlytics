@@ -24,6 +24,7 @@ func main() {
 	mux := chi.NewRouter()
 	mux.Use(middleware.Logger)
 	mux.Use(middleware.AllowContentEncoding("gzip"))
+	mux.Use(middleware.Gzip)
 
 	repository := repository.New()
 	HTMLService := service.NewHTMLService(repository)
