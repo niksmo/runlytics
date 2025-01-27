@@ -33,8 +33,8 @@ func (handler *HTMLHandler) get() http.HandlerFunc {
 			return
 		}
 
-		w.WriteHeader(http.StatusOK)
 		w.Header().Set(ContentType, "text/html; charset=utf-8")
+		w.WriteHeader(http.StatusOK)
 		buf.WriteTo(w)
 	}
 }
