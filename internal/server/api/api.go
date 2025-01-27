@@ -13,8 +13,8 @@ import (
 )
 
 const (
-	ContentTypePath = "Content-Type"
-	JSONMediaType   = "application/json"
+	ContentType   = "Content-Type"
+	JSONMediaType = "application/json"
 )
 
 func debugLogRegister(endpoint string) {
@@ -25,12 +25,12 @@ func verifyContentType(
 	r *http.Request,
 	mediaType string,
 ) error {
-	contentType, ok := r.Header[ContentTypePath]
+	contentType, ok := r.Header[ContentType]
 	if !(ok && slices.Contains(contentType, mediaType)) {
 		errText := fmt.Sprintf("expect %s content", mediaType)
 		logger.Log.Debug(
 			"Unsupported request Content-Type",
-			zap.String(ContentTypePath, strings.Join(contentType, "; ")),
+			zap.String(ContentType, strings.Join(contentType, "; ")),
 			zap.String("Expected", mediaType),
 		)
 		return errors.New(errText)
@@ -55,7 +55,7 @@ func writeJSONResponse(
 	w http.ResponseWriter,
 	scheme any,
 ) {
-	w.Header().Set(ContentTypePath, JSONMediaType)
+	w.Header().Set(ContentType, JSONMediaType)
 	w.WriteHeader(http.StatusOK)
 	if err := json.NewEncoder(w).Encode(scheme); err != nil {
 		errText := "Outgoing JSON object is not valid"

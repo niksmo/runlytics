@@ -11,6 +11,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/niksmo/runlytics/internal/schemas"
+	"github.com/niksmo/runlytics/internal/server/middleware"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -235,6 +236,8 @@ func TestReadByURLParamsHandler(t *testing.T) {
 		req, err := http.NewRequest(method, ts.URL+path, body)
 		require.NoError(t, err)
 
+		req.Header.Set("Accept-Encoding", "gzip")
+
 		res, err := ts.Client().Do(req)
 		require.NoError(t, err)
 
@@ -332,6 +335,8 @@ func TestReadByURLParamsHandler(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			mux := chi.NewRouter()
+			mux.Use(middleware.AllowContentEncoding("gzip"))
+			mux.Use(middleware.Gzip)
 			SetReadHandler(mux, test.service)
 			res, resBody := testRequest(t,
 				mux,
@@ -344,6 +349,7 @@ func TestReadByURLParamsHandler(t *testing.T) {
 			assert.Equal(t, test.want.statusCode, res.StatusCode)
 
 			if test.want.resData != "" {
+				require.Empty(t, res.Header.Get("Content-Encoding"))
 				assert.Equal(t, test.want.resData, string(resBody))
 			}
 		})

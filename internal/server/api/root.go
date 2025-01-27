@@ -34,7 +34,7 @@ func (handler *HTMLHandler) get() http.HandlerFunc {
 		}
 
 		w.WriteHeader(http.StatusOK)
-		w.Header().Set(ContentTypePath, "text/html; charset=utf-8")
+		w.Header().Set(ContentType, "text/html; charset=utf-8")
 		buf.WriteTo(w)
 	}
 }

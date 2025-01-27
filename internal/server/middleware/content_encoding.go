@@ -21,7 +21,7 @@ func AllowContentEncoding(
 				return
 			}
 
-			reqEncodings := r.Header.Values("Content-Encoding")
+			reqEncodings := r.Header.Values(ContentEncoding)
 
 			for _, reqEncoding := range reqEncodings {
 				reqEncoding = strings.ToLower(strings.TrimSpace(reqEncoding))

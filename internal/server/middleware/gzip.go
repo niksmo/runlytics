@@ -39,7 +39,7 @@ func Gzip(next http.Handler) http.Handler {
 }
 
 type gzipReader struct {
-	wrap io.ReadCloser
+	io.ReadCloser
 	gzip *gzip.Reader
 }
 
@@ -48,7 +48,7 @@ func newGzipReader(requestBody io.ReadCloser) (*gzipReader, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &gzipReader{wrap: requestBody, gzip: r}, nil
+	return &gzipReader{ReadCloser: requestBody, gzip: r}, nil
 }
 
 func (r *gzipReader) Read(p []byte) (n int, err error) {
@@ -56,7 +56,7 @@ func (r *gzipReader) Read(p []byte) (n int, err error) {
 }
 
 func (r *gzipReader) Close() error {
-	if err := r.wrap.Close(); err != nil {
+	if err := r.ReadCloser.Close(); err != nil {
 		return err
 	}
 
@@ -64,36 +64,51 @@ func (r *gzipReader) Close() error {
 }
 
 type gzipWriter struct {
-	wrap http.ResponseWriter
-	gzip *gzip.Writer
+	http.ResponseWriter
+	gzip         *gzip.Writer
+	contentTypes map[string]struct{}
+	compressable bool
 }
 
 func newGzipWriter(w http.ResponseWriter) *gzipWriter {
 	gzip, _ := gzip.NewWriterLevel(w, gzip.BestSpeed)
-	return &gzipWriter{wrap: w, gzip: gzip}
+	contentTypes := map[string]struct{}{
+		"application/json": {},
+		"text/html":        {},
+	}
+	return &gzipWriter{ResponseWriter: w, gzip: gzip, contentTypes: contentTypes}
 }
 
-func (w *gzipWriter) Header() http.Header {
-	return w.wrap.Header()
+func (w *gzipWriter) isCompressable() bool {
+	contentType := strings.Split(w.Header().Get(ContentType), ";")[0]
+	_, ok := w.contentTypes[contentType]
+	return ok
 }
 
 func (w *gzipWriter) Write(p []byte) (int, error) {
+	if !w.compressable {
+		return w.ResponseWriter.Write(p)
+	}
 	return w.gzip.Write(p)
 }
 
 func (w *gzipWriter) WriteHeader(statusCode int) {
-	if statusCode < 300 {
-		w.wrap.Header().Set("Content-Encoding", gzipFormat)
+	if statusCode < 300 && w.isCompressable() {
+		w.compressable = true
+		w.Header().Set(ContentEncoding, gzipFormat)
 	}
-	w.wrap.WriteHeader(statusCode)
+	w.ResponseWriter.WriteHeader(statusCode)
 }
 
 func (w *gzipWriter) Close() error {
-	return w.gzip.Close()
+	if w.compressable {
+		return w.gzip.Close()
+	}
+	return nil
 }
 
 func receiveGzip(reqHeader *http.Header) bool {
-	for _, reqEncoding := range reqHeader.Values("Content-Encoding") {
+	for _, reqEncoding := range reqHeader.Values(ContentEncoding) {
 		reqEncoding = strings.ToLower(strings.TrimSpace(reqEncoding))
 		if reqEncoding == gzipFormat {
 			return true
@@ -104,7 +119,7 @@ func receiveGzip(reqHeader *http.Header) bool {
 }
 
 func acceptGzip(reqHeader *http.Header) bool {
-	acceptEncodings := reqHeader.Values("Accept-Encoding")
+	acceptEncodings := reqHeader.Values(AcceptEncoding)
 	for _, acceptEncoding := range acceptEncodings {
 		if strings.HasPrefix(acceptEncoding, "*") {
 			return true

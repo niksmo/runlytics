@@ -2,6 +2,7 @@ package emitter
 
 import (
 	"bytes"
+	"compress/gzip"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -14,10 +15,6 @@ import (
 	"go.uber.org/zap"
 )
 
-type HTTPClient interface {
-	Post(url string, contentType string, body io.Reader) (resp *http.Response, err error)
-}
-
 type MetricsData interface {
 	GetGaugeMetrics() map[string]float64
 	GetCounterMetrics() map[string]int64
@@ -26,7 +23,7 @@ type MetricsData interface {
 type HTTPEmitter struct {
 	interval        time.Duration
 	metricsData     MetricsData
-	client          HTTPClient
+	client          *http.Client
 	baseURL         *url.URL
 	prevPollCounter int64
 }
@@ -34,7 +31,7 @@ type HTTPEmitter struct {
 func New(
 	interval time.Duration,
 	metricsData MetricsData,
-	client HTTPClient,
+	client *http.Client,
 	baseURL *url.URL,
 ) *HTTPEmitter {
 
@@ -84,12 +81,23 @@ func (e *HTTPEmitter) post(metrics schemas.Metrics) {
 	)
 
 	var buf bytes.Buffer
-	if err := json.NewEncoder(&buf).Encode(metrics); err != nil {
+	gzipWriter := gzip.NewWriter(&buf)
+
+	if err := json.NewEncoder(gzipWriter).Encode(metrics); err != nil {
 		logger.Log.Debug("Encode to JSON error", zap.Error(err))
 	}
+	gzipWriter.Close()
 
 	start := time.Now()
-	res, err := e.client.Post(reqURL, "application/json", &buf)
+	request, err := http.NewRequest("POST", reqURL, &buf)
+	if err != nil {
+		logger.Log.Warn("Error while creating http request", zap.Error(err))
+	}
+	request.Header.Set("Content-Type", "application/json")
+	request.Header.Set("Content-Encoding", "gzip")
+	request.Header.Set("Accept-Encoding", "gzip")
+
+	res, err := e.client.Do(request)
 	if err != nil {
 		logger.Log.Info(
 			"Got response",
@@ -102,7 +110,21 @@ func (e *HTTPEmitter) post(metrics schemas.Metrics) {
 	}
 	defer res.Body.Close()
 
-	data, err := io.ReadAll(res.Body)
+	var data []byte
+
+	if res.Header.Get("Content-Encoding") == "gzip" {
+		var gzipReader *gzip.Reader
+		gzipReader, err = gzip.NewReader(res.Body)
+
+		if err != nil {
+			logger.Log.Warn("Error while creating new gzip reader", zap.Error(err))
+		}
+
+		data, err = io.ReadAll(gzipReader)
+	} else {
+		data, err = io.ReadAll(res.Body)
+	}
+
 	if err != nil {
 		logger.Log.Error("Read response data error", zap.Error(err))
 	}

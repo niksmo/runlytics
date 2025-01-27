@@ -2,15 +2,18 @@ package api
 
 import (
 	"bytes"
+	"compress/gzip"
 	"encoding/json"
 	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/niksmo/runlytics/internal/schemas"
+	"github.com/niksmo/runlytics/internal/server/middleware"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -236,7 +239,7 @@ func TestUpdateByJSONHandler(t *testing.T) {
 			assert.Equal(t, test.want.statusCode, res.StatusCode)
 
 			if test.want.resData != nil {
-				require.Equal(t, JSONMediaType, res.Header.Get(ContentTypePath))
+				require.Equal(t, JSONMediaType, res.Header.Get(ContentType))
 
 				var resData schemas.Metrics
 				require.NoError(t, json.Unmarshal(resBody, &resData))
@@ -244,6 +247,70 @@ func TestUpdateByJSONHandler(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestUpdateByJSONHandlerGzip(t *testing.T) {
+	mux := chi.NewRouter()
+	mux.Use(middleware.AllowContentEncoding("gzip"))
+	mux.Use(middleware.Gzip)
+	SetUpdateHandler(mux, &MockUpdateService{err: false})
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+
+	path := "/update/"
+
+	requestBody := `{
+	    "id":"test",
+		"type":"test",
+		"delta":321,
+		"value":432.1
+	}`
+
+	successBody := `{
+	    "id":"update",
+        "type":"update",
+        "delta":123,
+        "value":123.4
+	}`
+
+	t.Run("send gzip", func(t *testing.T) {
+		var buf bytes.Buffer
+		gw := gzip.NewWriter(&buf)
+		_, err := gw.Write([]byte(requestBody))
+		require.NoError(t, err)
+		err = gw.Close()
+		require.NoError(t, err)
+
+		request, err := http.NewRequest("POST", srv.URL+path, &buf)
+		require.NoError(t, err)
+		request.Header.Set("Content-Type", "application/json")
+		request.Header.Set("Content-Encoding", "gzip")
+		request.Header.Set("Accept-Encoding", "")
+		res, err := srv.Client().Do(request)
+		require.NoError(t, err)
+		assert.Equal(t, http.StatusOK, res.StatusCode)
+		data, err := io.ReadAll(res.Body)
+		require.NoError(t, err)
+		defer res.Body.Close()
+		assert.JSONEq(t, successBody, string(data))
+	})
+
+	t.Run("accept gzip", func(t *testing.T) {
+		request, err := http.NewRequest("POST", srv.URL+path, strings.NewReader(requestBody))
+		require.NoError(t, err)
+		request.Header.Set("Content-Type", "application/json")
+		request.Header.Set("Accept-Encoding", "gzip")
+		res, err := srv.Client().Do(request)
+		require.NoError(t, err)
+		assert.Equal(t, http.StatusOK, res.StatusCode)
+		assert.Equal(t, "gzip", res.Header.Get("Content-Encoding"))
+		gr, err := gzip.NewReader(res.Body)
+		defer res.Body.Close()
+		require.NoError(t, err)
+		data, err := io.ReadAll(gr)
+		require.NoError(t, err)
+		assert.JSONEq(t, successBody, string(data))
+	})
 }
 
 func TestUpdateByURLParamsHandler(t *testing.T) {
