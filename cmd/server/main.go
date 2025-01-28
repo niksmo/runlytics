@@ -19,6 +19,15 @@ func main() {
 		panic(err)
 	}
 
+	logger.Log.Debug(
+		"Parse flags",
+		zap.String("addr", flagAddr.String()),
+		zap.String("log", flagLog),
+		zap.Duration("interval", flagInterval),
+		zap.String("storagePath", flagStoragePath.Name()),
+		zap.Bool("restore", flagRestore),
+	)
+
 	logger.Log.Debug("Bootstrap server")
 
 	mux := chi.NewRouter()
