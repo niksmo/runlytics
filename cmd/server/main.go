@@ -9,6 +9,7 @@ import (
 	"github.com/niksmo/runlytics/internal/server/middleware"
 	"github.com/niksmo/runlytics/internal/server/repository"
 	"github.com/niksmo/runlytics/internal/server/service"
+	"github.com/niksmo/runlytics/internal/server/storage"
 	"go.uber.org/zap"
 )
 
@@ -36,13 +37,21 @@ func main() {
 	mux.Use(middleware.Gzip)
 
 	repository := repository.New()
+	fileStorage := storage.NewFileStorage(
+		repository,
+		flagInterval,
+		flagStoragePath,
+		flagRestore,
+	)
 	HTMLService := service.NewHTMLService(repository)
-	updateService := service.NewUpdateService(repository)
+	updateService := service.NewUpdateService(fileStorage)
 	readService := service.NewReadService(repository)
 
 	api.SetHTMLHandler(mux, HTMLService)
 	api.SetUpdateHandler(mux, updateService)
 	api.SetReadHandler(mux, readService)
+
+	fileStorage.Run()
 
 	server := http.Server{
 		Addr:    flagAddr.String(),
