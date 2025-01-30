@@ -4,8 +4,10 @@ import (
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
+	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/niksmo/runlytics/internal/logger"
 	"github.com/niksmo/runlytics/internal/server/api"
+	"github.com/niksmo/runlytics/internal/server/db"
 	"github.com/niksmo/runlytics/internal/server/middleware"
 	"github.com/niksmo/runlytics/internal/server/repository"
 	"github.com/niksmo/runlytics/internal/server/service"
@@ -31,6 +33,9 @@ func main() {
 
 	logger.Log.Debug("Bootstrap server")
 
+	db := db.Init("postgres://runlytics:runlytics@127.0.0.1:5432/runlytics")
+	defer db.Close()
+
 	mux := chi.NewRouter()
 	mux.Use(middleware.Logger)
 	mux.Use(middleware.AllowContentEncoding("gzip"))
@@ -46,10 +51,12 @@ func main() {
 	HTMLService := service.NewHTMLService(repository)
 	updateService := service.NewUpdateService(fileStorage)
 	readService := service.NewReadService(repository)
+	healthCheckService := service.NewHealthCheckService(db)
 
 	api.SetHTMLHandler(mux, HTMLService)
 	api.SetUpdateHandler(mux, updateService)
 	api.SetReadHandler(mux, readService)
+	api.SetHealthCheckHandler(mux, healthCheckService)
 
 	fileStorage.Run()
 
