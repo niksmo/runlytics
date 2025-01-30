@@ -1,13 +1,14 @@
 package collector
 
 import (
-	"log"
 	"math/rand/v2"
 	"runtime"
 	"sync"
 	"time"
 
+	"github.com/niksmo/runlytics/internal/logger"
 	"github.com/niksmo/runlytics/pkg/counter"
+	"go.uber.org/zap"
 )
 
 type metricsData struct {
@@ -33,14 +34,11 @@ func New(interval time.Duration) *collector {
 }
 
 func (c *collector) Run() {
-	log.Printf(
-		"Run metrics collector with poll interval = %vs\n",
-		c.poll.Seconds(),
-	)
+	logger.Log.Info("Run collector", zap.Float64("interval", c.poll.Seconds()))
 
 	for {
 		c.collectMetrics()
-		log.Println("[POLL]Wait for", c.poll.Seconds(), "sec")
+		logger.Log.Debug("Wait", zap.Float64("seconds", c.poll.Seconds()))
 		time.Sleep(c.poll)
 	}
 
@@ -59,7 +57,7 @@ func (c *collector) GetGaugeMetrics() map[string]float64 {
 }
 
 func (c *collector) GetCounterMetrics() map[string]int64 {
-	ret := make(map[string]int64, len(c.data.gauge))
+	ret := make(map[string]int64, len(c.data.counter))
 	c.mu.Lock()
 	defer c.mu.Unlock()
 

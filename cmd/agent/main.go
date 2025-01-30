@@ -1,17 +1,19 @@
 package main
 
 import (
-	"log"
 	"net/http"
 
 	"github.com/niksmo/runlytics/internal/agent/collector"
 	"github.com/niksmo/runlytics/internal/agent/emitter"
+	"github.com/niksmo/runlytics/internal/logger"
 )
 
 func main() {
 	parseFlags()
 
-	log.Println("Start agent")
+	logger.Initialize(flagLog)
+
+	logger.Log.Debug("Start agent")
 
 	collector := collector.New(flagPoll)
 
