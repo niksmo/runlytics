@@ -22,17 +22,15 @@ func main() {
 		panic(err)
 	}
 
-	logger.Log.Debug(
-		"Parse flags",
-		zap.String("addr", flagAddr.String()),
-		zap.String("log", flagLog),
-		zap.Duration("interval", flagInterval),
-		zap.String("storagePath", flagStoragePath.Name()),
-		zap.Bool("restore", flagRestore),
-		zap.String("dsn", flagDSN),
+	logger.Log.Info(
+		"Bootstrap server with flags",
+		zap.String("ADDRESS", flagAddr.String()),
+		zap.String("LOG_LVL", flagLog),
+		zap.Float64("STORE_INTERVAL", flagInterval.Seconds()),
+		zap.String("FILE_STORAGE_PATH", flagStoragePath.Name()),
+		zap.Bool("RESTORE", flagRestore),
+		zap.String("DATABASE_DSN", flagDSN),
 	)
-
-	logger.Log.Debug("Bootstrap server")
 
 	db := db.Init(flagDSN)
 	defer db.Close()

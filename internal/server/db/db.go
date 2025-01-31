@@ -8,7 +8,7 @@ import (
 )
 
 func Init(dsn string) *sql.DB {
-	db, err := sql.Open("pgx", dsn+" sslmode=disable")
+	db, err := sql.Open("pgx", dsn)
 	if err != nil {
 		logger.Log.Error("Open DB", zap.Error(err))
 	}
