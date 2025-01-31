@@ -8,12 +8,12 @@ import (
 )
 
 func Init(dsn string) *sql.DB {
-	db, err := sql.Open("pgx", dsn)
+	db, err := sql.Open("pgx", dsn+" sslmode=disable")
 	if err != nil {
 		logger.Log.Error("Open DB", zap.Error(err))
 	}
 	if err = db.Ping(); err != nil {
-		logger.Log.Error("DB not connected", zap.Error(err))
+		logger.Log.Info("DB not connected")
 	} else {
 		logger.Log.Info("DB connected")
 	}

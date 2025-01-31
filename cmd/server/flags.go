@@ -45,6 +45,7 @@ var (
 	flagInterval    time.Duration
 	flagStoragePath *os.File
 	flagRestore     bool
+	flagDSN         string
 )
 
 func parseFlags() {
@@ -60,6 +61,7 @@ func parseFlags() {
 	rawFlagInterval := flag.Int("i", 300, "Storage save interval, '0' is sync")
 	rawFlagStoragePath := flag.String("f", defaultStoragePath, "Absolute path for storage, e.g. /folder/file.ext")
 	flag.BoolVar(&flagRestore, "r", true, "Restore data from storage before runnig server")
+	flag.StringVar(&flagDSN, "d", "", "Usage \"user=postgres password=secret host=localhost port=5432 database=pgx_test\"")
 	flag.Parse()
 
 	// get env
@@ -98,11 +100,24 @@ func parseFlags() {
 		}
 	}
 
-	// convert raw flags
+	if envDSN := os.Getenv("DATABASE_DSN"); envDSN != "" {
+		flagDSN = envDSN
+	}
+
+	// convert and validate raw flags
 	flagInterval = time.Second * time.Duration(*rawFlagInterval)
 
 	if err := setFlagStoragePath(*rawFlagStoragePath); err != nil {
 		log.Panic(fmt.Errorf("storage path: %w", err))
+	}
+
+	if flagDSN != "" {
+		flagDSN = strings.TrimSpace(flagDSN)
+		params := strings.Fields(flagDSN)
+		if len(params) != 5 {
+			log.Printf("Unexpected DSN value: %q. Type -h for usage.", flagDSN)
+			flagDSN = ""
+		}
 	}
 
 }

@@ -29,11 +29,12 @@ func main() {
 		zap.Duration("interval", flagInterval),
 		zap.String("storagePath", flagStoragePath.Name()),
 		zap.Bool("restore", flagRestore),
+		zap.String("dsn", flagDSN),
 	)
 
 	logger.Log.Debug("Bootstrap server")
 
-	db := db.Init("postgres://runlytics:runlytics@127.0.0.1:5432/runlytics")
+	db := db.Init(flagDSN)
 	defer db.Close()
 
 	mux := chi.NewRouter()
