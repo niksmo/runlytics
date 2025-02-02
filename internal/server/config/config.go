@@ -29,7 +29,7 @@ func Load() *Config {
 	)
 
 	rawRestoreFlag := flag.Bool("r", restoreDefault, restoreUsage)
-	rawDbDSNFlag := flag.String("d", dbDSNDefault, dbDSNUsage)
+	rawDatabaseDSNFlag := flag.String("d", databaseDSNDefault, databaseDSNUsage)
 
 	flag.Parse()
 
@@ -39,7 +39,7 @@ func Load() *Config {
 		filePath:     getFilePathFlag(*rawFilePathFlag),
 		saveInterval: getSaveIntervalFlag(*rawSaveIntervalFlag),
 		restore:      getRestoreFlag(*rawRestoreFlag),
-		dbDSN:        getDbDSNFlag(*rawDbDSNFlag),
+		dbDSN:        getDatabaseDSNFlag(*rawDatabaseDSNFlag),
 	}
 
 	return &config
