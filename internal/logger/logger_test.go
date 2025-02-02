@@ -14,14 +14,14 @@ func TestLogger(t *testing.T) {
 	}
 
 	t.Run("Wrong level", func(t *testing.T) {
-		assert.Error(t, Initialize("Jinfo"))
+		assert.Error(t, Init("Jinfo"))
 		assert.Equal(t, zap.NewNop(), Log)
 		t.Cleanup(clear)
 	})
 
 	t.Run("First initialization", func(t *testing.T) {
 		expectedLvl := "debug"
-		err := Initialize(expectedLvl)
+		err := Init(expectedLvl)
 		require.Nil(t, err)
 		assert.NotEqual(t, zap.NewNop(), Log)
 		assert.Equal(t, expectedLvl, Log.Level().String())
@@ -29,12 +29,12 @@ func TestLogger(t *testing.T) {
 	})
 
 	t.Run("Many initializations", func(t *testing.T) {
-		err := Initialize("debug")
+		err := Init("debug")
 		require.Nil(t, err)
 		assert.NotEqual(t, zap.NewNop(), Log)
 		assert.Equal(t, "debug", Log.Level().String())
 
-		err = Initialize("info")
+		err = Init("info")
 		require.Nil(t, err)
 		assert.NotEqual(t, zap.NewNop(), Log)
 		assert.Equal(t, "info", Log.Level().String())

@@ -7,6 +7,7 @@ import (
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/niksmo/runlytics/internal/logger"
 	"github.com/niksmo/runlytics/internal/server/api"
+	"github.com/niksmo/runlytics/internal/server/config"
 	"github.com/niksmo/runlytics/internal/server/db"
 	"github.com/niksmo/runlytics/internal/server/middleware"
 	"github.com/niksmo/runlytics/internal/server/repository"
@@ -16,23 +17,23 @@ import (
 )
 
 func main() {
-	parseFlags()
+	config := config.Load()
 
-	if err := logger.Initialize(flagLog); err != nil {
+	if err := logger.Init(config.LogLvl()); err != nil {
 		panic(err)
 	}
 
 	logger.Log.Info(
 		"Bootstrap server with flags",
-		zap.String("ADDRESS", flagAddr.String()),
-		zap.String("LOG_LVL", flagLog),
-		zap.Float64("STORE_INTERVAL", flagInterval.Seconds()),
-		zap.String("FILE_STORAGE_PATH", flagStoragePath.Name()),
-		zap.Bool("RESTORE", flagRestore),
-		zap.String("DATABASE_DSN", flagDSN),
+		zap.String("ADDRESS", config.Addr()),
+		zap.String("LOG_LVL", config.LogLvl()),
+		zap.Float64("STORE_INTERVAL", config.SaveInterval().Seconds()),
+		zap.String("FILE_STORAGE_PATH", config.StoragePath().Name()),
+		zap.Bool("RESTORE", config.Restore()),
+		zap.String("DATABASE_DSN", config.DatabaseDSN()),
 	)
 
-	db := db.Init(flagDSN)
+	db := db.Init(config.DatabaseDSN())
 	defer db.Close()
 
 	mux := chi.NewRouter()
@@ -43,9 +44,9 @@ func main() {
 	repository := repository.New()
 	fileStorage := storage.NewFileStorage(
 		repository,
-		flagInterval,
-		flagStoragePath,
-		flagRestore,
+		config.SaveInterval(),
+		config.StoragePath(),
+		config.Restore(),
 	)
 	HTMLService := service.NewHTMLService(repository)
 	updateService := service.NewUpdateService(fileStorage)
@@ -60,7 +61,7 @@ func main() {
 	fileStorage.Run()
 
 	server := http.Server{
-		Addr:    flagAddr.String(),
+		Addr:    config.Addr(),
 		Handler: mux,
 	}
 

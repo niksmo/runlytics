@@ -105,7 +105,6 @@ func (s *FileStorage) intervalSave() {
 	for {
 		time.Sleep(s.interval)
 		s.save()
-
 	}
 }
 
