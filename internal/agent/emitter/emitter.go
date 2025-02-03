@@ -10,8 +10,7 @@ import (
 	"time"
 
 	"github.com/niksmo/runlytics/internal/logger"
-	"github.com/niksmo/runlytics/internal/schemas"
-	"github.com/niksmo/runlytics/internal/server"
+	"github.com/niksmo/runlytics/internal/metrics"
 	"go.uber.org/zap"
 )
 
@@ -56,7 +55,7 @@ func (e *HTTPEmitter) Run() {
 func (e *HTTPEmitter) emitGauge() {
 	logger.Log.Debug("Emit gauge metrics")
 	for name, value := range e.metricsData.GetGaugeMetrics() {
-		gaugeMetrics := schemas.Metrics{ID: name, MType: server.MTypeGauge, Value: &value}
+		gaugeMetrics := metrics.Metrics{ID: name, MType: metrics.MTypeGauge, Value: &value}
 		e.post(gaugeMetrics)
 	}
 }
@@ -66,13 +65,13 @@ func (e *HTTPEmitter) emitCounter() {
 	for name, value := range e.metricsData.GetCounterMetrics() {
 		delta := value - e.prevPollCounter
 		e.prevPollCounter = value
-		counterMetrics := schemas.Metrics{ID: name, MType: server.MTypeCounter, Delta: &delta}
+		counterMetrics := metrics.Metrics{ID: name, MType: metrics.MTypeCounter, Delta: &delta}
 
 		e.post(counterMetrics)
 	}
 }
 
-func (e *HTTPEmitter) post(metrics schemas.Metrics) {
+func (e *HTTPEmitter) post(metrics metrics.Metrics) {
 	reqURL := e.baseURL.JoinPath("update").String()
 	logger.Log.Info(
 		"Start request",

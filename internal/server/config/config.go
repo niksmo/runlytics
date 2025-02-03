@@ -58,7 +58,7 @@ func (c *Config) Addr() string {
 	return c.addr.String()
 }
 
-func (c *Config) FileStorage() *os.File {
+func (c *Config) File() *os.File {
 	file := *c.fileStorage.file
 	return &file
 }

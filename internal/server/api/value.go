@@ -7,8 +7,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/niksmo/runlytics/internal/logger"
-	"github.com/niksmo/runlytics/internal/schemas"
-	"github.com/niksmo/runlytics/internal/server"
+	"github.com/niksmo/runlytics/internal/metrics"
 	"go.uber.org/zap"
 )
 
@@ -17,7 +16,7 @@ type ReadHandler struct {
 }
 
 type ReadService interface {
-	Read(metrics *schemas.Metrics) error
+	Read(mData *metrics.Metrics) error
 }
 
 func SetReadHandler(mux *chi.Mux, service ReadService) {
@@ -45,7 +44,7 @@ func (handler *ReadHandler) readByJSON() http.HandlerFunc {
 			return
 		}
 
-		var metrics schemas.Metrics
+		var metrics metrics.Metrics
 		if err := decodeJSONSchema(r, &metrics); err != nil {
 			writeTextErrorResponse(
 				w,
@@ -78,12 +77,12 @@ func (handler *ReadHandler) readByJSON() http.HandlerFunc {
 
 func (handler *ReadHandler) readByURLParams() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		metrics := schemas.Metrics{
+		mData := metrics.Metrics{
 			ID:    chi.URLParam(r, "name"),
 			MType: chi.URLParam(r, "type"),
 		}
 
-		if err := handler.service.Read(&metrics); err != nil {
+		if err := handler.service.Read(&mData); err != nil {
 			writeTextErrorResponse(
 				w,
 				http.StatusNotFound,
@@ -93,11 +92,11 @@ func (handler *ReadHandler) readByURLParams() http.HandlerFunc {
 		}
 
 		w.WriteHeader(http.StatusOK)
-		switch metrics.MType {
-		case server.MTypeGauge:
-			io.WriteString(w, strconv.FormatFloat(*metrics.Value, 'f', -1, 64))
-		case server.MTypeCounter:
-			io.WriteString(w, strconv.FormatInt(*metrics.Delta, 10))
+		switch mData.MType {
+		case metrics.MTypeGauge:
+			io.WriteString(w, strconv.FormatFloat(*mData.Value, 'f', -1, 64))
+		case metrics.MTypeCounter:
+			io.WriteString(w, strconv.FormatInt(*mData.Delta, 10))
 		}
 	}
 }

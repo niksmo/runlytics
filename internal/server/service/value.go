@@ -3,8 +3,7 @@ package service
 import (
 	"fmt"
 
-	"github.com/niksmo/runlytics/internal/schemas"
-	"github.com/niksmo/runlytics/internal/server"
+	"github.com/niksmo/runlytics/internal/metrics"
 )
 
 type ReadService struct {
@@ -20,22 +19,22 @@ func NewReadService(repository ReadByNameRepository) *ReadService {
 	return &ReadService{repository}
 }
 
-func (service *ReadService) Read(metrics *schemas.Metrics) error {
-	switch metrics.MType {
-	case server.MTypeGauge:
-		v, err := service.repository.ReadGaugeByName(metrics.ID)
+func (service *ReadService) Read(mData *metrics.Metrics) error {
+	switch mData.MType {
+	case metrics.MTypeGauge:
+		v, err := service.repository.ReadGaugeByName(mData.ID)
 		if err != nil {
 			return err
 		}
-		metrics.Value = &v
-	case server.MTypeCounter:
-		v, err := service.repository.ReadCounterByName(metrics.ID)
+		mData.Value = &v
+	case metrics.MTypeCounter:
+		v, err := service.repository.ReadCounterByName(mData.ID)
 		if err != nil {
 			return err
 		}
-		metrics.Delta = &v
+		mData.Delta = &v
 	default:
-		return fmt.Errorf("wrong type value: '%s'. Expect 'counter' or 'gauge'", metrics.MType)
+		return fmt.Errorf("wrong type value: '%s'. Expect 'counter' or 'gauge'", mData.MType)
 	}
 
 	return nil

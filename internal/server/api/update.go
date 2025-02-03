@@ -6,8 +6,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/niksmo/runlytics/internal/logger"
-	"github.com/niksmo/runlytics/internal/schemas"
-	"github.com/niksmo/runlytics/internal/server"
+	"github.com/niksmo/runlytics/internal/metrics"
 	"go.uber.org/zap"
 )
 
@@ -16,7 +15,7 @@ type UpdateHandler struct {
 }
 
 type UpdateService interface {
-	Update(metrics *schemas.Metrics) error
+	Update(mData *metrics.Metrics) error
 }
 
 func SetUpdateHandler(mux *chi.Mux, service UpdateService) {
@@ -44,7 +43,7 @@ func (handler *UpdateHandler) updateByJSON() http.HandlerFunc {
 			return
 		}
 
-		var metrics schemas.Metrics
+		var metrics metrics.Metrics
 		if err := decodeJSONSchema(r, &metrics); err != nil {
 			writeTextErrorResponse(
 				w,
@@ -77,14 +76,14 @@ func (handler *UpdateHandler) updateByJSON() http.HandlerFunc {
 
 func (handler *UpdateHandler) updataByURLParams() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		metrics := schemas.Metrics{
+		mData := metrics.Metrics{
 			ID:    chi.URLParam(r, "name"),
 			MType: chi.URLParam(r, "type"),
 		}
 		sValue := chi.URLParam(r, "value")
 
-		switch metrics.MType {
-		case server.MTypeCounter:
+		switch mData.MType {
+		case metrics.MTypeCounter:
 			delta, err := strconv.ParseInt(sValue, 10, 64)
 			if err != nil {
 				writeTextErrorResponse(
@@ -94,9 +93,9 @@ func (handler *UpdateHandler) updataByURLParams() http.HandlerFunc {
 				)
 				return
 			}
-			metrics.Delta = &delta
+			mData.Delta = &delta
 
-		case server.MTypeGauge:
+		case metrics.MTypeGauge:
 			value, err := strconv.ParseFloat(sValue, 64)
 			if err != nil {
 				writeTextErrorResponse(
@@ -106,10 +105,10 @@ func (handler *UpdateHandler) updataByURLParams() http.HandlerFunc {
 				)
 				return
 			}
-			metrics.Value = &value
+			mData.Value = &value
 		}
 
-		if err := handler.service.Update(&metrics); err != nil {
+		if err := handler.service.Update(&mData); err != nil {
 			writeTextErrorResponse(
 				w,
 				http.StatusBadRequest,

@@ -5,8 +5,7 @@ import (
 	"strings"
 
 	"github.com/niksmo/runlytics/internal/logger"
-	"github.com/niksmo/runlytics/internal/schemas"
-	"github.com/niksmo/runlytics/internal/server"
+	"github.com/niksmo/runlytics/internal/metrics"
 	"go.uber.org/zap"
 )
 
@@ -35,44 +34,44 @@ func NewUpdateService(repository UpdateRepository) *UpdateService {
 	return &UpdateService{repository}
 }
 
-func (service *UpdateService) Update(metrics *schemas.Metrics) error {
+func (service *UpdateService) Update(mData *metrics.Metrics) error {
 	var errs ErrMetricsField
-	if metrics.ID == "" {
+	if mData.ID == "" {
 		errs = append(errs, fmt.Errorf("'id' %s", emptyFieldStatus))
 	}
 
-	switch metrics.MType {
-	case server.MTypeGauge:
-		if metrics.Value == nil {
+	switch mData.MType {
+	case metrics.MTypeGauge:
+		if mData.Value == nil {
 			errs = append(errs, fmt.Errorf("'value' %s", emptyFieldStatus))
 		} else {
 			v := service.repository.UpdateGaugeByName(
-				metrics.ID,
-				*metrics.Value,
+				mData.ID,
+				*mData.Value,
 			)
-			metrics.Value = &v
+			mData.Value = &v
 		}
-	case server.MTypeCounter:
-		if metrics.Delta == nil {
+	case metrics.MTypeCounter:
+		if mData.Delta == nil {
 			errs = append(errs, fmt.Errorf("'delta' %s", emptyFieldStatus))
 		} else {
 			v := service.repository.UpdateCounterByName(
-				metrics.ID,
-				*metrics.Delta,
+				mData.ID,
+				*mData.Delta,
 			)
-			metrics.Delta = &v
+			mData.Delta = &v
 		}
 	default:
 		errs = append(
 			errs,
-			fmt.Errorf("wrong type value: '%s'. Expect 'counter' or 'gauge'", metrics.MType),
+			fmt.Errorf("wrong type value: '%s'. Expect 'counter' or 'gauge'", mData.MType),
 		)
 	}
 
 	if len(errs) != 0 {
 		logger.Log.Debug(
 			"The metrics have not been updated",
-			zap.String("metricsID", metrics.ID),
+			zap.String("metricsID", mData.ID),
 			zap.Error(errs),
 		)
 		return errs

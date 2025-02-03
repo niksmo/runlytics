@@ -12,7 +12,7 @@ import (
 	"testing"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/niksmo/runlytics/internal/schemas"
+	"github.com/niksmo/runlytics/internal/metrics"
 	"github.com/niksmo/runlytics/internal/server/middleware"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -22,28 +22,28 @@ type MockUpdateService struct {
 	err bool
 }
 
-func (service *MockUpdateService) Update(metrics *schemas.Metrics) error {
+func (service *MockUpdateService) Update(mData *metrics.Metrics) error {
 	if service.err {
 		return errors.New("test error")
 
 	}
 
-	metrics.ID = "update"
-	metrics.MType = "update"
+	mData.ID = "update"
+	mData.MType = "update"
 
 	delta := int64(123)
-	metrics.Delta = &delta
+	mData.Delta = &delta
 
 	value := 123.4
-	metrics.Value = &value
+	mData.Value = &value
 
 	return nil
 }
 
 func TestUpdateByJSONHandler(t *testing.T) {
 
-	newMetrics := func(id string, mType string, delta int64, value float64) *schemas.Metrics {
-		return &schemas.Metrics{
+	newMetrics := func(id string, mType string, delta int64, value float64) *metrics.Metrics {
+		return &metrics.Metrics{
 			ID:    id,
 			MType: mType,
 			Delta: &delta,
@@ -77,7 +77,7 @@ func TestUpdateByJSONHandler(t *testing.T) {
 
 	type want struct {
 		statusCode int
-		resData    *schemas.Metrics
+		resData    *metrics.Metrics
 	}
 
 	type test struct {
@@ -241,7 +241,7 @@ func TestUpdateByJSONHandler(t *testing.T) {
 			if test.want.resData != nil {
 				require.Equal(t, JSONMediaType, res.Header.Get(ContentType))
 
-				var resData schemas.Metrics
+				var resData metrics.Metrics
 				require.NoError(t, json.Unmarshal(resBody, &resData))
 				assert.Equal(t, *test.want.resData, resData)
 			}

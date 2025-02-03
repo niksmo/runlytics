@@ -1,8 +1,13 @@
-package schemas
+package metrics
 
 import (
 	"fmt"
 	"strings"
+)
+
+const (
+	MTypeGauge   = "gauge"
+	MTypeCounter = "counter"
 )
 
 type Metrics struct {
