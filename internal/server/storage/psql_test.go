@@ -26,11 +26,21 @@ func TestPSQL(t *testing.T) {
 	err = db.PingContext(ctx)
 	require.NoError(t, err)
 
+	clearTables := func(t *testing.T) {
+		_, err := db.ExecContext(
+			context.TODO(),
+			`TRUNCATE TABLE gauge, counter;`,
+		)
+		require.NoError(t, err)
+	}
+
 	t.Run("Create tables on running", func(t *testing.T) {
-		db.ExecContext(context.TODO(), `
-		DROP TABLE IF EXISTS gauge;
-		DROP TABLE IF EXISTS counter;
-		`)
+		_, err := db.ExecContext(
+			context.TODO(),
+			`DROP TABLE IF EXISTS gauge;
+		     DROP TABLE IF EXISTS counter;`,
+		)
+		require.NoError(t, err)
 
 		qCountTables := `
 		SELECT COUNT(tablename)
@@ -38,7 +48,10 @@ func TestPSQL(t *testing.T) {
 			WHERE tablename IN ('gauge', 'counter');
 		`
 
-		row := db.QueryRowContext(context.TODO(), qCountTables)
+		row := db.QueryRowContext(
+			context.TODO(),
+			qCountTables,
+		)
 		var count int
 		require.NoError(t, row.Scan(&count))
 		assert.Zero(t, count)
@@ -49,5 +62,41 @@ func TestPSQL(t *testing.T) {
 		row = db.QueryRowContext(context.TODO(), qCountTables)
 		require.NoError(t, row.Scan(&count))
 		assert.Equal(t, 2, count)
+	})
+
+	t.Run("Sequence update gauge by name", func(t *testing.T) {
+		clearTables(t)
+
+		storage := NewPSQL(db)
+		storage.Run()
+
+		metricName := "Alloc"
+
+		seq := []float64{77.55, 33.22, 0}
+
+		for _, v := range seq {
+			actualValue, err := storage.UpdateGaugeByName(metricName, v)
+			require.NoError(t, err)
+			assert.Equal(t, v, actualValue)
+		}
+	})
+
+	t.Run("Sequence update counter by name", func(t *testing.T) {
+		clearTables(t)
+
+		storage := NewPSQL(db)
+		storage.Run()
+
+		metricName := "Counter"
+
+		seq := []int64{5, 5, 5}
+		var sum int64
+
+		for _, v := range seq {
+			actualValue, err := storage.UpdateCounterByName(metricName, v)
+			require.NoError(t, err)
+			assert.Equal(t, sum+v, actualValue)
+			sum += v
+		}
 	})
 }

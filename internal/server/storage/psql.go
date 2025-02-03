@@ -20,27 +20,38 @@ func (ps *psqlStorage) Run() {
 	ps.createTables()
 }
 
-func (ps *psqlStorage) UpdateCounterByName(name string, value int64) int64 {
+func (ps *psqlStorage) UpdateCounterByName(name string, value int64) (int64, error) {
+	row := ps.db.QueryRowContext(
+		context.TODO(),
+		`INSERT INTO counter (name, value)
+		 VALUES ($1, $2)
+		 ON CONFLICT (name) DO UPDATE SET
+		 value = (SELECT value FROM counter WHERE name=$1) + EXCLUDED.value
+		 RETURNING value;`,
+		name,
+		value,
+	)
 
-	// logger.Log.Debug(
-	// 	"Update count metric",
-	// 	zap.String("name", name),
-	// 	zap.Int64("prev", prev),
-	// 	zap.Int64("current", current),
-	// )
-	return int64(1)
+	var ret int64
+	err := row.Scan(&ret)
+	return ret, err
 }
 
-func (ps *psqlStorage) UpdateGaugeByName(name string, value float64) float64 {
+func (ps *psqlStorage) UpdateGaugeByName(name string, value float64) (float64, error) {
+	row := ps.db.QueryRowContext(
+		context.TODO(),
+		`INSERT INTO gauge (name, value)
+		 VALUES ($1, $2)
+		 ON CONFLICT (name) DO UPDATE SET
+		 value = EXCLUDED.value
+		 RETURNING value;`,
+		name,
+		value,
+	)
 
-	// logger.Log.Debug(
-	// 	"Update gauge metric",
-	// 	zap.String("name", name),
-	// 	zap.Float64("prev", prev),
-	// 	zap.Float64("current", value),
-	// )
-
-	return 1.0
+	var ret float64
+	err := row.Scan(&ret)
+	return ret, err
 }
 
 func (ps *psqlStorage) ReadCounterByName(name string) (int64, error) {
