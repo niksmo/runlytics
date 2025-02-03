@@ -47,36 +47,20 @@ func NewMemory(file *os.File, interval time.Duration, restore bool) *memoryStora
 	return &ms
 }
 
-func (ms *memoryStorage) UpdateCounterByName(name string, value int64) int64 {
+func (ms *memoryStorage) UpdateCounterByName(name string, value int64) (int64, error) {
 	ms.mu.Lock()
 	prev := ms.data.Counter[name]
 	current := prev + value
 	ms.data.Counter[name] = current
 	ms.mu.Unlock()
-
-	logger.Log.Debug(
-		"Update count metric",
-		zap.String("name", name),
-		zap.Int64("prev", prev),
-		zap.Int64("current", current),
-	)
-
-	return current
+	return current, nil
 }
 
-func (ms *memoryStorage) UpdateGaugeByName(name string, value float64) float64 {
+func (ms *memoryStorage) UpdateGaugeByName(name string, value float64) (float64, error) {
 	ms.mu.Lock()
-	prev := ms.data.Gauge[name]
 	ms.data.Gauge[name] = value
 	ms.mu.Unlock()
-
-	logger.Log.Debug(
-		"Update gauge metric",
-		zap.String("name", name),
-		zap.Float64("prev", prev),
-		zap.Float64("current", value),
-	)
-	return value
+	return value, nil
 }
 
 func (ms *memoryStorage) ReadCounterByName(name string) (int64, error) {
@@ -85,7 +69,6 @@ func (ms *memoryStorage) ReadCounterByName(name string) (int64, error) {
 	ms.mu.RUnlock()
 
 	if !ok {
-		logger.Log.Debug("Not found counter metric", zap.String("name", name))
 		return 0, fmt.Errorf("metric '%s' is %w", name, ErrNotExists)
 	}
 	return value, nil
@@ -97,13 +80,12 @@ func (ms *memoryStorage) ReadGaugeByName(name string) (float64, error) {
 	ms.mu.RUnlock()
 
 	if !ok {
-		logger.Log.Debug("Not found gauge metric", zap.String("name", name))
 		return 0, fmt.Errorf("metric '%s' is %w", name, ErrNotExists)
 	}
 	return value, nil
 }
 
-func (ms *memoryStorage) ReadGauge() map[string]float64 {
+func (ms *memoryStorage) ReadGauge() (map[string]float64, error) {
 	gauge := make(map[string]float64, len(ms.data.Gauge))
 
 	ms.mu.RLock()
@@ -112,10 +94,10 @@ func (ms *memoryStorage) ReadGauge() map[string]float64 {
 	}
 	ms.mu.RUnlock()
 
-	return gauge
+	return gauge, nil
 }
 
-func (ms *memoryStorage) ReadCounter() map[string]int64 {
+func (ms *memoryStorage) ReadCounter() (map[string]int64, error) {
 	counter := make(map[string]int64, len(ms.data.Counter))
 
 	ms.mu.RLock()
@@ -124,7 +106,7 @@ func (ms *memoryStorage) ReadCounter() map[string]int64 {
 	}
 	ms.mu.RUnlock()
 
-	return counter
+	return counter, nil
 }
 
 func (ms *memoryStorage) Run() {

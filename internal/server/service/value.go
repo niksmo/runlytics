@@ -6,13 +6,13 @@ import (
 	"github.com/niksmo/runlytics/internal/metrics"
 )
 
-type ReadService struct {
-	repository ReadByNameRepository
-}
-
 type ReadByNameRepository interface {
 	ReadCounterByName(name string) (int64, error)
 	ReadGaugeByName(name string) (float64, error)
+}
+
+type ReadService struct {
+	repository ReadByNameRepository
 }
 
 func NewReadService(repository ReadByNameRepository) *ReadService {

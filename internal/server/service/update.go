@@ -9,7 +9,7 @@ import (
 	"go.uber.org/zap"
 )
 
-const emptyFieldStatus = "field is empty"
+const emptyField = "field is empty"
 
 type ErrMetricsField []error
 
@@ -21,13 +21,13 @@ func (e ErrMetricsField) Error() string {
 	return strings.Join(s, "; ")
 }
 
-type UpdateService struct {
-	repository UpdateRepository
+type UpdateRepository interface {
+	UpdateCounterByName(name string, value int64) (int64, error)
+	UpdateGaugeByName(name string, value float64) (float64, error)
 }
 
-type UpdateRepository interface {
-	UpdateCounterByName(name string, value int64) int64
-	UpdateGaugeByName(name string, value float64) float64
+type UpdateService struct {
+	repository UpdateRepository
 }
 
 func NewUpdateService(repository UpdateRepository) *UpdateService {
@@ -37,13 +37,13 @@ func NewUpdateService(repository UpdateRepository) *UpdateService {
 func (service *UpdateService) Update(mData *metrics.Metrics) error {
 	var errs ErrMetricsField
 	if mData.ID == "" {
-		errs = append(errs, fmt.Errorf("'id' %s", emptyFieldStatus))
+		errs = append(errs, fmt.Errorf("'id' %s", emptyField))
 	}
 
 	switch mData.MType {
 	case metrics.MTypeGauge:
 		if mData.Value == nil {
-			errs = append(errs, fmt.Errorf("'value' %s", emptyFieldStatus))
+			errs = append(errs, fmt.Errorf("'value' %s", emptyField))
 		} else {
 			v := service.repository.UpdateGaugeByName(
 				mData.ID,
@@ -53,7 +53,7 @@ func (service *UpdateService) Update(mData *metrics.Metrics) error {
 		}
 	case metrics.MTypeCounter:
 		if mData.Delta == nil {
-			errs = append(errs, fmt.Errorf("'delta' %s", emptyFieldStatus))
+			errs = append(errs, fmt.Errorf("'delta' %s", emptyField))
 		} else {
 			v := service.repository.UpdateCounterByName(
 				mData.ID,

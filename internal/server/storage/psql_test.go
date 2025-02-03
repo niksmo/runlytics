@@ -3,6 +3,8 @@ package storage
 import (
 	"context"
 	"database/sql"
+	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -66,14 +68,10 @@ func TestPSQL(t *testing.T) {
 
 	t.Run("Sequence update gauge by name", func(t *testing.T) {
 		clearTables(t)
-
 		storage := NewPSQL(db)
 		storage.Run()
-
 		metricName := "Alloc"
-
 		seq := []float64{77.55, 33.22, 0}
-
 		for _, v := range seq {
 			actualValue, err := storage.UpdateGaugeByName(metricName, v)
 			require.NoError(t, err)
@@ -83,20 +81,168 @@ func TestPSQL(t *testing.T) {
 
 	t.Run("Sequence update counter by name", func(t *testing.T) {
 		clearTables(t)
-
 		storage := NewPSQL(db)
 		storage.Run()
-
 		metricName := "Counter"
-
 		seq := []int64{5, 5, 5}
 		var sum int64
-
 		for _, v := range seq {
 			actualValue, err := storage.UpdateCounterByName(metricName, v)
 			require.NoError(t, err)
 			assert.Equal(t, sum+v, actualValue)
 			sum += v
 		}
+	})
+
+	t.Run("Read counter by name", func(t *testing.T) {
+		storage := NewPSQL(db)
+		storage.Run()
+		metricName := "Counter"
+
+		t.Run("Should return NoExists error", func(t *testing.T) {
+			clearTables(t)
+			expected := int64(0)
+			actualValue, err := storage.ReadCounterByName(metricName)
+			require.ErrorIs(t, err, ErrNotExists)
+			assert.Equal(t, expected, actualValue)
+		})
+
+		t.Run("Should return entry value", func(t *testing.T) {
+			clearTables(t)
+			expected := int64(10)
+			_, err := db.ExecContext(
+				context.TODO(),
+				`INSERT INTO counter (name, value)
+				 VALUES ($1, $2);`,
+				metricName,
+				expected,
+			)
+			require.NoError(t, err)
+			actualValue, err := storage.ReadCounterByName(metricName)
+			require.NoError(t, err)
+			assert.Equal(t, expected, actualValue)
+		})
+	})
+
+	t.Run("Read gauge by name", func(t *testing.T) {
+		storage := NewPSQL(db)
+		storage.Run()
+		metricName := "Alloc"
+
+		t.Run("Should return NotExists error", func(t *testing.T) {
+			clearTables(t)
+			expected := float64(0)
+			actualValue, err := storage.ReadGaugeByName(metricName)
+			require.ErrorIs(t, err, ErrNotExists)
+			assert.Equal(t, expected, actualValue)
+		})
+
+		t.Run("Should return entry value", func(t *testing.T) {
+			clearTables(t)
+			expected := float64(10)
+			_, err := db.ExecContext(
+				context.TODO(),
+				`INSERT INTO gauge (name, value)
+				 VALUES ($1, $2);`,
+				metricName,
+				expected,
+			)
+			require.NoError(t, err)
+			actualValue, err := storage.ReadGaugeByName(metricName)
+			require.NoError(t, err)
+			assert.Equal(t, expected, actualValue)
+		})
+	})
+
+	t.Run("Read counter", func(t *testing.T) {
+		storage := NewPSQL(db)
+		storage.Run()
+
+		t.Run("Should return empty data", func(t *testing.T) {
+			clearTables(t)
+			expectedDataLen := 0
+			counterData, err := storage.ReadCounter()
+			require.NoError(t, err)
+			assert.Len(t, counterData, expectedDataLen)
+		})
+
+		t.Run("Should return data", func(t *testing.T) {
+			clearTables(t)
+			testList := []struct {
+				name  string
+				value int64
+			}{
+				{"Counter0", int64(10)}, {"Counter1", int64(15)},
+			}
+			expectedDataLen := len(testList)
+
+			insertValues := make([]string, 0, expectedDataLen)
+			for _, counter := range testList {
+				insertValues = append(
+					insertValues,
+					fmt.Sprintf("('%s', %v)", counter.name, counter.value),
+				)
+			}
+
+			_, err := db.ExecContext(
+				context.TODO(),
+				`INSERT INTO counter (name, value) VALUES `+
+					strings.Join(insertValues, ", ")+";",
+			)
+			require.NoError(t, err)
+
+			counterData, err := storage.ReadCounter()
+			require.NoError(t, err)
+			assert.Len(t, counterData, expectedDataLen)
+			for _, counter := range testList {
+				assert.Equal(t, counter.value, counterData[counter.name])
+			}
+		})
+	})
+
+	t.Run("Read gauge", func(t *testing.T) {
+		storage := NewPSQL(db)
+		storage.Run()
+
+		t.Run("Should return empty data", func(t *testing.T) {
+			clearTables(t)
+			expectedDataLen := 0
+			counterData, err := storage.ReadGauge()
+			require.NoError(t, err)
+			assert.Len(t, counterData, expectedDataLen)
+		})
+
+		t.Run("Should return data", func(t *testing.T) {
+			clearTables(t)
+			testList := []struct {
+				name  string
+				value float64
+			}{
+				{"Gauge0", float64(10.55)}, {"Gauge1", float64(15.22)},
+			}
+			expectedDataLen := len(testList)
+
+			insertValues := make([]string, 0, expectedDataLen)
+			for _, gauge := range testList {
+				insertValues = append(
+					insertValues,
+					fmt.Sprintf("('%s', %v)", gauge.name, gauge.value),
+				)
+			}
+
+			_, err := db.ExecContext(
+				context.TODO(),
+				`INSERT INTO gauge (name, value) VALUES `+
+					strings.Join(insertValues, ", ")+";",
+			)
+			require.NoError(t, err)
+
+			gaugeData, err := storage.ReadGauge()
+			require.NoError(t, err)
+			assert.Len(t, gaugeData, expectedDataLen)
+			for _, gauge := range testList {
+				assert.Equal(t, gauge.value, gaugeData[gauge.name])
+			}
+		})
 	})
 }

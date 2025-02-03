@@ -11,13 +11,14 @@ import (
 	"go.uber.org/zap"
 )
 
+type ReadRepository interface {
+	ReadCounter() (map[string]int64, error)
+	ReadGauge() (map[string]float64, error)
+}
+
 type HTMLService struct {
 	template   *template.Template
 	repository ReadRepository
-}
-type ReadRepository interface {
-	ReadCounter() map[string]int64
-	ReadGauge() map[string]float64
 }
 
 func NewHTMLService(repository ReadRepository) *HTMLService {

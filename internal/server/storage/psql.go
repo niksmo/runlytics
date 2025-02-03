@@ -3,6 +3,8 @@ package storage
 import (
 	"context"
 	"database/sql"
+	"errors"
+	"fmt"
 
 	"github.com/niksmo/runlytics/internal/logger"
 	"go.uber.org/zap"
@@ -32,9 +34,9 @@ func (ps *psqlStorage) UpdateCounterByName(name string, value int64) (int64, err
 		value,
 	)
 
-	var ret int64
-	err := row.Scan(&ret)
-	return ret, err
+	var actualValue int64
+	err := row.Scan(&actualValue)
+	return actualValue, err
 }
 
 func (ps *psqlStorage) UpdateGaugeByName(name string, value float64) (float64, error) {
@@ -49,65 +51,102 @@ func (ps *psqlStorage) UpdateGaugeByName(name string, value float64) (float64, e
 		value,
 	)
 
-	var ret float64
-	err := row.Scan(&ret)
-	return ret, err
+	var actualValue float64
+	err := row.Scan(&actualValue)
+	return actualValue, err
 }
 
 func (ps *psqlStorage) ReadCounterByName(name string) (int64, error) {
-	// ps.mu.RLock()
-	// value, ok := ps.data.Counter[name]
-	// ps.mu.RUnlock()
-
-	// if !ok {
-	// 	logger.Log.Debug("Not found counter metric", zap.String("name", name))
-	// 	return 0, fmt.Errorf("metric '%s' is %w", name, ErrNotExists)
-	// }
-	// return value, nil
-	return int64(1), nil
+	row := ps.db.QueryRowContext(
+		context.TODO(),
+		`SELECT value
+		 FROM counter
+		 WHERE name = $1;`,
+		name,
+	)
+	var value int64
+	err := row.Scan(&value)
+	if errors.Is(err, sql.ErrNoRows) {
+		err = fmt.Errorf("metric '%s' is %w", name, ErrNotExists)
+	}
+	return value, err
 }
 
 func (ps *psqlStorage) ReadGaugeByName(name string) (float64, error) {
-	// ps.mu.RLock()
-	// value, ok := ps.data.Gauge[name]
-	// ps.mu.RUnlock()
-
-	// if !ok {
-	// 	logger.Log.Debug("Not found gauge metric", zap.String("name", name))
-	// 	return 0, fmt.Errorf("metric '%s' is %w", name, ErrNotExists)
-	// }
-	// return value, nil
-	return 1.0, nil
+	row := ps.db.QueryRowContext(
+		context.TODO(),
+		`SELECT value
+		 FROM gauge
+		 WHERE name = $1;`,
+		name,
+	)
+	var value float64
+	err := row.Scan(&value)
+	if errors.Is(err, sql.ErrNoRows) {
+		err = fmt.Errorf("metric '%s' is %w", name, ErrNotExists)
+	}
+	return value, err
 }
 
-func (ps *psqlStorage) ReadGauge() map[string]float64 {
-	// gauge := make(map[string]float64, len(ps.data.Gauge))
+func (ps *psqlStorage) ReadGauge() (map[string]float64, error) {
+	rows, err := ps.db.QueryContext(
+		context.TODO(),
+		`SELECT name, value FROM gauge;`,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
 
-	// ps.mu.RLock()
-	// for k, v := range ps.data.Gauge {
-	// 	gauge[k] = v
-	// }
-	// ps.mu.RUnlock()
+	gaugeMap := make(map[string]float64)
+	var (
+		name  string
+		value float64
+	)
+	for rows.Next() {
+		if err = rows.Scan(&name, &value); err != nil {
+			return nil, err
+		}
+		gaugeMap[name] = value
+	}
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
 
-	// return gauge
-	return make(map[string]float64)
+	return gaugeMap, nil
 }
 
-func (ps *psqlStorage) ReadCounter() map[string]int64 {
-	// counter := make(map[string]int64, len(ps.data.Counter))
+func (ps *psqlStorage) ReadCounter() (map[string]int64, error) {
+	rows, err := ps.db.QueryContext(
+		context.TODO(),
+		`SELECT name, value FROM counter;`,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
 
-	// ps.mu.RLock()
-	// for k, v := range ps.data.Counter {
-	// 	counter[k] = v
-	// }
-	// ps.mu.RUnlock()
+	counterMap := make(map[string]int64)
+	var (
+		name  string
+		value int64
+	)
+	for rows.Next() {
+		if err = rows.Scan(&name, &value); err != nil {
+			return nil, err
+		}
+		counterMap[name] = value
+	}
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
 
-	// return counter
-	return make(map[string]int64)
+	return counterMap, nil
 }
 
 func (ps *psqlStorage) createTables() {
-	_, err := ps.db.ExecContext(context.TODO(), `
+
+	query := `
 	CREATE TABLE IF NOT EXISTS gauge (
 	    name TEXT PRIMARY KEY,
 		value DOUBLE PRECISION NOT NULL
@@ -116,9 +155,9 @@ func (ps *psqlStorage) createTables() {
 	CREATE TABLE IF NOT EXISTS counter (
 	    name TEXT PRIMARY KEY,
 		value BIGINT NOT NULL
-	);`)
+	);`
 
-	if err != nil {
+	if _, err := ps.db.ExecContext(context.TODO(), query); err != nil {
 		logger.Log.Error("Create tables", zap.Error(err))
 	}
 }
