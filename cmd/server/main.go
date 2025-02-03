@@ -40,7 +40,11 @@ func main() {
 	db := db.Init(config.DatabaseDSN())
 	defer db.Close()
 
-	storage := storage.NewMemory(config.File(), config.SaveInterval(), config.Restore())
+	storage := storage.NewMemory(
+		config.File(),
+		config.SaveInterval(),
+		config.Restore(),
+	)
 	storage.Run()
 
 	HTMLService := service.NewHTMLService(storage)
