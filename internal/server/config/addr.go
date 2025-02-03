@@ -12,6 +12,10 @@ const (
 )
 
 func getAddrFlag(addr string) *net.TCPAddr {
+	printError := func(isEnv bool, text string) {
+		printParamError(isEnv, addrEnv, "-a", text)
+	}
+
 	isEnv := false
 	if envValue := os.Getenv(addrEnv); envValue != "" {
 		isEnv = true
@@ -21,11 +25,7 @@ func getAddrFlag(addr string) *net.TCPAddr {
 	TCPAddr, err := net.ResolveTCPAddr("tcp", addr)
 	if err != nil {
 		text := "error: " + err.Error()
-		if isEnv {
-			printEnvParamError(addrEnv, text)
-		} else {
-			printCliParamError("-a", text)
-		}
+		printError(isEnv, text)
 		TCPAddr, _ = net.ResolveTCPAddr("tcp", addrDefault)
 		printUsedDefault("address", addrDefault)
 	}

@@ -28,7 +28,7 @@ func main() {
 		zap.String("ADDRESS", config.Addr()),
 		zap.String("LOG_LVL", config.LogLvl()),
 		zap.Float64("STORE_INTERVAL", config.SaveInterval().Seconds()),
-		zap.String("FILE_STORAGE_PATH", config.StoragePath().Name()),
+		zap.String("FILE_STORAGE_PATH", config.FileStorage().Name()),
 		zap.Bool("RESTORE", config.Restore()),
 		zap.String("DATABASE_DSN", config.DatabaseDSN()),
 	)
@@ -45,7 +45,7 @@ func main() {
 	fileStorage := storage.NewFileStorage(
 		repository,
 		config.SaveInterval(),
-		config.StoragePath(),
+		config.FileStorage(),
 		config.Restore(),
 	)
 	HTMLService := service.NewHTMLService(repository)

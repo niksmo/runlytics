@@ -12,6 +12,10 @@ const (
 )
 
 func getLogLvlFlag(logLvl string) string {
+	printError := func(isEnv bool, text string) {
+		printParamError(isEnv, logLvlEnv, "-l", text)
+	}
+
 	allowed := map[string]struct{}{
 		"debug":  {},
 		"info":   {},
@@ -30,11 +34,7 @@ func getLogLvlFlag(logLvl string) string {
 
 	if _, ok := allowed[strings.ToLower(logLvl)]; !ok {
 		text := "error: level is not allowed"
-		if isEnv {
-			printEnvParamError(logLvlEnv, text)
-		} else {
-			printCliParamError("-l", text)
-		}
+		printError(isEnv, text)
 		logLvl = logLvlDefault
 		printUsedDefault("logging level", logLvlDefault)
 	}

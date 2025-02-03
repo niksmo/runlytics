@@ -2,6 +2,8 @@ package storage
 
 import (
 	"encoding/json"
+	"errors"
+	"io"
 	"os"
 	"os/signal"
 	"time"
@@ -71,8 +73,15 @@ func (s *FileStorage) restore() {
 	}
 
 	var data fileScheme
-	if err := s.decoder.Decode(&data); err != nil {
+	err := s.decoder.Decode(&data)
+	if errors.Is(err, io.EOF) {
+		logger.Log.Info("File storage is empty")
+		return
+	}
+
+	if err != nil {
 		logger.Log.Error("JSON decode", zap.Error(err))
+		return
 	}
 
 	for name, value := range data.Gauge {
@@ -82,6 +91,10 @@ func (s *FileStorage) restore() {
 	for name, value := range data.Counter {
 		s.repository.UpdateCounterByName(name, value)
 	}
+	logger.Log.Info(
+		"Restore metrics",
+		zap.Int("count", len(data.Counter)+len(data.Gauge)),
+	)
 }
 
 func (s *FileStorage) isSync() bool {

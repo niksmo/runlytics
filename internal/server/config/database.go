@@ -8,9 +8,15 @@ const (
 	databaseDSNUsage   = "Usage 'postgres://user_name:user_pwd@localhost:5432/db_name?sslmode=disable'"
 )
 
-func getDatabaseDSNFlag(dsn string) string {
+type database struct {
+	dsn string
+}
+
+func makeDatabaseConfig(dsn string) database {
 	if envValue := os.Getenv(databaseDSNEnv); envValue != "" {
 		dsn = envValue
 	}
-	return dsn
+
+	return database{dsn: dsn}
+
 }
