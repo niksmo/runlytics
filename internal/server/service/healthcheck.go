@@ -14,12 +14,12 @@ func NewHealthCheckService(db *sql.DB) *HealthCheckService {
 	return &HealthCheckService{db}
 }
 
-func (service *HealthCheckService) Check() error {
-	return service.checkDataBase()
+func (service *HealthCheckService) Check(ctx context.Context) error {
+	return service.checkDataBase(ctx)
 }
 
-func (service *HealthCheckService) checkDataBase() error {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+func (service *HealthCheckService) checkDataBase(ctx context.Context) error {
+	ctx, cancel := context.WithTimeout(ctx, time.Second)
 	defer cancel()
 	return service.db.PingContext(ctx)
 }

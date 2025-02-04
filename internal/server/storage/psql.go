@@ -5,24 +5,33 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/niksmo/runlytics/internal/logger"
+	"github.com/niksmo/runlytics/internal/server"
 	"go.uber.org/zap"
 )
 
+const (
+	queryTimeout = time.Second
+)
+
 type psqlStorage struct {
-	db *sql.DB
+	db           *sql.DB
+	queryTimeout time.Duration
 }
 
 func NewPSQL(db *sql.DB) *psqlStorage {
-	return &psqlStorage{db: db}
+	return &psqlStorage{db: db, queryTimeout: queryTimeout}
 }
 
 func (ps *psqlStorage) Run() {
 	ps.createTables()
 }
 
-func (ps *psqlStorage) UpdateCounterByName(name string, value int64) (int64, error) {
+func (ps *psqlStorage) UpdateCounterByName(
+	name string, value int64,
+) (int64, error) {
 	row := ps.db.QueryRowContext(
 		context.TODO(),
 		`INSERT INTO counter (name, value)
@@ -39,7 +48,9 @@ func (ps *psqlStorage) UpdateCounterByName(name string, value int64) (int64, err
 	return actualValue, err
 }
 
-func (ps *psqlStorage) UpdateGaugeByName(name string, value float64) (float64, error) {
+func (ps *psqlStorage) UpdateGaugeByName(
+	name string, value float64,
+) (float64, error) {
 	row := ps.db.QueryRowContext(
 		context.TODO(),
 		`INSERT INTO gauge (name, value)
@@ -67,7 +78,7 @@ func (ps *psqlStorage) ReadCounterByName(name string) (int64, error) {
 	var value int64
 	err := row.Scan(&value)
 	if errors.Is(err, sql.ErrNoRows) {
-		err = fmt.Errorf("metric '%s' is %w", name, ErrNotExists)
+		err = fmt.Errorf("metric '%s' is %w", name, server.ErrNotExists)
 	}
 	return value, err
 }
@@ -83,15 +94,19 @@ func (ps *psqlStorage) ReadGaugeByName(name string) (float64, error) {
 	var value float64
 	err := row.Scan(&value)
 	if errors.Is(err, sql.ErrNoRows) {
-		err = fmt.Errorf("metric '%s' is %w", name, ErrNotExists)
+		err = fmt.Errorf("metric '%s' is %w", name, server.ErrNotExists)
 	}
 	return value, err
 }
 
-func (ps *psqlStorage) ReadGauge() (map[string]float64, error) {
+func (ps *psqlStorage) ReadGauge(
+	ctx context.Context,
+) (map[string]float64, error) {
+	ctx, cancel := ps.newContext(ctx)
+	defer cancel()
+
 	rows, err := ps.db.QueryContext(
-		context.TODO(),
-		`SELECT name, value FROM gauge;`,
+		ctx, `SELECT name, value FROM gauge;`,
 	)
 	if err != nil {
 		return nil, err
@@ -116,10 +131,14 @@ func (ps *psqlStorage) ReadGauge() (map[string]float64, error) {
 	return gaugeMap, nil
 }
 
-func (ps *psqlStorage) ReadCounter() (map[string]int64, error) {
+func (ps *psqlStorage) ReadCounter(
+	ctx context.Context,
+) (map[string]int64, error) {
+	ctx, cancel := ps.newContext(ctx)
+	defer cancel()
+
 	rows, err := ps.db.QueryContext(
-		context.TODO(),
-		`SELECT name, value FROM counter;`,
+		ctx, `SELECT name, value FROM counter;`,
 	)
 	if err != nil {
 		return nil, err
@@ -144,8 +163,13 @@ func (ps *psqlStorage) ReadCounter() (map[string]int64, error) {
 	return counterMap, nil
 }
 
-func (ps *psqlStorage) createTables() {
+func (ps *psqlStorage) newContext(
+	ctx context.Context,
+) (context.Context, context.CancelFunc) {
+	return context.WithTimeout(ctx, ps.queryTimeout)
+}
 
+func (ps *psqlStorage) createTables() {
 	query := `
 	CREATE TABLE IF NOT EXISTS gauge (
 	    name TEXT PRIMARY KEY,

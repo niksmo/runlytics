@@ -2,18 +2,20 @@ package service
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"html/template"
 	"slices"
 	"strconv"
 
 	"github.com/niksmo/runlytics/internal/logger"
+	"github.com/niksmo/runlytics/internal/server"
 	"go.uber.org/zap"
 )
 
 type ReadRepository interface {
-	ReadCounter() (map[string]int64, error)
-	ReadGauge() (map[string]float64, error)
+	ReadCounter(ctx context.Context) (map[string]int64, error)
+	ReadGauge(ctx context.Context) (map[string]float64, error)
 }
 
 type HTMLService struct {
@@ -49,9 +51,17 @@ func NewHTMLService(repository ReadRepository) *HTMLService {
 	}
 }
 
-func (s *HTMLService) RenderMetricsList(buf *bytes.Buffer) error {
-	gauge := s.repository.ReadGauge()
-	counter := s.repository.ReadCounter()
+func (s *HTMLService) RenderMetricsList(ctx context.Context, buf *bytes.Buffer) error {
+	gauge, err := s.repository.ReadGauge(ctx)
+	if err != nil {
+		return server.ErrInternal
+	}
+
+	counter, err := s.repository.ReadCounter(ctx)
+	if err != nil {
+		return server.ErrInternal
+	}
+
 	render := make([]string, 0, len(gauge)+len(counter))
 
 	for k, v := range gauge {

@@ -2,6 +2,7 @@ package api
 
 import (
 	"bytes"
+	"context"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
@@ -12,7 +13,7 @@ type HTMLHandler struct {
 }
 
 type HTMLService interface {
-	RenderMetricsList(buf *bytes.Buffer) error
+	RenderMetricsList(ctx context.Context, buf *bytes.Buffer) error
 }
 
 func SetHTMLHandler(mux *chi.Mux, service HTMLService) {
@@ -28,8 +29,14 @@ func (handler *HTMLHandler) get() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
 		var buf bytes.Buffer
-		if err := handler.service.RenderMetricsList(&buf); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+		if err := handler.service.RenderMetricsList(
+			r.Context(), &buf,
+		); err != nil {
+			http.Error(
+				w,
+				err.Error(),
+				http.StatusInternalServerError,
+			)
 			return
 		}
 

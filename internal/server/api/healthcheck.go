@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
@@ -11,7 +12,7 @@ type HealthCheckHandler struct {
 }
 
 type HealthCheckService interface {
-	Check() error
+	Check(ctx context.Context) error
 }
 
 func SetHealthCheckHandler(mux *chi.Mux, service HealthCheckService) {
@@ -23,9 +24,9 @@ func SetHealthCheckHandler(mux *chi.Mux, service HealthCheckService) {
 
 func (handler *HealthCheckHandler) Ping() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		err := handler.service.Check()
+		err := handler.service.Check(r.Context())
 		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 

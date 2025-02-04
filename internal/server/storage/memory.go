@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -11,6 +12,7 @@ import (
 	"time"
 
 	"github.com/niksmo/runlytics/internal/logger"
+	"github.com/niksmo/runlytics/internal/server"
 	"go.uber.org/zap"
 )
 
@@ -69,7 +71,7 @@ func (ms *memoryStorage) ReadCounterByName(name string) (int64, error) {
 	ms.mu.RUnlock()
 
 	if !ok {
-		return 0, fmt.Errorf("metric '%s' is %w", name, ErrNotExists)
+		return 0, fmt.Errorf("metric '%s' is %w", name, server.ErrNotExists)
 	}
 	return value, nil
 }
@@ -80,12 +82,12 @@ func (ms *memoryStorage) ReadGaugeByName(name string) (float64, error) {
 	ms.mu.RUnlock()
 
 	if !ok {
-		return 0, fmt.Errorf("metric '%s' is %w", name, ErrNotExists)
+		return 0, fmt.Errorf("metric '%s' is %w", name, server.ErrNotExists)
 	}
 	return value, nil
 }
 
-func (ms *memoryStorage) ReadGauge() (map[string]float64, error) {
+func (ms *memoryStorage) ReadGauge(ctx context.Context) (map[string]float64, error) {
 	gauge := make(map[string]float64, len(ms.data.Gauge))
 
 	ms.mu.RLock()
@@ -97,7 +99,7 @@ func (ms *memoryStorage) ReadGauge() (map[string]float64, error) {
 	return gauge, nil
 }
 
-func (ms *memoryStorage) ReadCounter() (map[string]int64, error) {
+func (ms *memoryStorage) ReadCounter(ctx context.Context) (map[string]int64, error) {
 	counter := make(map[string]int64, len(ms.data.Counter))
 
 	ms.mu.RLock()

@@ -9,6 +9,7 @@ import (
 	"time"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
+	"github.com/niksmo/runlytics/internal/server"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -103,7 +104,7 @@ func TestPSQL(t *testing.T) {
 			clearTables(t)
 			expected := int64(0)
 			actualValue, err := storage.ReadCounterByName(metricName)
-			require.ErrorIs(t, err, ErrNotExists)
+			require.ErrorIs(t, err, server.ErrNotExists)
 			assert.Equal(t, expected, actualValue)
 		})
 
@@ -133,7 +134,7 @@ func TestPSQL(t *testing.T) {
 			clearTables(t)
 			expected := float64(0)
 			actualValue, err := storage.ReadGaugeByName(metricName)
-			require.ErrorIs(t, err, ErrNotExists)
+			require.ErrorIs(t, err, server.ErrNotExists)
 			assert.Equal(t, expected, actualValue)
 		})
 
@@ -157,17 +158,22 @@ func TestPSQL(t *testing.T) {
 	t.Run("Read counter", func(t *testing.T) {
 		storage := NewPSQL(db)
 		storage.Run()
+		ctxBase := context.Background()
 
 		t.Run("Should return empty data", func(t *testing.T) {
 			clearTables(t)
+			ctx, cancel := context.WithTimeout(ctxBase, time.Second)
+			defer cancel()
 			expectedDataLen := 0
-			counterData, err := storage.ReadCounter()
+			counterData, err := storage.ReadCounter(ctx)
 			require.NoError(t, err)
 			assert.Len(t, counterData, expectedDataLen)
 		})
 
 		t.Run("Should return data", func(t *testing.T) {
 			clearTables(t)
+			ctx, cancel := context.WithTimeout(ctxBase, time.Second)
+			defer cancel()
 			testList := []struct {
 				name  string
 				value int64
@@ -191,7 +197,7 @@ func TestPSQL(t *testing.T) {
 			)
 			require.NoError(t, err)
 
-			counterData, err := storage.ReadCounter()
+			counterData, err := storage.ReadCounter(ctx)
 			require.NoError(t, err)
 			assert.Len(t, counterData, expectedDataLen)
 			for _, counter := range testList {
@@ -203,17 +209,22 @@ func TestPSQL(t *testing.T) {
 	t.Run("Read gauge", func(t *testing.T) {
 		storage := NewPSQL(db)
 		storage.Run()
+		ctxBase := context.Background()
 
 		t.Run("Should return empty data", func(t *testing.T) {
 			clearTables(t)
+			ctx, cancel := context.WithTimeout(ctxBase, time.Second)
+			defer cancel()
 			expectedDataLen := 0
-			counterData, err := storage.ReadGauge()
+			counterData, err := storage.ReadGauge(ctx)
 			require.NoError(t, err)
 			assert.Len(t, counterData, expectedDataLen)
 		})
 
 		t.Run("Should return data", func(t *testing.T) {
 			clearTables(t)
+			ctx, cancel := context.WithTimeout(ctxBase, time.Second)
+			defer cancel()
 			testList := []struct {
 				name  string
 				value float64
@@ -237,7 +248,7 @@ func TestPSQL(t *testing.T) {
 			)
 			require.NoError(t, err)
 
-			gaugeData, err := storage.ReadGauge()
+			gaugeData, err := storage.ReadGauge(ctx)
 			require.NoError(t, err)
 			assert.Len(t, gaugeData, expectedDataLen)
 			for _, gauge := range testList {

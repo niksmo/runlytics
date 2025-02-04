@@ -2,140 +2,104 @@ package api
 
 import (
 	"bytes"
-	"errors"
+	"context"
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/niksmo/runlytics/internal/server"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-type MockHTMLService struct {
-	err bool
+type mockHTMLService struct {
+	err  error
+	data string
 }
 
-func (service *MockHTMLService) RenderMetricsList(buf *bytes.Buffer) error {
-	if service.err {
-		return errors.New("test error")
+func (service *mockHTMLService) RenderMetricsList(ctx context.Context, buf *bytes.Buffer) error {
+	if service.err != nil {
+		return service.err
 	}
 
-	buf.WriteString("test response data")
+	buf.WriteString(service.data)
 	return nil
 }
 
 func TestHTMLHandler(t *testing.T) {
-	testRequest := func(
-		t *testing.T,
-		mux *chi.Mux,
-		method string,
-		body io.Reader,
-	) (*http.Response, []byte) {
-		ts := httptest.NewServer(mux)
-		defer ts.Close()
+	makeURL := func(serverURL string) string {
+		return serverURL + "/"
+	}
 
-		req, err := http.NewRequest(method, ts.URL+"/", body)
+	t.Run("Not allowed methods", func(t *testing.T) {
+		methods := []string{
+			http.MethodPost,
+			http.MethodPut,
+			http.MethodPatch,
+			http.MethodDelete,
+			http.MethodHead,
+			http.MethodOptions,
+		}
+		mux := chi.NewRouter()
+		SetHTMLHandler(mux, nil)
+
+		for _, method := range methods {
+			s := httptest.NewServer(mux)
+			defer s.Close()
+
+			req, err := http.NewRequest(method, makeURL(s.URL), http.NoBody)
+			require.NoError(t, err)
+
+			res, err := s.Client().Do(req)
+			require.NoError(t, err)
+			assert.Equal(t, http.StatusMethodNotAllowed, res.StatusCode)
+
+			data, err := io.ReadAll(res.Body)
+			require.NoError(t, err)
+			assert.Len(t, data, 0)
+		}
+	})
+
+	t.Run("Should return data", func(t *testing.T) {
+		expectedData := "test"
+		mux := chi.NewRouter()
+		SetHTMLHandler(mux, &mockHTMLService{err: nil, data: expectedData})
+		s := httptest.NewServer(mux)
+		defer s.Close()
+
+		req, err := http.NewRequest(http.MethodGet, makeURL(s.URL), http.NoBody)
 		require.NoError(t, err)
-		res, err := ts.Client().Do(req)
+
+		res, err := s.Client().Do(req)
+		require.NoError(t, err)
+		require.Equal(t, http.StatusOK, res.StatusCode)
+
+		data, err := io.ReadAll(res.Body)
+		require.NoError(t, err)
+		res.Body.Close()
+		assert.Equal(t, expectedData, string(data))
+	})
+
+	t.Run("Should return internal error", func(t *testing.T) {
+		mux := chi.NewRouter()
+		SetHTMLHandler(mux, &mockHTMLService{err: server.ErrInternal, data: ""})
+		s := httptest.NewServer(mux)
+		defer s.Close()
+
+		req, err := http.NewRequest(http.MethodGet, makeURL(s.URL), http.NoBody)
 		require.NoError(t, err)
 
-		resData, err := io.ReadAll(res.Body)
+		res, err := s.Client().Do(req)
 		require.NoError(t, err)
+		require.Equal(t, http.StatusInternalServerError, res.StatusCode)
 
-		return res, resData
-	}
-
-	type want struct {
-		statusCode int
-		resData    string
-	}
-
-	type test struct {
-		name    string
-		method  string
-		want    want
-		service *MockHTMLService
-	}
-
-	tests := []test{
-		// not allowed methods
-		{
-			name:   "POST not allowed",
-			method: http.MethodPost,
-			want: want{
-				statusCode: http.StatusMethodNotAllowed,
-			},
-		},
-		{
-			name:   "PUT not allowed",
-			method: http.MethodPut,
-			want: want{
-				statusCode: http.StatusMethodNotAllowed,
-			},
-		},
-		{
-			name:   "PATCH not allowed",
-			method: http.MethodPatch,
-			want: want{
-				statusCode: http.StatusMethodNotAllowed,
-			},
-		},
-		{
-			name:   "DELETE not allowed",
-			method: http.MethodDelete,
-			want: want{
-				statusCode: http.StatusMethodNotAllowed,
-			},
-		},
-		{
-			name:   "HEAD not allowed",
-			method: http.MethodHead,
-			want: want{
-				statusCode: http.StatusMethodNotAllowed,
-			},
-		},
-		{
-			name:   "OPTIONS not allowed",
-			method: http.MethodOptions,
-			want: want{
-				statusCode: http.StatusMethodNotAllowed,
-			},
-		},
-
-		//GET
-		{
-			name:   "Should response OK",
-			method: http.MethodGet,
-			want: want{
-				statusCode: http.StatusOK,
-				resData:    "test response data",
-			},
-			service: &MockHTMLService{err: false},
-		},
-		{
-			name:   "Service should return error",
-			method: http.MethodGet,
-			want: want{
-				statusCode: http.StatusInternalServerError,
-			},
-			service: &MockHTMLService{err: true},
-		},
-	}
-
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			mux := chi.NewRouter()
-			SetHTMLHandler(mux, test.service)
-			res, resBody := testRequest(t, mux, test.method, nil)
-			defer res.Body.Close()
-
-			assert.Equal(t, test.want.statusCode, res.StatusCode)
-
-			if test.want.resData != "" {
-				assert.Equal(t, test.want.resData, string(resBody))
-			}
-		})
-	}
+		rawData, err := io.ReadAll(res.Body)
+		require.NoError(t, err)
+		res.Body.Close()
+		data := strings.TrimSpace(string(rawData))
+		assert.Equal(t, server.ErrInternal.Error(), data)
+	})
 }
