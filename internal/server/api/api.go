@@ -38,12 +38,12 @@ func verifyContentType(
 	return nil
 }
 
-func decodeJSONSchema(
+func decodeJSON(
 	r *http.Request,
 	scheme any,
 ) error {
 	if err := json.NewDecoder(r.Body).Decode(scheme); err != nil {
-		errText := "incoming JSON scheme is not valid"
+		errText := "incoming JSON object is not valid"
 		logger.Log.Debug(errText, zap.Error(err))
 		return errors.New(errText)
 	}

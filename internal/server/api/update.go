@@ -44,7 +44,7 @@ func (handler *UpdateHandler) updateByJSON() http.HandlerFunc {
 		}
 
 		var metrics metrics.Metrics
-		if err := decodeJSONSchema(r, &metrics); err != nil {
+		if err := decodeJSON(r, &metrics); err != nil {
 			writeTextErrorResponse(
 				w,
 				http.StatusBadRequest,
@@ -89,7 +89,7 @@ func (handler *UpdateHandler) updataByURLParams() http.HandlerFunc {
 				writeTextErrorResponse(
 					w,
 					http.StatusBadRequest,
-					"counter value format, integer is expected",
+					"counter value format should be 'integer'",
 				)
 				return
 			}
@@ -101,7 +101,7 @@ func (handler *UpdateHandler) updataByURLParams() http.HandlerFunc {
 				writeTextErrorResponse(
 					w,
 					http.StatusBadRequest,
-					"gauge value format, float is expected",
+					"gauge value format should be 'float'",
 				)
 				return
 			}

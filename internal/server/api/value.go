@@ -3,7 +3,6 @@ package api
 import (
 	"io"
 	"net/http"
-	"strconv"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/niksmo/runlytics/internal/logger"
@@ -45,7 +44,7 @@ func (handler *ReadHandler) readByJSON() http.HandlerFunc {
 		}
 
 		var metrics metrics.Metrics
-		if err := decodeJSONSchema(r, &metrics); err != nil {
+		if err := decodeJSON(r, &metrics); err != nil {
 			writeTextErrorResponse(
 				w,
 				http.StatusBadRequest,
@@ -92,11 +91,6 @@ func (handler *ReadHandler) readByURLParams() http.HandlerFunc {
 		}
 
 		w.WriteHeader(http.StatusOK)
-		switch mData.MType {
-		case metrics.MTypeGauge:
-			io.WriteString(w, strconv.FormatFloat(*mData.Value, 'f', -1, 64))
-		case metrics.MTypeCounter:
-			io.WriteString(w, strconv.FormatInt(*mData.Delta, 10))
-		}
+		io.WriteString(w, mData.ValueS())
 	}
 }

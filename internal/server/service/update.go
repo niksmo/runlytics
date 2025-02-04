@@ -40,6 +40,8 @@ func (service *UpdateService) Update(mData *metrics.Metrics) error {
 		errs = append(errs, fmt.Errorf("'id' %s", emptyField))
 	}
 
+	//should check empty MType too
+
 	switch mData.MType {
 	case metrics.MTypeGauge:
 		if mData.Value == nil {

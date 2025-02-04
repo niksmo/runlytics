@@ -1,7 +1,7 @@
 package metrics
 
 import (
-	"fmt"
+	"strconv"
 	"strings"
 )
 
@@ -10,6 +10,9 @@ const (
 	MTypeCounter = "counter"
 )
 
+// Mtype is 'gauge' or 'counter'.
+// Delta is not nil for 'counter',
+// otherwise Value is not nil for 'gauge'
 type Metrics struct {
 	ID    string   `json:"id"`
 	MType string   `json:"type"`
@@ -25,14 +28,32 @@ func (m *Metrics) String() string {
 	if m.Delta == nil {
 		slice = append(slice, "Delta:nil")
 	} else {
-		slice = append(slice, fmt.Sprintf("Delta:%v", *m.Delta))
+		slice = append(slice, "Delta:"+m.StrconvValue())
 	}
 
 	if m.Value == nil {
 		slice = append(slice, "Value:nil")
 	} else {
-		slice = append(slice, fmt.Sprintf("Value:%v", *m.Value))
+		slice = append(slice, "Value:"+m.StrconvValue())
 	}
 
 	return "Metrics{" + strings.Join(slice, ", ") + "}"
+}
+
+// Convert metrics payload value to string presentation.
+func (m *Metrics) StrconvValue() string {
+
+	if m.Value != nil && m.Delta != nil {
+		return ""
+	}
+
+	if m.Value != nil {
+		return strconv.FormatFloat(*m.Value, 'f', -1, 64)
+	}
+
+	if m.Delta != nil {
+		return strconv.FormatInt(*m.Delta, 10)
+	}
+
+	return ""
 }
