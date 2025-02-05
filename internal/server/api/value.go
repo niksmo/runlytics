@@ -7,6 +7,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/niksmo/runlytics/internal/logger"
 	"github.com/niksmo/runlytics/internal/metrics"
+	"github.com/niksmo/runlytics/internal/server"
 	"go.uber.org/zap"
 )
 
@@ -90,7 +91,15 @@ func (handler *ReadHandler) readByURLParams() http.HandlerFunc {
 			return
 		}
 
+		resData, err := mData.StrconvValue()
+		if err != nil {
+			writeTextErrorResponse(
+				w, http.StatusInternalServerError, server.ErrInternal.Error(),
+			)
+			return
+		}
+
 		w.WriteHeader(http.StatusOK)
-		io.WriteString(w, mData.ValueS())
+		io.WriteString(w, resData)
 	}
 }

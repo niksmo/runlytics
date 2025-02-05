@@ -1,6 +1,8 @@
 package metrics
 
 import (
+	"errors"
+	"fmt"
 	"strconv"
 	"strings"
 )
@@ -10,50 +12,99 @@ const (
 	MTypeCounter = "counter"
 )
 
-// Mtype is 'gauge' or 'counter'.
-// Delta is not nil for 'counter',
-// otherwise Value is not nil for 'gauge'
-type Metrics struct {
-	ID    string   `json:"id"`
-	MType string   `json:"type"`
-	Delta *int64   `json:"delta,omitempty"`
-	Value *float64 `json:"value,omitempty"`
+var (
+	ErrRequired = errors.New("required")
+)
+
+type VerifyErrors []error
+
+func (ev VerifyErrors) Unwrap() []error {
+	if len(ev) == 0 {
+		return nil
+	}
+	return ev
 }
 
-func (m *Metrics) String() string {
-	var slice []string
-	slice = append(slice, "ID:"+m.ID)
-	slice = append(slice, "MType:"+m.MType)
-
-	if m.Delta == nil {
-		slice = append(slice, "Delta:nil")
-	} else {
-		slice = append(slice, "Delta:"+m.StrconvValue())
+func (ev VerifyErrors) Error() string {
+	errStrings := make([]string, 0, len(ev))
+	for _, err := range ev {
+		errStrings = append(errStrings, err.Error())
 	}
-
-	if m.Value == nil {
-		slice = append(slice, "Value:nil")
-	} else {
-		slice = append(slice, "Value:"+m.StrconvValue())
-	}
-
-	return "Metrics{" + strings.Join(slice, ", ") + "}"
+	return strings.Join(errStrings, "; ")
 }
 
-// Convert metrics payload value to string presentation.
-func (m *Metrics) StrconvValue() string {
+type ValueStringer interface {
+	StrconvValue() string
+}
 
-	if m.Value != nil && m.Delta != nil {
-		return ""
+type Metrics interface {
+	ValueStringer
+}
+
+type MetricsCounter struct {
+	ID    string `json:"id"`
+	MType string `json:"type"`
+	Delta int64  `json:"delta"`
+}
+
+func (mc MetricsCounter) StrconvValue() string {
+	return strconvDelta(mc.Delta)
+}
+
+type MetricsGauge struct {
+	ID    string  `json:"id"`
+	MType string  `json:"type"`
+	Value float64 `json:"value"`
+}
+
+func (mg MetricsGauge) StrconvValue() string {
+	return strconvValue(mg.Value)
+}
+
+func strconvValue(v float64) string {
+	return strconv.FormatFloat(v, 'f', -1, 64)
+}
+
+func strconvDelta(d int64) string {
+	return strconv.FormatInt(d, 10)
+}
+
+func verifyFieldID(id string) error {
+	if strings.TrimSpace(id) == "" {
+		return fmt.Errorf("'ID': %w", ErrRequired)
+	}
+	return nil
+}
+
+func verifyFiledMType(mType string) error {
+	field := "'MType'"
+	if strings.TrimSpace(mType) == "" {
+		return fmt.Errorf("%s: %w", field, ErrRequired)
 	}
 
-	if m.Value != nil {
-		return strconv.FormatFloat(*m.Value, 'f', -1, 64)
+	allowed := map[string]struct{}{MTypeCounter: {}, MTypeGauge: {}}
+	if _, ok := allowed[mType]; !ok {
+		return fmt.Errorf("%s: allowed 'gauge', 'counter'", field)
 	}
 
-	if m.Delta != nil {
-		return strconv.FormatInt(*m.Delta, 10)
+	return nil
+}
+
+func verifyFieldDelta(value *int64) error {
+	field := "'Delta'"
+	if value == nil {
+		return fmt.Errorf("%s: %w", field, ErrRequired)
 	}
 
-	return ""
+	if *value < 0 {
+		return fmt.Errorf("%s: less then 0", field)
+	}
+	return nil
+}
+
+func verifyFieldValue(value *float64) error {
+	if value == nil {
+		return fmt.Errorf("'Value': %w", ErrRequired)
+	}
+	return nil
 }

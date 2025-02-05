@@ -36,20 +36,14 @@ func (handler *UpdateHandler) updateByJSON() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if err := verifyContentType(r, JSONMediaType); err != nil {
 			writeTextErrorResponse(
-				w,
-				http.StatusUnsupportedMediaType,
-				err.Error(),
+				w, http.StatusUnsupportedMediaType, err.Error(),
 			)
 			return
 		}
 
 		var metrics metrics.Metrics
 		if err := decodeJSON(r, &metrics); err != nil {
-			writeTextErrorResponse(
-				w,
-				http.StatusBadRequest,
-				err.Error(),
-			)
+			writeTextErrorResponse(w, http.StatusBadRequest, err.Error())
 			return
 		}
 
@@ -58,11 +52,7 @@ func (handler *UpdateHandler) updateByJSON() http.HandlerFunc {
 		)
 
 		if err := handler.service.Update(&metrics); err != nil {
-			writeTextErrorResponse(
-				w,
-				http.StatusBadRequest,
-				err.Error(),
-			)
+			writeTextErrorResponse(w, http.StatusBadRequest, err.Error())
 			return
 		}
 
