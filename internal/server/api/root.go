@@ -27,21 +27,18 @@ func SetHTMLHandler(mux *chi.Mux, service HTMLService) {
 
 func (handler *HTMLHandler) get() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-
 		var buf bytes.Buffer
-		if err := handler.service.RenderMetricsList(
-			r.Context(), &buf,
-		); err != nil {
-			http.Error(
-				w,
-				err.Error(),
-				http.StatusInternalServerError,
-			)
+		err := handler.service.RenderMetricsList(r.Context(), &buf)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 
 		w.Header().Set(ContentType, "text/html; charset=utf-8")
 		w.WriteHeader(http.StatusOK)
-		buf.WriteTo(w)
+		if _, err = buf.WriteTo(w); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
 	}
 }

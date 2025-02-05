@@ -12,6 +12,7 @@ import (
 	"github.com/niksmo/runlytics/internal/server/middleware"
 	"github.com/niksmo/runlytics/internal/server/service"
 	"github.com/niksmo/runlytics/internal/server/storage"
+	"github.com/niksmo/runlytics/internal/validator"
 	"go.uber.org/zap"
 )
 
@@ -47,15 +48,21 @@ func main() {
 	)
 	storage.Run()
 
-	HTMLService := service.NewHTMLService(storage)
-	updateService := service.NewUpdateService(storage)
-	readService := service.NewReadService(storage)
-	healthCheckService := service.NewHealthCheckService(db)
+	api.SetHTMLHandler(mux, service.NewHTMLService(storage))
 
-	api.SetHTMLHandler(mux, HTMLService)
-	api.SetUpdateHandler(mux, updateService)
-	api.SetReadHandler(mux, readService)
-	api.SetHealthCheckHandler(mux, healthCheckService)
+	api.SetUpdateHandler(
+		mux,
+		service.NewUpdateService(storage),
+		validator.NewUpdateValidator(),
+	)
+
+	api.SetValueHandler(
+		mux,
+		service.NewValueService(storage),
+		validator.NewValueValidator(),
+	)
+
+	api.SetHealthCheckHandler(mux, service.NewHealthCheckService(db))
 
 	server := http.Server{
 		Addr:    config.Addr(),

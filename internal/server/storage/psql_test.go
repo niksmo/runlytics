@@ -38,8 +38,12 @@ func TestPSQL(t *testing.T) {
 	}
 
 	t.Run("Create tables on running", func(t *testing.T) {
+		ctxBase := context.Background()
+
+		ctx, cancel := context.WithTimeout(ctxBase, time.Second)
+		defer cancel()
 		_, err := db.ExecContext(
-			context.TODO(),
+			ctx,
 			`DROP TABLE IF EXISTS gauge;
 		     DROP TABLE IF EXISTS counter;`,
 		)
@@ -51,8 +55,10 @@ func TestPSQL(t *testing.T) {
 			WHERE tablename IN ('gauge', 'counter');
 		`
 
+		ctx, cancel = context.WithTimeout(ctxBase, time.Second)
+		defer cancel()
 		row := db.QueryRowContext(
-			context.TODO(),
+			ctx,
 			qCountTables,
 		)
 		var count int
@@ -62,7 +68,10 @@ func TestPSQL(t *testing.T) {
 		storage := NewPSQL(db)
 		storage.Run()
 
-		row = db.QueryRowContext(context.TODO(), qCountTables)
+		ctx, cancel = context.WithTimeout(ctxBase, time.Second)
+		defer cancel()
+
+		row = db.QueryRowContext(ctx, qCountTables)
 		require.NoError(t, row.Scan(&count))
 		assert.Equal(t, 2, count)
 	})
@@ -71,10 +80,15 @@ func TestPSQL(t *testing.T) {
 		clearTables(t)
 		storage := NewPSQL(db)
 		storage.Run()
+		ctxBase := context.Background()
 		metricName := "Alloc"
 		seq := []float64{77.55, 33.22, 0}
 		for _, v := range seq {
-			actualValue, err := storage.UpdateGaugeByName(metricName, v)
+			ctx, cancel := context.WithTimeout(ctxBase, time.Second)
+			defer cancel()
+			actualValue, err := storage.UpdateGaugeByName(
+				ctx, metricName, v,
+			)
 			require.NoError(t, err)
 			assert.Equal(t, v, actualValue)
 		}
@@ -84,11 +98,16 @@ func TestPSQL(t *testing.T) {
 		clearTables(t)
 		storage := NewPSQL(db)
 		storage.Run()
+		ctxBase := context.Background()
 		metricName := "Counter"
 		seq := []int64{5, 5, 5}
 		var sum int64
 		for _, v := range seq {
-			actualValue, err := storage.UpdateCounterByName(metricName, v)
+			ctx, cancel := context.WithTimeout(ctxBase, time.Second)
+			defer cancel()
+			actualValue, err := storage.UpdateCounterByName(
+				ctx, metricName, v,
+			)
 			require.NoError(t, err)
 			assert.Equal(t, sum+v, actualValue)
 			sum += v
@@ -98,12 +117,17 @@ func TestPSQL(t *testing.T) {
 	t.Run("Read counter by name", func(t *testing.T) {
 		storage := NewPSQL(db)
 		storage.Run()
+		ctxBase := context.Background()
 		metricName := "Counter"
 
 		t.Run("Should return NoExists error", func(t *testing.T) {
 			clearTables(t)
 			expected := int64(0)
-			actualValue, err := storage.ReadCounterByName(metricName)
+			ctx, cancel := context.WithTimeout(ctxBase, time.Second)
+			defer cancel()
+			actualValue, err := storage.ReadCounterByName(
+				ctx, metricName,
+			)
 			require.ErrorIs(t, err, server.ErrNotExists)
 			assert.Equal(t, expected, actualValue)
 		})
@@ -111,15 +135,21 @@ func TestPSQL(t *testing.T) {
 		t.Run("Should return entry value", func(t *testing.T) {
 			clearTables(t)
 			expected := int64(10)
+			ctx, cancel := context.WithTimeout(ctxBase, time.Second)
+			defer cancel()
 			_, err := db.ExecContext(
-				context.TODO(),
+				ctx,
 				`INSERT INTO counter (name, value)
 				 VALUES ($1, $2);`,
 				metricName,
 				expected,
 			)
 			require.NoError(t, err)
-			actualValue, err := storage.ReadCounterByName(metricName)
+			ctx, cancel = context.WithTimeout(ctxBase, time.Second)
+			defer cancel()
+			actualValue, err := storage.ReadCounterByName(
+				ctx, metricName,
+			)
 			require.NoError(t, err)
 			assert.Equal(t, expected, actualValue)
 		})
@@ -128,12 +158,17 @@ func TestPSQL(t *testing.T) {
 	t.Run("Read gauge by name", func(t *testing.T) {
 		storage := NewPSQL(db)
 		storage.Run()
+		ctxBase := context.Background()
 		metricName := "Alloc"
 
 		t.Run("Should return NotExists error", func(t *testing.T) {
 			clearTables(t)
 			expected := float64(0)
-			actualValue, err := storage.ReadGaugeByName(metricName)
+			ctx, cancel := context.WithTimeout(ctxBase, time.Second)
+			defer cancel()
+			actualValue, err := storage.ReadGaugeByName(
+				ctx, metricName,
+			)
 			require.ErrorIs(t, err, server.ErrNotExists)
 			assert.Equal(t, expected, actualValue)
 		})
@@ -141,15 +176,21 @@ func TestPSQL(t *testing.T) {
 		t.Run("Should return entry value", func(t *testing.T) {
 			clearTables(t)
 			expected := float64(10)
+			ctx, cancel := context.WithTimeout(ctxBase, time.Second)
+			defer cancel()
 			_, err := db.ExecContext(
-				context.TODO(),
+				ctx,
 				`INSERT INTO gauge (name, value)
 				 VALUES ($1, $2);`,
 				metricName,
 				expected,
 			)
 			require.NoError(t, err)
-			actualValue, err := storage.ReadGaugeByName(metricName)
+			ctx, cancel = context.WithTimeout(ctxBase, time.Second)
+			defer cancel()
+			actualValue, err := storage.ReadGaugeByName(
+				ctx, metricName,
+			)
 			require.NoError(t, err)
 			assert.Equal(t, expected, actualValue)
 		})
@@ -190,13 +231,17 @@ func TestPSQL(t *testing.T) {
 				)
 			}
 
+			ctx, cancel = context.WithTimeout(ctxBase, time.Second)
+			defer cancel()
 			_, err := db.ExecContext(
-				context.TODO(),
+				ctx,
 				`INSERT INTO counter (name, value) VALUES `+
 					strings.Join(insertValues, ", ")+";",
 			)
 			require.NoError(t, err)
 
+			ctx, cancel = context.WithTimeout(ctxBase, time.Second)
+			defer cancel()
 			counterData, err := storage.ReadCounter(ctx)
 			require.NoError(t, err)
 			assert.Len(t, counterData, expectedDataLen)
@@ -223,8 +268,6 @@ func TestPSQL(t *testing.T) {
 
 		t.Run("Should return data", func(t *testing.T) {
 			clearTables(t)
-			ctx, cancel := context.WithTimeout(ctxBase, time.Second)
-			defer cancel()
 			testList := []struct {
 				name  string
 				value float64
@@ -241,13 +284,17 @@ func TestPSQL(t *testing.T) {
 				)
 			}
 
+			ctx, cancel = context.WithTimeout(ctxBase, time.Second)
+			defer cancel()
 			_, err := db.ExecContext(
-				context.TODO(),
+				ctx,
 				`INSERT INTO gauge (name, value) VALUES `+
 					strings.Join(insertValues, ", ")+";",
 			)
 			require.NoError(t, err)
 
+			ctx, cancel = context.WithTimeout(ctxBase, time.Second)
+			defer cancel()
 			gaugeData, err := storage.ReadGauge(ctx)
 			require.NoError(t, err)
 			assert.Len(t, gaugeData, expectedDataLen)

@@ -19,7 +19,7 @@ func TestLogger(t *testing.T) {
 		t.Cleanup(clear)
 	})
 
-	t.Run("First initialization", func(t *testing.T) {
+	t.Run("One initialization", func(t *testing.T) {
 		expectedLvl := "debug"
 		err := Init(expectedLvl)
 		require.Nil(t, err)

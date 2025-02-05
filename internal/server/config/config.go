@@ -13,7 +13,7 @@ type Config struct {
 	addr        *net.TCPAddr
 	fileStorage fileStorage
 	database    database
-	useDatabase bool
+	isDatabase  bool
 }
 
 func Load() *Config {
@@ -32,19 +32,19 @@ func Load() *Config {
 
 	flag.Parse()
 
-	useDatabase := *rawDatabaseDSNFlag != ""
+	isDatabase := *rawDatabaseDSNFlag != ""
 
 	config := Config{
 		logLvl: getLogLvlFlag(*rawLogLvlFlag),
 		addr:   getAddrFlag(*rawAddrFlag),
 		fileStorage: makeFileStorageConfig(
-			!useDatabase,
+			!isDatabase,
 			*rawFilePathFlag,
 			*rawSaveIntervalFlag,
 			*rawRestoreFlag,
 		),
-		database:    makeDatabaseConfig(*rawDatabaseDSNFlag),
-		useDatabase: useDatabase,
+		database:   makeDatabaseConfig(*rawDatabaseDSNFlag),
+		isDatabase: isDatabase,
 	}
 
 	return &config
@@ -71,8 +71,8 @@ func (c *Config) Restore() bool {
 	return c.fileStorage.restore
 }
 
-func (c *Config) UseDatabase() bool {
-	return c.useDatabase
+func (c *Config) IsDatabase() bool {
+	return c.isDatabase
 }
 
 func (c *Config) DatabaseDSN() string {

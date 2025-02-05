@@ -53,7 +53,7 @@ func TestMetricsUpdate(t *testing.T) {
 			err := m.Verify()
 			require.Error(t, err)
 			assert.ErrorIs(t, err, ErrRequired)
-			assert.Equal(t, "'Value': required", err.Error())
+			assert.Equal(t, "'Value': required, expect float64", err.Error())
 		})
 
 		t.Run("Empty Delta field in Counter", func(t *testing.T) {
@@ -61,7 +61,7 @@ func TestMetricsUpdate(t *testing.T) {
 			err := m.Verify()
 			require.Error(t, err)
 			assert.ErrorIs(t, err, ErrRequired)
-			assert.Equal(t, "'Delta': required", err.Error())
+			assert.Equal(t, "'Delta': required, expect int64", err.Error())
 		})
 
 		t.Run("Empty ID, MType, Value", func(t *testing.T) {

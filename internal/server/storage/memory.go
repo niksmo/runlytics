@@ -31,7 +31,9 @@ type memoryStorage struct {
 	decoder  *json.Decoder
 }
 
-func NewMemory(file *os.File, interval time.Duration, restore bool) *memoryStorage {
+func NewMemory(
+	file *os.File, interval time.Duration, restore bool,
+) *memoryStorage {
 	ms := memoryStorage{
 		data: storageData{
 			Counter: make(map[string]int64),
@@ -49,7 +51,9 @@ func NewMemory(file *os.File, interval time.Duration, restore bool) *memoryStora
 	return &ms
 }
 
-func (ms *memoryStorage) UpdateCounterByName(name string, value int64) (int64, error) {
+func (ms *memoryStorage) UpdateCounterByName(
+	_ context.Context, name string, value int64,
+) (int64, error) {
 	ms.mu.Lock()
 	prev := ms.data.Counter[name]
 	current := prev + value
@@ -58,14 +62,18 @@ func (ms *memoryStorage) UpdateCounterByName(name string, value int64) (int64, e
 	return current, nil
 }
 
-func (ms *memoryStorage) UpdateGaugeByName(name string, value float64) (float64, error) {
+func (ms *memoryStorage) UpdateGaugeByName(
+	_ context.Context, name string, value float64,
+) (float64, error) {
 	ms.mu.Lock()
 	ms.data.Gauge[name] = value
 	ms.mu.Unlock()
 	return value, nil
 }
 
-func (ms *memoryStorage) ReadCounterByName(name string) (int64, error) {
+func (ms *memoryStorage) ReadCounterByName(
+	_ context.Context, name string,
+) (int64, error) {
 	ms.mu.RLock()
 	value, ok := ms.data.Counter[name]
 	ms.mu.RUnlock()
@@ -76,7 +84,9 @@ func (ms *memoryStorage) ReadCounterByName(name string) (int64, error) {
 	return value, nil
 }
 
-func (ms *memoryStorage) ReadGaugeByName(name string) (float64, error) {
+func (ms *memoryStorage) ReadGaugeByName(
+	_ context.Context, name string,
+) (float64, error) {
 	ms.mu.RLock()
 	value, ok := ms.data.Gauge[name]
 	ms.mu.RUnlock()
@@ -87,7 +97,9 @@ func (ms *memoryStorage) ReadGaugeByName(name string) (float64, error) {
 	return value, nil
 }
 
-func (ms *memoryStorage) ReadGauge(ctx context.Context) (map[string]float64, error) {
+func (ms *memoryStorage) ReadGauge(
+	_ context.Context,
+) (map[string]float64, error) {
 	gauge := make(map[string]float64, len(ms.data.Gauge))
 
 	ms.mu.RLock()
@@ -99,7 +111,9 @@ func (ms *memoryStorage) ReadGauge(ctx context.Context) (map[string]float64, err
 	return gauge, nil
 }
 
-func (ms *memoryStorage) ReadCounter(ctx context.Context) (map[string]int64, error) {
+func (ms *memoryStorage) ReadCounter(
+	_ context.Context,
+) (map[string]int64, error) {
 	counter := make(map[string]int64, len(ms.data.Counter))
 
 	ms.mu.RLock()

@@ -55,7 +55,7 @@ func (e *HTTPEmitter) Run() {
 func (e *HTTPEmitter) emitGauge() {
 	logger.Log.Debug("Emit gauge metrics")
 	for name, value := range e.metricsData.GetGaugeMetrics() {
-		gaugeMetrics := metrics.Metrics{ID: name, MType: metrics.MTypeGauge, Value: &value}
+		gaugeMetrics := metrics.MetricsUpdate{ID: name, MType: metrics.MTypeGauge, Value: &value}
 		e.post(gaugeMetrics)
 	}
 }
@@ -65,13 +65,13 @@ func (e *HTTPEmitter) emitCounter() {
 	for name, value := range e.metricsData.GetCounterMetrics() {
 		delta := value - e.prevPollCounter
 		e.prevPollCounter = value
-		counterMetrics := metrics.Metrics{ID: name, MType: metrics.MTypeCounter, Delta: &delta}
+		counterMetrics := metrics.MetricsUpdate{ID: name, MType: metrics.MTypeCounter, Delta: &delta}
 
 		e.post(counterMetrics)
 	}
 }
 
-func (e *HTTPEmitter) post(metrics metrics.Metrics) {
+func (e *HTTPEmitter) post(metrics metrics.MetricsUpdate) {
 	reqURL := e.baseURL.JoinPath("update").String()
 	logger.Log.Info(
 		"Start request",

@@ -30,10 +30,13 @@ func (ps *psqlStorage) Run() {
 }
 
 func (ps *psqlStorage) UpdateCounterByName(
-	name string, value int64,
+	ctx context.Context, name string, value int64,
 ) (int64, error) {
+	ctx, cancel := ps.newContext(ctx)
+	defer cancel()
+
 	row := ps.db.QueryRowContext(
-		context.TODO(),
+		ctx,
 		`INSERT INTO counter (name, value)
 		 VALUES ($1, $2)
 		 ON CONFLICT (name) DO UPDATE SET
@@ -49,10 +52,13 @@ func (ps *psqlStorage) UpdateCounterByName(
 }
 
 func (ps *psqlStorage) UpdateGaugeByName(
-	name string, value float64,
+	ctx context.Context, name string, value float64,
 ) (float64, error) {
+	ctx, cancel := ps.newContext(ctx)
+	defer cancel()
+
 	row := ps.db.QueryRowContext(
-		context.TODO(),
+		ctx,
 		`INSERT INTO gauge (name, value)
 		 VALUES ($1, $2)
 		 ON CONFLICT (name) DO UPDATE SET
@@ -67,9 +73,14 @@ func (ps *psqlStorage) UpdateGaugeByName(
 	return actualValue, err
 }
 
-func (ps *psqlStorage) ReadCounterByName(name string) (int64, error) {
+func (ps *psqlStorage) ReadCounterByName(
+	ctx context.Context, name string,
+) (int64, error) {
+	ctx, cancel := ps.newContext(ctx)
+	defer cancel()
+
 	row := ps.db.QueryRowContext(
-		context.TODO(),
+		ctx,
 		`SELECT value
 		 FROM counter
 		 WHERE name = $1;`,
@@ -77,15 +88,26 @@ func (ps *psqlStorage) ReadCounterByName(name string) (int64, error) {
 	)
 	var value int64
 	err := row.Scan(&value)
-	if errors.Is(err, sql.ErrNoRows) {
-		err = fmt.Errorf("metric '%s' is %w", name, server.ErrNotExists)
+
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return 0, fmt.Errorf("metric '%s' is %w", name, server.ErrNotExists)
+		}
+
+		return 0, err
 	}
+
 	return value, err
 }
 
-func (ps *psqlStorage) ReadGaugeByName(name string) (float64, error) {
+func (ps *psqlStorage) ReadGaugeByName(
+	ctx context.Context, name string,
+) (float64, error) {
+	ctx, cancel := ps.newContext(ctx)
+	defer cancel()
+
 	row := ps.db.QueryRowContext(
-		context.TODO(),
+		ctx,
 		`SELECT value
 		 FROM gauge
 		 WHERE name = $1;`,
@@ -93,9 +115,15 @@ func (ps *psqlStorage) ReadGaugeByName(name string) (float64, error) {
 	)
 	var value float64
 	err := row.Scan(&value)
-	if errors.Is(err, sql.ErrNoRows) {
-		err = fmt.Errorf("metric '%s' is %w", name, server.ErrNotExists)
+
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return 0, fmt.Errorf("metric '%s' is %w", name, server.ErrNotExists)
+		}
+
+		return 0, err
 	}
+
 	return value, err
 }
 

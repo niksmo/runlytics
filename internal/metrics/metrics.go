@@ -88,7 +88,7 @@ func verifyFiledMType(mType string) error {
 func verifyFieldDelta(value *int64) error {
 	field := "'Delta'"
 	if value == nil {
-		return fmt.Errorf("%s: %w", field, ErrRequired)
+		return fmt.Errorf("%s: %w, expect int64", field, ErrRequired)
 	}
 
 	if *value < 0 {
@@ -99,7 +99,7 @@ func verifyFieldDelta(value *int64) error {
 
 func verifyFieldValue(value *float64) error {
 	if value == nil {
-		return fmt.Errorf("'Value': %w", ErrRequired)
+		return fmt.Errorf("'Value': %w, expect float64", ErrRequired)
 	}
 	return nil
 }

@@ -1,27 +1,36 @@
 package api
 
 import (
+	"context"
+	"io"
 	"net/http"
-	"strconv"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/niksmo/runlytics/internal/metrics"
+	"github.com/niksmo/runlytics/internal/server"
+	"github.com/niksmo/runlytics/internal/server/middleware"
 )
 
 type UpdateHandler struct {
-	service UpdateService
+	service   UpdateService
+	validator UpdateValidator
 }
 
 type UpdateService interface {
-	Update(mData *metrics.MetricsUpdate) error
+	Update(context.Context, *metrics.MetricsUpdate) (metrics.Metrics, error)
 }
 
-func SetUpdateHandler(mux *chi.Mux, service UpdateService) {
+type UpdateValidator interface {
+	VerifyScheme(*metrics.MetricsUpdate) error
+	VerifyParams(id, mType, value string) (*metrics.MetricsUpdate, error)
+}
+
+func SetUpdateHandler(mux *chi.Mux, service UpdateService, validator UpdateValidator) {
 	path := "/update"
-	handler := &UpdateHandler{service}
+	handler := &UpdateHandler{service, validator}
 	mux.Route(path, func(r chi.Router) {
 		byJSONPath := "/"
-		r.Post(byJSONPath, handler.updateByJSON())
+		r.With(middleware.AllowJSON).Post(byJSONPath, handler.updateByJSON())
 		debugLogRegister(path + byJSONPath)
 
 		byURLParamsPath := "/{type}/{name}/{value}"
@@ -32,71 +41,47 @@ func SetUpdateHandler(mux *chi.Mux, service UpdateService) {
 
 func (handler *UpdateHandler) updateByJSON() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if err := verifyContentType(r, JSONMediaType); err != nil {
-			writeTextErrorResponse(
-				w, http.StatusUnsupportedMediaType, err.Error(),
-			)
+		var scheme *metrics.MetricsUpdate
+		if err := decodeJSON(r, scheme); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 
-		var metrics metrics.MetricsUpdate
-		if err := decodeJSON(r, &metrics); err != nil {
-			writeTextErrorResponse(w, http.StatusBadRequest, err.Error())
+		if err := handler.validator.VerifyScheme(scheme); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 
-		if err := handler.service.Update(&metrics); err != nil {
-			writeTextErrorResponse(w, http.StatusBadRequest, err.Error())
+		resScheme, err := handler.service.Update(r.Context(), scheme)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-
-		writeJSONResponse(w, metrics)
+		writeJSONResponse(w, resScheme)
 	}
 }
 
 func (handler *UpdateHandler) updataByURLParams() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		mData := metrics.Metrics{
-			ID:    chi.URLParam(r, "name"),
-			MType: chi.URLParam(r, "type"),
-		}
-		sValue := chi.URLParam(r, "value")
-
-		switch mData.MType {
-		case metrics.MTypeCounter:
-			delta, err := strconv.ParseInt(sValue, 10, 64)
-			if err != nil {
-				writeTextErrorResponse(
-					w,
-					http.StatusBadRequest,
-					"counter value format should be 'integer'",
-				)
-				return
-			}
-			mData.Delta = &delta
-
-		case metrics.MTypeGauge:
-			value, err := strconv.ParseFloat(sValue, 64)
-			if err != nil {
-				writeTextErrorResponse(
-					w,
-					http.StatusBadRequest,
-					"gauge value format should be 'float'",
-				)
-				return
-			}
-			mData.Value = &value
+		scheme, err := handler.validator.VerifyParams(
+			chi.URLParam(r, "name"),
+			chi.URLParam(r, "type"),
+			chi.URLParam(r, "value"),
+		)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
 		}
 
-		if err := handler.service.Update(&mData); err != nil {
-			writeTextErrorResponse(
-				w,
-				http.StatusBadRequest,
-				err.Error(),
-			)
+		resScheme, err := handler.service.Update(r.Context(), scheme)
+		if err != nil {
+			http.Error(w, server.ErrInternal.Error(), http.StatusInternalServerError)
 			return
 		}
 
 		w.WriteHeader(http.StatusOK)
+		if _, err = io.WriteString(w, resScheme.StrconvValue()); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
 	}
 }

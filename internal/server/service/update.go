@@ -1,83 +1,48 @@
 package service
 
 import (
-	"fmt"
-	"strings"
+	"context"
 
-	"github.com/niksmo/runlytics/internal/logger"
 	"github.com/niksmo/runlytics/internal/metrics"
-	"go.uber.org/zap"
+	"github.com/niksmo/runlytics/internal/server"
 )
 
-const emptyField = "field is empty"
-
-type ErrMetricsField []error
-
-func (e ErrMetricsField) Error() string {
-	var s []string
-	for _, err := range e {
-		s = append(s, err.Error())
-	}
-	return strings.Join(s, "; ")
-}
-
-type UpdateRepository interface {
-	UpdateCounterByName(name string, value int64) (int64, error)
-	UpdateGaugeByName(name string, value float64) (float64, error)
+type UpdaterRepository interface {
+	UpdateCounterByName(ctx context.Context, name string, value int64) (int64, error)
+	UpdateGaugeByName(ctx context.Context, name string, value float64) (float64, error)
 }
 
 type UpdateService struct {
-	repository UpdateRepository
+	repository UpdaterRepository
 }
 
-func NewUpdateService(repository UpdateRepository) *UpdateService {
+func NewUpdateService(repository UpdaterRepository) *UpdateService {
 	return &UpdateService{repository}
 }
 
-func (service *UpdateService) Update(mData *metrics.Metrics) error {
-	var errs ErrMetricsField
-	if mData.ID == "" {
-		errs = append(errs, fmt.Errorf("'id' %s", emptyField))
-	}
-
-	//should check empty MType too
-
-	switch mData.MType {
+func (s *UpdateService) Update(
+	ctx context.Context, scheme *metrics.MetricsUpdate,
+) (metrics.Metrics, error) {
+	switch scheme.MType {
 	case metrics.MTypeGauge:
-		if mData.Value == nil {
-			errs = append(errs, fmt.Errorf("'value' %s", emptyField))
-		} else {
-			v := service.repository.UpdateGaugeByName(
-				mData.ID,
-				*mData.Value,
-			)
-			mData.Value = &v
+		value, err := s.repository.UpdateGaugeByName(ctx, scheme.ID, *scheme.Value)
+		if err != nil {
+			return nil, err
 		}
+		mGauge := metrics.MetricsGauge{
+			ID: scheme.ID, MType: scheme.MType, Value: value,
+		}
+		return mGauge, nil
+
 	case metrics.MTypeCounter:
-		if mData.Delta == nil {
-			errs = append(errs, fmt.Errorf("'delta' %s", emptyField))
-		} else {
-			v := service.repository.UpdateCounterByName(
-				mData.ID,
-				*mData.Delta,
-			)
-			mData.Delta = &v
+		delta, err := s.repository.UpdateCounterByName(ctx, scheme.ID, *scheme.Delta)
+		if err != nil {
+			return nil, err
 		}
-	default:
-		errs = append(
-			errs,
-			fmt.Errorf("wrong type value: '%s'. Expect 'counter' or 'gauge'", mData.MType),
-		)
+		mCounter := metrics.MetricsCounter{
+			ID: scheme.ID, MType: scheme.MType, Delta: delta,
+		}
+		return mCounter, nil
 	}
-
-	if len(errs) != 0 {
-		logger.Log.Debug(
-			"The metrics have not been updated",
-			zap.String("metricsID", mData.ID),
-			zap.Error(errs),
-		)
-		return errs
-	}
-
-	return nil
+	return nil, server.ErrInternal
 }

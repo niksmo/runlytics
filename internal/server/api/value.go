@@ -1,30 +1,38 @@
 package api
 
 import (
+	"context"
+	"errors"
 	"io"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/niksmo/runlytics/internal/logger"
 	"github.com/niksmo/runlytics/internal/metrics"
 	"github.com/niksmo/runlytics/internal/server"
-	"go.uber.org/zap"
+	"github.com/niksmo/runlytics/internal/server/middleware"
 )
 
-type ReadHandler struct {
-	service ReadService
+type ValueHandler struct {
+	service   ValueService
+	validator ValueValidator
 }
 
-type ReadService interface {
-	Read(mData *metrics.Metrics) error
+type ValueService interface {
+	Read(ctx context.Context, mData *metrics.MetricsRead) (metrics.Metrics, error)
 }
 
-func SetReadHandler(mux *chi.Mux, service ReadService) {
+type ValueValidator interface {
+	VerifyScheme(*metrics.MetricsRead) error
+}
+
+func SetValueHandler(
+	mux *chi.Mux, service ValueService, validator ValueValidator,
+) {
 	path := "/value"
-	handler := &ReadHandler{service}
+	handler := &ValueHandler{service, validator}
 	mux.Route(path, func(r chi.Router) {
 		byJSONPath := "/"
-		r.Post(byJSONPath, handler.readByJSON())
+		r.With(middleware.AllowJSON).Post(byJSONPath, handler.readByJSON())
 		debugLogRegister(path + byJSONPath)
 
 		byURLParamsPath := "/{type}/{name}"
@@ -33,73 +41,66 @@ func SetReadHandler(mux *chi.Mux, service ReadService) {
 	})
 }
 
-func (handler *ReadHandler) readByJSON() http.HandlerFunc {
+func (handler *ValueHandler) readByJSON() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if err := verifyContentType(r, JSONMediaType); err != nil {
-			writeTextErrorResponse(
-				w,
-				http.StatusUnsupportedMediaType,
-				err.Error(),
+		var scheme *metrics.MetricsRead
+		if err := decodeJSON(r, scheme); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		if err := handler.validator.VerifyScheme(scheme); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		resScheme, err := handler.service.Read(r.Context(), scheme)
+		if err != nil {
+			if errors.Is(err, server.ErrNotExists) {
+				http.Error(w, err.Error(), http.StatusNotFound)
+				return
+			}
+
+			http.Error(
+				w, server.ErrInternal.Error(), http.StatusInternalServerError,
 			)
 			return
 		}
 
-		var metrics metrics.Metrics
-		if err := decodeJSON(r, &metrics); err != nil {
-			writeTextErrorResponse(
-				w,
-				http.StatusBadRequest,
-				err.Error(),
-			)
-			return
-		}
-
-		logger.Log.Debug(
-			"Decoded from JSON", zap.String("struct", metrics.String()),
-		)
-
-		if err := handler.service.Read(&metrics); err != nil {
-			writeTextErrorResponse(
-				w,
-				http.StatusNotFound,
-				err.Error(),
-			)
-			return
-		}
-
-		logger.Log.Debug(
-			"For encode to JSON", zap.String("struct", metrics.String()),
-		)
-
-		writeJSONResponse(w, metrics)
+		writeJSONResponse(w, resScheme)
 	}
 }
 
-func (handler *ReadHandler) readByURLParams() http.HandlerFunc {
+func (handler *ValueHandler) readByURLParams() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		mData := metrics.Metrics{
+		scheme := &metrics.MetricsRead{
 			ID:    chi.URLParam(r, "name"),
 			MType: chi.URLParam(r, "type"),
 		}
 
-		if err := handler.service.Read(&mData); err != nil {
-			writeTextErrorResponse(
-				w,
-				http.StatusNotFound,
-				err.Error(),
-			)
+		if err := handler.validator.VerifyScheme(scheme); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 
-		resData, err := mData.StrconvValue()
+		resScheme, err := handler.service.Read(r.Context(), scheme)
 		if err != nil {
-			writeTextErrorResponse(
-				w, http.StatusInternalServerError, server.ErrInternal.Error(),
+			if errors.Is(err, server.ErrNotExists) {
+				http.Error(w, err.Error(), http.StatusNotFound)
+				return
+			}
+
+			http.Error(
+				w, server.ErrInternal.Error(), http.StatusInternalServerError,
 			)
 			return
 		}
 
 		w.WriteHeader(http.StatusOK)
-		io.WriteString(w, resData)
+		if _, err = io.WriteString(w, resScheme.StrconvValue()); err != nil {
+			http.Error(
+				w, err.Error(), http.StatusInternalServerError,
+			)
+		}
 	}
 }
