@@ -77,14 +77,9 @@ func verifyFieldID(id string) error {
 }
 
 func verifyFiledMType(mType string) error {
-	field := "'MType'"
-	if strings.TrimSpace(mType) == "" {
-		return fmt.Errorf("%s: %w", field, ErrRequired)
-	}
-
 	allowed := map[string]struct{}{MTypeCounter: {}, MTypeGauge: {}}
 	if _, ok := allowed[mType]; !ok {
-		return fmt.Errorf("%s: allowed 'gauge', 'counter'", field)
+		return fmt.Errorf("'MType': allowed 'gauge', 'counter'")
 	}
 
 	return nil

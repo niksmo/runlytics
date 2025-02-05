@@ -5,9 +5,7 @@ import (
 	"strconv"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/niksmo/runlytics/internal/logger"
 	"github.com/niksmo/runlytics/internal/metrics"
-	"go.uber.org/zap"
 )
 
 type UpdateHandler struct {
@@ -15,7 +13,7 @@ type UpdateHandler struct {
 }
 
 type UpdateService interface {
-	Update(mData *metrics.Metrics) error
+	Update(mData *metrics.MetricsUpdate) error
 }
 
 func SetUpdateHandler(mux *chi.Mux, service UpdateService) {
@@ -41,24 +39,16 @@ func (handler *UpdateHandler) updateByJSON() http.HandlerFunc {
 			return
 		}
 
-		var metrics metrics.Metrics
+		var metrics metrics.MetricsUpdate
 		if err := decodeJSON(r, &metrics); err != nil {
 			writeTextErrorResponse(w, http.StatusBadRequest, err.Error())
 			return
 		}
 
-		logger.Log.Debug(
-			"Decoded from JSON", zap.String("struct", metrics.String()),
-		)
-
 		if err := handler.service.Update(&metrics); err != nil {
 			writeTextErrorResponse(w, http.StatusBadRequest, err.Error())
 			return
 		}
-
-		logger.Log.Debug(
-			"For encode to JSON", zap.String("struct", metrics.String()),
-		)
 
 		writeJSONResponse(w, metrics)
 	}

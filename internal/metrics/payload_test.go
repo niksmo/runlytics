@@ -34,37 +34,10 @@ func TestMetricsUpdate(t *testing.T) {
 			}
 		})
 
-		t.Run("Empty MType field", func(t *testing.T) {
+		t.Run("Wrong MType field", func(t *testing.T) {
 			metricsList := []MetricsUpdate{
 				{ID: "0", MType: " ", Delta: &delta},
 				{ID: "0", MType: " ", Value: &value},
-			}
-			for _, m := range metricsList {
-				err := m.Verify()
-				require.Error(t, err)
-				assert.ErrorIs(t, err, ErrRequired)
-				assert.Equal(t, "'MType': required", err.Error())
-			}
-		})
-
-		t.Run("Empty Value field for Gauge", func(t *testing.T) {
-			m := MetricsUpdate{ID: "0", MType: MTypeGauge, Value: nil}
-			err := m.Verify()
-			require.Error(t, err)
-			assert.ErrorIs(t, err, ErrRequired)
-			assert.Equal(t, "'Value': required", err.Error())
-		})
-
-		t.Run("Empty Delta field for Counter", func(t *testing.T) {
-			m := MetricsUpdate{ID: "0", MType: MTypeCounter, Delta: nil}
-			err := m.Verify()
-			require.Error(t, err)
-			assert.ErrorIs(t, err, ErrRequired)
-			assert.Equal(t, "'Delta': required", err.Error())
-		})
-
-		t.Run("Wrong MType", func(t *testing.T) {
-			metricsList := []MetricsUpdate{
 				{ID: "0", MType: "wcounter", Delta: &delta},
 				{ID: "0", MType: "wgauge", Value: &value},
 			}
@@ -73,6 +46,22 @@ func TestMetricsUpdate(t *testing.T) {
 				require.Error(t, err)
 				assert.Equal(t, "'MType': allowed 'gauge', 'counter'", err.Error())
 			}
+		})
+
+		t.Run("Empty Value field in Gauge", func(t *testing.T) {
+			m := MetricsUpdate{ID: "0", MType: MTypeGauge, Value: nil}
+			err := m.Verify()
+			require.Error(t, err)
+			assert.ErrorIs(t, err, ErrRequired)
+			assert.Equal(t, "'Value': required", err.Error())
+		})
+
+		t.Run("Empty Delta field in Counter", func(t *testing.T) {
+			m := MetricsUpdate{ID: "0", MType: MTypeCounter, Delta: nil}
+			err := m.Verify()
+			require.Error(t, err)
+			assert.ErrorIs(t, err, ErrRequired)
+			assert.Equal(t, "'Delta': required", err.Error())
 		})
 
 		t.Run("Empty ID, MType, Value", func(t *testing.T) {
@@ -84,7 +73,7 @@ func TestMetricsUpdate(t *testing.T) {
 				err := m.Verify()
 				require.Error(t, err)
 				assert.ErrorIs(t, err, ErrRequired)
-				assert.Equal(t, "'ID': required; 'MType': required", err.Error())
+				assert.Equal(t, "'ID': required; 'MType': allowed 'gauge', 'counter'", err.Error())
 			}
 		})
 	})
@@ -117,24 +106,17 @@ func TestMetricsRead(t *testing.T) {
 			}
 		})
 
-		t.Run("Empty MType field", func(t *testing.T) {
+		t.Run("Wrong MType field", func(t *testing.T) {
 			metricsList := []MetricsRead{
 				{ID: "0", MType: ""},
 				{ID: "0", MType: " "},
+				{ID: "0", MType: "wgauge"},
 			}
 			for _, m := range metricsList {
 				err := m.Verify()
 				require.Error(t, err)
-				assert.ErrorIs(t, err, ErrRequired)
-				assert.Equal(t, "'MType': required", err.Error())
+				assert.Equal(t, "'MType': allowed 'gauge', 'counter'", err.Error())
 			}
-		})
-
-		t.Run("Wrong MType", func(t *testing.T) {
-			m := MetricsRead{ID: "0", MType: "wgauge"}
-			err := m.Verify()
-			require.Error(t, err)
-			assert.Equal(t, "'MType': allowed 'gauge', 'counter'", err.Error())
 		})
 
 		t.Run("Empty ID and MType", func(t *testing.T) {
@@ -146,7 +128,7 @@ func TestMetricsRead(t *testing.T) {
 				err := m.Verify()
 				require.Error(t, err)
 				assert.ErrorIs(t, err, ErrRequired)
-				assert.Equal(t, "'ID': required; 'MType': required", err.Error())
+				assert.Equal(t, "'ID': required; 'MType': allowed 'gauge', 'counter'", err.Error())
 			}
 		})
 	})
