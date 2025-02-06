@@ -12,8 +12,8 @@ func NewUpdateValidator() *UpdateValidator {
 	return &UpdateValidator{}
 }
 
-func (v *UpdateValidator) VerifyScheme(s *metrics.MetricsUpdate) error {
-	return s.Verify()
+func (v *UpdateValidator) VerifyScheme(object Verifier) error {
+	return object.Verify()
 }
 
 func (v *UpdateValidator) VerifyParams(

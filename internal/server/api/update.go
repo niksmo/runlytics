@@ -9,6 +9,7 @@ import (
 	"github.com/niksmo/runlytics/internal/metrics"
 	"github.com/niksmo/runlytics/internal/server"
 	"github.com/niksmo/runlytics/internal/server/middleware"
+	"github.com/niksmo/runlytics/internal/server/validator"
 )
 
 type UpdateHandler struct {
@@ -21,7 +22,7 @@ type UpdateService interface {
 }
 
 type UpdateValidator interface {
-	VerifyScheme(*metrics.MetricsUpdate) error
+	VerifyScheme(validator.Verifier) error
 	VerifyParams(id, mType, value string) (*metrics.MetricsUpdate, error)
 }
 
@@ -41,18 +42,17 @@ func SetUpdateHandler(mux *chi.Mux, service UpdateService, validator UpdateValid
 
 func (handler *UpdateHandler) updateByJSON() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		var scheme *metrics.MetricsUpdate
-		if err := decodeJSON(r, scheme); err != nil {
+		var scheme metrics.MetricsUpdate
+		if err := decodeJSON(r, &scheme); err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 
-		if err := handler.validator.VerifyScheme(scheme); err != nil {
+		if err := handler.validator.VerifyScheme(&scheme); err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
-
-		resScheme, err := handler.service.Update(r.Context(), scheme)
+		resScheme, err := handler.service.Update(r.Context(), &scheme)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return

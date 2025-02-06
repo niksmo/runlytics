@@ -11,8 +11,10 @@ import (
 )
 
 const (
-	ContentType   = "Content-Type"
-	JSONMediaType = "application/json"
+	ContentType     = "Content-Type"
+	ContentEncoding = "Content-Encoding"
+	AcceptEncoding  = "Accept-Encoding"
+	JSONMediaType   = "application/json"
 )
 
 func debugLogRegister(endpoint string) {

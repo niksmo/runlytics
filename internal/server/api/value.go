@@ -10,6 +10,7 @@ import (
 	"github.com/niksmo/runlytics/internal/metrics"
 	"github.com/niksmo/runlytics/internal/server"
 	"github.com/niksmo/runlytics/internal/server/middleware"
+	"github.com/niksmo/runlytics/internal/server/validator"
 )
 
 type ValueHandler struct {
@@ -22,7 +23,7 @@ type ValueService interface {
 }
 
 type ValueValidator interface {
-	VerifyScheme(*metrics.MetricsRead) error
+	VerifyScheme(validator.Verifier) error
 }
 
 func SetValueHandler(
@@ -43,18 +44,18 @@ func SetValueHandler(
 
 func (handler *ValueHandler) readByJSON() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		var scheme *metrics.MetricsRead
-		if err := decodeJSON(r, scheme); err != nil {
+		var scheme metrics.MetricsRead
+		if err := decodeJSON(r, &scheme); err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 
-		if err := handler.validator.VerifyScheme(scheme); err != nil {
+		if err := handler.validator.VerifyScheme(&scheme); err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 
-		resScheme, err := handler.service.Read(r.Context(), scheme)
+		resScheme, err := handler.service.Read(r.Context(), &scheme)
 		if err != nil {
 			if errors.Is(err, server.ErrNotExists) {
 				http.Error(w, err.Error(), http.StatusNotFound)

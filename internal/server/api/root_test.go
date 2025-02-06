@@ -58,6 +58,7 @@ func TestHTMLHandler(t *testing.T) {
 			assert.Equal(t, http.StatusMethodNotAllowed, res.StatusCode)
 
 			data, err := io.ReadAll(res.Body)
+			defer res.Body.Close()
 			require.NoError(t, err)
 			assert.Len(t, data, 0)
 		}

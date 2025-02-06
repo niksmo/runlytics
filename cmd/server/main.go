@@ -12,7 +12,7 @@ import (
 	"github.com/niksmo/runlytics/internal/server/middleware"
 	"github.com/niksmo/runlytics/internal/server/service"
 	"github.com/niksmo/runlytics/internal/server/storage"
-	"github.com/niksmo/runlytics/internal/validator"
+	"github.com/niksmo/runlytics/internal/server/validator"
 	"go.uber.org/zap"
 )
 

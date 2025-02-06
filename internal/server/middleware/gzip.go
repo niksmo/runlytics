@@ -5,9 +5,6 @@ import (
 	"io"
 	"net/http"
 	"strings"
-
-	"github.com/niksmo/runlytics/internal/logger"
-	"go.uber.org/zap"
 )
 
 const gzipFormat = "gzip"
@@ -22,14 +19,12 @@ func Gzip(next http.Handler) http.Handler {
 				return
 			}
 			r.Body = gzipR
-			logger.Log.Debug("Receive compressed data", zap.String("format", gzipFormat))
 		}
 
 		if acceptGzip(&r.Header) {
 			gzipW := newGzipWriter(w)
 			defer gzipW.Close()
 			w = gzipW
-			logger.Log.Debug("Prepare compressed response", zap.String("format", gzipFormat))
 		}
 
 		next.ServeHTTP(w, r)

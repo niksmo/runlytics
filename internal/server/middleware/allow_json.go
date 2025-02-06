@@ -10,6 +10,7 @@ func AllowJSON(next http.Handler) http.Handler {
 		contentType := r.Header.Values(ContentType)
 		if !slices.Contains(contentType, "application/json") {
 			w.WriteHeader(http.StatusUnsupportedMediaType)
+			return
 		}
 		next.ServeHTTP(w, r)
 	}

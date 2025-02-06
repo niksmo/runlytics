@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -17,8 +18,7 @@ import (
 func TestPSQL(t *testing.T) {
 	db, err := sql.Open(
 		"pgx",
-		"postgres://runlytics:runlytics@127.0.0.1:5432/runlytics_tests"+
-			"?sslmode=disable",
+		os.Getenv("RUNLYTICS_TEST_DSN"),
 	)
 	require.NoError(t, err)
 	defer db.Close()

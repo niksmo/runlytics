@@ -3,455 +3,614 @@ package api
 import (
 	"bytes"
 	"compress/gzip"
+	"context"
 	"encoding/json"
 	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/niksmo/runlytics/internal/metrics"
+	"github.com/niksmo/runlytics/internal/server"
 	"github.com/niksmo/runlytics/internal/server/middleware"
+	"github.com/niksmo/runlytics/internal/server/validator"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
 
 type MockUpdateService struct {
-	err bool
+	mock.Mock
 }
 
-func (service *MockUpdateService) Update(mData *metrics.Metrics) error {
-	if service.err {
-		return errors.New("test error")
+func (service *MockUpdateService) Update(
+	ctx context.Context, scheme *metrics.MetricsUpdate,
+) (metrics.Metrics, error) {
+	retArgs := service.Called(nil, scheme)
 
+	if _, ok := retArgs.Get(0).(metrics.Metrics); !ok {
+		return nil, retArgs.Error(1)
 	}
+	return retArgs.Get(0).(metrics.Metrics), retArgs.Error(1)
+}
 
-	mData.ID = "update"
-	mData.MType = "update"
+type MockUpdateValidator struct {
+	mock.Mock
+}
 
-	delta := int64(123)
-	mData.Delta = &delta
+func (validator *MockUpdateValidator) VerifyScheme(
+	verifier validator.Verifier,
+) error {
+	retArgs := validator.Called(verifier)
+	return retArgs.Error(0)
+}
 
-	value := 123.4
-	mData.Value = &value
+func (validator *MockUpdateValidator) VerifyParams(
+	id, mType, value string,
+) (*metrics.MetricsUpdate, error) {
+	retArgs := validator.Called(id, mType, value)
 
-	return nil
+	if _, ok := retArgs.Get(0).(*metrics.MetricsUpdate); !ok {
+		return nil, retArgs.Error(1)
+	}
+	return retArgs.Get(0).(*metrics.MetricsUpdate), retArgs.Error(1)
 }
 
 func TestUpdateByJSONHandler(t *testing.T) {
+	makeURL := func(serverURL string) string {
+		return serverURL + "/update/"
+	}
 
-	newMetrics := func(id string, mType string, delta int64, value float64) *metrics.Metrics {
-		return &metrics.Metrics{
-			ID:    id,
-			MType: mType,
-			Delta: &delta,
-			Value: &value,
+	t.Run("Not allowed methods", func(t *testing.T) {
+		methods := []string{
+			http.MethodGet,
+			http.MethodPut,
+			http.MethodPatch,
+			http.MethodDelete,
+			http.MethodHead,
+			http.MethodOptions,
 		}
-	}
+		mockService := new(MockUpdateService)
+		mockService.On("Update", nil, nil).Return(nil, nil)
+		mockValidator := new(MockUpdateValidator)
+		mockValidator.On("VerifyScheme", nil).Return(nil)
+		mux := chi.NewRouter()
 
-	testRequest := func(
-		t *testing.T,
-		mux *chi.Mux,
-		method string,
-		path string,
-		contentType string,
-		body io.Reader,
-	) (*http.Response, []byte) {
-		ts := httptest.NewServer(mux)
-		defer ts.Close()
+		SetUpdateHandler(mux, mockService, mockValidator)
 
-		req, err := http.NewRequest(method, ts.URL+path, body)
-		require.NoError(t, err)
+		for _, method := range methods {
+			s := httptest.NewServer(mux)
+			defer s.Close()
 
-		req.Header.Set("Content-Type", contentType)
-		res, err := ts.Client().Do(req)
-		require.NoError(t, err)
-
-		resData, err := io.ReadAll(res.Body)
-		require.NoError(t, err)
-
-		return res, resData
-	}
-
-	type want struct {
-		statusCode int
-		resData    *metrics.Metrics
-	}
-
-	type test struct {
-		name        string
-		method      string
-		path        string
-		want        want
-		contentType string
-		reqData     []byte
-		service     *MockUpdateService
-	}
-
-	tests := []test{
-		// not allowed methods
-		{
-			name:   "GET not allowed",
-			method: http.MethodGet,
-			path:   "/update/",
-			want: want{
-				statusCode: http.StatusMethodNotAllowed,
-				resData:    nil,
-			},
-		},
-		{
-			name:   "PUT not allowed",
-			method: http.MethodPut,
-			path:   "/update/",
-			want: want{
-				statusCode: http.StatusMethodNotAllowed,
-				resData:    nil,
-			},
-		},
-		{
-			name:   "PATCH not allowed",
-			method: http.MethodPatch,
-			path:   "/update/",
-			want: want{
-				statusCode: http.StatusMethodNotAllowed,
-				resData:    nil,
-			},
-		},
-		{
-			name:   "DELETE not allowed",
-			method: http.MethodDelete,
-			path:   "/update/",
-			want: want{
-				statusCode: http.StatusMethodNotAllowed,
-				resData:    nil,
-			},
-		},
-		{
-			name:   "HEAD not allowed",
-			method: http.MethodHead,
-			path:   "/update/",
-			want: want{
-				statusCode: http.StatusMethodNotAllowed,
-				resData:    nil,
-			},
-		},
-		{
-			name:   "OPTIONS not allowed",
-			method: http.MethodOptions,
-			path:   "/update/",
-			want: want{
-				statusCode: http.StatusMethodNotAllowed,
-				resData:    nil,
-			},
-		},
-
-		// POST
-		{
-			name:   "Should update metrics",
-			method: http.MethodPost,
-			path:   "/update/",
-			want: want{
-				statusCode: http.StatusOK,
-				resData: newMetrics(
-					"update",
-					"update",
-					123,
-					123.4,
-				),
-			},
-			contentType: "application/json",
-			reqData: []byte(`{
-			    "id":"test",
-		        "type":"test",
-				"delta":321,
-				"value":432.1
-			}`),
-			service: &MockUpdateService{err: false},
-		},
-		{
-			name:   "Wrong Content-Type",
-			method: http.MethodPost,
-			path:   "/update/",
-			want: want{
-				statusCode: http.StatusUnsupportedMediaType,
-				resData:    nil,
-			},
-			contentType: "text/plain",
-			reqData: []byte(`{
-			    "id":"test",
-		        "type":"test",
-				"delta":321,
-				"value":432.1
-			}`),
-			service: &MockUpdateService{err: false},
-		},
-		{
-			name:   "Wrong metrics scheme or bad JSON",
-			method: http.MethodPost,
-			path:   "/update/",
-			want: want{
-				statusCode: http.StatusBadRequest,
-				resData:    nil,
-			},
-			contentType: "application/json",
-			reqData: []byte(`{
-			    "id":"test",
-		        "type":"test",
-				"delta":321.77897,
-				"value":432.1
-			}`),
-			service: &MockUpdateService{err: false},
-		},
-		{
-			name:   "Service should return error",
-			method: http.MethodPost,
-			path:   "/update/",
-			want: want{
-				statusCode: http.StatusBadRequest,
-				resData:    nil,
-			},
-			contentType: "application/json",
-			reqData: []byte(`{
-			    "id":"test",
-		        "type":"test",
-				"delta":321,
-				"value":432.1
-			}`),
-			service: &MockUpdateService{err: true},
-		},
-	}
-
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			mux := chi.NewRouter()
-			SetUpdateHandler(mux, test.service)
-			res, resBody := testRequest(t,
-				mux,
-				test.method,
-				test.path,
-				test.contentType,
-				bytes.NewReader(test.reqData),
+			reqBody := strings.NewReader(
+				`{ID: "0", MType: "gauge", Value: 123.450}`,
 			)
-			defer res.Body.Close()
 
-			assert.Equal(t, test.want.statusCode, res.StatusCode)
+			req, err := http.NewRequestWithContext(
+				context.TODO(), method, makeURL(s.URL), reqBody,
+			)
+			require.NoError(t, err)
+			req.Header.Set(ContentType, JSONMediaType)
 
-			if test.want.resData != nil {
-				require.Equal(t, JSONMediaType, res.Header.Get(ContentType))
+			res, err := s.Client().Do(req)
+			require.NoError(t, err)
+			assert.Equal(t, http.StatusMethodNotAllowed, res.StatusCode)
 
-				var resData metrics.Metrics
-				require.NoError(t, json.Unmarshal(resBody, &resData))
-				assert.Equal(t, *test.want.resData, resData)
-			}
-		})
-	}
-}
+			data, err := io.ReadAll(res.Body)
+			res.Body.Close()
+			require.NoError(t, err)
+			assert.Len(t, data, 0)
 
-func TestUpdateByJSONHandlerGzip(t *testing.T) {
-	mux := chi.NewRouter()
-	mux.Use(middleware.AllowContentEncoding("gzip"))
-	mux.Use(middleware.Gzip)
-	SetUpdateHandler(mux, &MockUpdateService{err: false})
-	srv := httptest.NewServer(mux)
-	defer srv.Close()
-
-	path := "/update/"
-
-	requestBody := `{
-	    "id":"test",
-		"type":"test",
-		"delta":321,
-		"value":432.1
-	}`
-
-	successBody := `{
-	    "id":"update",
-        "type":"update",
-        "delta":123,
-        "value":123.4
-	}`
-
-	t.Run("send gzip", func(t *testing.T) {
-		var buf bytes.Buffer
-		gw := gzip.NewWriter(&buf)
-		_, err := gw.Write([]byte(requestBody))
-		require.NoError(t, err)
-		err = gw.Close()
-		require.NoError(t, err)
-
-		request, err := http.NewRequest("POST", srv.URL+path, &buf)
-		require.NoError(t, err)
-		request.Header.Set("Content-Type", "application/json")
-		request.Header.Set("Content-Encoding", "gzip")
-		request.Header.Set("Accept-Encoding", "")
-		res, err := srv.Client().Do(request)
-		require.NoError(t, err)
-		assert.Equal(t, http.StatusOK, res.StatusCode)
-		data, err := io.ReadAll(res.Body)
-		require.NoError(t, err)
-		defer res.Body.Close()
-		assert.JSONEq(t, successBody, string(data))
+			mockService.AssertNumberOfCalls(t, "Update", 0)
+			mockValidator.AssertNumberOfCalls(t, "VerifyScheme", 0)
+		}
 	})
 
-	t.Run("accept gzip", func(t *testing.T) {
-		request, err := http.NewRequest("POST", srv.URL+path, strings.NewReader(requestBody))
+	t.Run("Not allowed Content-Type", func(t *testing.T) {
+		mockService := new(MockUpdateService)
+		mockService.On("Update", nil, nil).Return(nil, nil)
+		mockValidator := new(MockUpdateValidator)
+		mockValidator.On("VerifyScheme", nil).Return(nil)
+		mux := chi.NewRouter()
+
+		SetUpdateHandler(mux, mockService, mockValidator)
+
+		s := httptest.NewServer(mux)
+		defer s.Close()
+
+		reqBody := strings.NewReader(
+			`{ID: "0", MType: "gauge", Value: 123.450}`,
+		)
+
+		req, err := http.NewRequestWithContext(
+			context.TODO(), http.MethodPost, makeURL(s.URL), reqBody,
+		)
 		require.NoError(t, err)
-		request.Header.Set("Content-Type", "application/json")
-		request.Header.Set("Accept-Encoding", "gzip")
-		res, err := srv.Client().Do(request)
+		req.Header.Set(ContentType, "text/plain")
+
+		res, err := s.Client().Do(req)
 		require.NoError(t, err)
-		assert.Equal(t, http.StatusOK, res.StatusCode)
-		assert.Equal(t, "gzip", res.Header.Get("Content-Encoding"))
-		gr, err := gzip.NewReader(res.Body)
-		defer res.Body.Close()
+		assert.Equal(t, http.StatusUnsupportedMediaType, res.StatusCode)
+
+		data, err := io.ReadAll(res.Body)
+		res.Body.Close()
 		require.NoError(t, err)
-		data, err := io.ReadAll(gr)
+		assert.Len(t, data, 0)
+
+		mockService.AssertNumberOfCalls(t, "Update", 0)
+		mockValidator.AssertNumberOfCalls(t, "VerifyScheme", 0)
+	})
+
+	t.Run("Bad JSON", func(t *testing.T) {
+		mockService := new(MockUpdateService)
+		mockService.On("Update", nil, nil).Return(nil, nil)
+		mockValidator := new(MockUpdateValidator)
+		mockValidator.On("VerifyScheme", nil).Return(nil)
+		mux := chi.NewRouter()
+
+		SetUpdateHandler(mux, mockService, mockValidator)
+
+		s := httptest.NewServer(mux)
+		defer s.Close()
+
+		reqBody := strings.NewReader(
+			`{ID: "0", MType: "gauge, Value: 123.450}`,
+		)
+
+		req, err := http.NewRequestWithContext(
+			context.TODO(), http.MethodPost, makeURL(s.URL), reqBody,
+		)
 		require.NoError(t, err)
-		assert.JSONEq(t, successBody, string(data))
+		req.Header.Set(ContentType, JSONMediaType)
+
+		res, err := s.Client().Do(req)
+		require.NoError(t, err)
+		require.Equal(t, http.StatusBadRequest, res.StatusCode)
+
+		mockService.AssertNumberOfCalls(t, "Update", 0)
+		mockValidator.AssertNumberOfCalls(t, "VerifyScheme", 0)
+	})
+
+	t.Run("Error on verifyScheme", func(t *testing.T) {
+		schemeReq := metrics.MetricsUpdate{
+			ID: "", MType: metrics.MTypeGauge,
+		}
+		expectedErr := errors.New("test error")
+		mockService := new(MockUpdateService)
+		mockService.On("Update", nil, nil).Return(nil, nil)
+		mockValidator := new(MockUpdateValidator)
+		mockValidator.On("VerifyScheme", &schemeReq).Return(expectedErr)
+		mux := chi.NewRouter()
+
+		SetUpdateHandler(mux, mockService, mockValidator)
+
+		s := httptest.NewServer(mux)
+		defer s.Close()
+
+		var buf bytes.Buffer
+		err := json.NewEncoder(&buf).Encode(schemeReq)
+		require.NoError(t, err)
+
+		req, err := http.NewRequestWithContext(
+			context.TODO(), http.MethodPost, makeURL(s.URL), &buf,
+		)
+		require.NoError(t, err)
+		req.Header.Set(ContentType, JSONMediaType)
+
+		res, err := s.Client().Do(req)
+		require.NoError(t, err)
+		require.Equal(t, http.StatusBadRequest, res.StatusCode)
+		data, err := io.ReadAll(res.Body)
+		require.NoError(t, err)
+		res.Body.Close()
+		assert.Equal(t, expectedErr.Error(), strings.TrimSpace(string(data)))
+
+		mockService.AssertNumberOfCalls(t, "Update", 0)
+		mockValidator.AssertNumberOfCalls(t, "VerifyScheme", 1)
+	})
+
+	t.Run("Error on Update", func(t *testing.T) {
+		value := 123.45
+		schemeReq := metrics.MetricsUpdate{
+			ID: "0", MType: metrics.MTypeGauge, Value: &value,
+		}
+		expectedErr := errors.New("test error")
+		mockService := new(MockUpdateService)
+		mockService.On("Update", nil, &schemeReq).Return(nil, expectedErr)
+		mockValidator := new(MockUpdateValidator)
+		mockValidator.On("VerifyScheme", &schemeReq).Return(nil)
+		mux := chi.NewRouter()
+
+		SetUpdateHandler(mux, mockService, mockValidator)
+
+		s := httptest.NewServer(mux)
+		defer s.Close()
+
+		var buf bytes.Buffer
+		err := json.NewEncoder(&buf).Encode(schemeReq)
+		require.NoError(t, err)
+
+		req, err := http.NewRequestWithContext(
+			context.TODO(), http.MethodPost, makeURL(s.URL), &buf,
+		)
+		require.NoError(t, err)
+		req.Header.Set(ContentType, JSONMediaType)
+
+		res, err := s.Client().Do(req)
+		require.NoError(t, err)
+		require.Equal(t, http.StatusInternalServerError, res.StatusCode)
+		data, err := io.ReadAll(res.Body)
+		require.NoError(t, err)
+		assert.Equal(t, expectedErr.Error(), strings.TrimSpace(string(data)))
+
+		mockService.AssertNumberOfCalls(t, "Update", 1)
+		mockValidator.AssertNumberOfCalls(t, "VerifyScheme", 1)
+	})
+
+	t.Run("Regular response", func(t *testing.T) {
+		id := "0"
+		mType := metrics.MTypeGauge
+		value := 123.45
+		schemeReq := metrics.MetricsUpdate{
+			ID: id, MType: mType, Value: &value,
+		}
+		schemeRes := metrics.MetricsGauge{
+			ID: id, MType: mType, Value: value,
+		}
+		mockService := new(MockUpdateService)
+		mockService.On("Update", nil, &schemeReq).Return(schemeRes, nil)
+		mockValidator := new(MockUpdateValidator)
+		mockValidator.On("VerifyScheme", &schemeReq).Return(nil)
+		mux := chi.NewRouter()
+
+		SetUpdateHandler(mux, mockService, mockValidator)
+
+		s := httptest.NewServer(mux)
+		defer s.Close()
+
+		var bufReq bytes.Buffer
+		err := json.NewEncoder(&bufReq).Encode(schemeReq)
+		require.NoError(t, err)
+
+		req, err := http.NewRequestWithContext(
+			context.TODO(), http.MethodPost, makeURL(s.URL), &bufReq,
+		)
+		require.NoError(t, err)
+		req.Header.Set(ContentType, JSONMediaType)
+
+		res, err := s.Client().Do(req)
+		require.NoError(t, err)
+		require.Equal(t, http.StatusOK, res.StatusCode)
+
+		var gotScheme metrics.MetricsGauge
+		err = json.NewDecoder(res.Body).Decode(&gotScheme)
+		require.NoError(t, err)
+		res.Body.Close()
+		assert.Equal(t, schemeRes, gotScheme)
+
+		mockService.AssertNumberOfCalls(t, "Update", 1)
+		mockValidator.AssertNumberOfCalls(t, "VerifyScheme", 1)
+	})
+
+	t.Run("Encoding", func(t *testing.T) {
+		t.Run("Allow only gzip", func(t *testing.T) {
+			mockService := new(MockUpdateService)
+			mockService.On("Update", nil, nil).Return(nil, nil)
+			mockValidator := new(MockUpdateValidator)
+			mockValidator.On("VerifyScheme", nil).Return(nil)
+			mux := chi.NewRouter()
+			mux.Use(middleware.AllowContentEncoding("gzip"))
+			mux.Use(middleware.Gzip)
+
+			SetUpdateHandler(mux, mockService, mockValidator)
+
+			s := httptest.NewServer(mux)
+			defer s.Close()
+
+			reqBody := strings.NewReader(
+				`{ID: "0", MType: "gauge", Value: 123.450}`,
+			)
+
+			req, err := http.NewRequestWithContext(
+				context.TODO(), http.MethodPost, makeURL(s.URL), reqBody,
+			)
+			require.NoError(t, err)
+			req.Header.Set(ContentType, JSONMediaType)
+			req.Header.Set(ContentEncoding, "br")
+
+			res, err := s.Client().Do(req)
+			require.NoError(t, err)
+			assert.Equal(t, http.StatusUnsupportedMediaType, res.StatusCode)
+
+			data, err := io.ReadAll(res.Body)
+			res.Body.Close()
+			require.NoError(t, err)
+			assert.Len(t, data, 0)
+
+			mockService.AssertNumberOfCalls(t, "Update", 0)
+			mockValidator.AssertNumberOfCalls(t, "VerifyScheme", 0)
+		})
+
+		t.Run("Send gzip, accept non-compressed", func(t *testing.T) {
+			id := "0"
+			mType := metrics.MTypeGauge
+			value := 123.45
+			schemeReq := metrics.MetricsUpdate{
+				ID: id, MType: mType, Value: &value,
+			}
+			schemeRes := metrics.MetricsGauge{
+				ID: id, MType: mType, Value: value,
+			}
+
+			mockValidator := new(MockUpdateValidator)
+			mockValidator.On("VerifyScheme", &schemeReq).Return(nil)
+
+			mockService := new(MockUpdateService)
+			mockService.On("Update", nil, &schemeReq).Return(schemeRes, nil)
+
+			mux := chi.NewRouter()
+			mux.Use(middleware.AllowContentEncoding("gzip"))
+			mux.Use(middleware.Gzip)
+
+			SetUpdateHandler(mux, mockService, mockValidator)
+
+			s := httptest.NewServer(mux)
+			defer s.Close()
+
+			var buf bytes.Buffer
+			gzipWriter := gzip.NewWriter(&buf)
+			err := json.NewEncoder(gzipWriter).Encode(&schemeReq)
+			require.NoError(t, err)
+			err = gzipWriter.Close()
+			require.NoError(t, err)
+
+			req, err := http.NewRequestWithContext(
+				context.TODO(), http.MethodPost, makeURL(s.URL), &buf,
+			)
+			require.NoError(t, err)
+			req.Header.Set(ContentType, JSONMediaType)
+			req.Header.Set(ContentEncoding, "gzip")
+
+			res, err := s.Client().Do(req)
+			require.NoError(t, err)
+			require.Equal(t, http.StatusOK, res.StatusCode)
+			assert.Zero(t, res.Header.Get(ContentEncoding))
+
+			var schemeGot metrics.MetricsGauge
+			err = json.NewDecoder(res.Body).Decode(&schemeGot)
+			res.Body.Close()
+			require.NoError(t, err)
+
+			assert.Equal(t, schemeRes, schemeGot)
+			mockService.AssertNumberOfCalls(t, "Update", 1)
+			mockValidator.AssertNumberOfCalls(t, "VerifyScheme", 1)
+		})
+
+		t.Run("Send non-compressed, accept gzip", func(t *testing.T) {
+			id := "0"
+			mType := metrics.MTypeGauge
+			value := 123.45
+			schemeReq := metrics.MetricsUpdate{
+				ID: id, MType: mType, Value: &value,
+			}
+			schemeRes := metrics.MetricsGauge{
+				ID: id, MType: mType, Value: value,
+			}
+
+			mockValidator := new(MockUpdateValidator)
+			mockValidator.On("VerifyScheme", &schemeReq).Return(nil)
+
+			mockService := new(MockUpdateService)
+			mockService.On("Update", nil, &schemeReq).Return(schemeRes, nil)
+
+			mux := chi.NewRouter()
+			mux.Use(middleware.AllowContentEncoding("gzip"))
+			mux.Use(middleware.Gzip)
+
+			SetUpdateHandler(mux, mockService, mockValidator)
+
+			s := httptest.NewServer(mux)
+			defer s.Close()
+
+			var bufReq bytes.Buffer
+			err := json.NewEncoder(&bufReq).Encode(&schemeReq)
+			require.NoError(t, err)
+
+			req, err := http.NewRequestWithContext(
+				context.TODO(), http.MethodPost, makeURL(s.URL), &bufReq,
+			)
+			require.NoError(t, err)
+			req.Header.Set(ContentType, JSONMediaType)
+			req.Header.Set(AcceptEncoding, "gzip")
+
+			res, err := s.Client().Do(req)
+			require.NoError(t, err)
+			require.Equal(t, http.StatusOK, res.StatusCode)
+
+			var schemeGot metrics.MetricsGauge
+			gzipReader, err := gzip.NewReader(res.Body)
+			require.NoError(t, err)
+			err = json.NewDecoder(gzipReader).Decode(&schemeGot)
+			res.Body.Close()
+			require.NoError(t, err)
+
+			assert.Equal(t, schemeRes, schemeGot)
+			mockService.AssertNumberOfCalls(t, "Update", 1)
+			mockValidator.AssertNumberOfCalls(t, "VerifyScheme", 1)
+		})
 	})
 }
 
 func TestUpdateByURLParamsHandler(t *testing.T) {
-
-	testRequest := func(
-		t *testing.T,
-		mux *chi.Mux,
-		method string,
-		path string,
-		body io.Reader,
-	) (*http.Response, []byte) {
-		ts := httptest.NewServer(mux)
-		defer ts.Close()
-
-		req, err := http.NewRequest(method, ts.URL+path, body)
-		require.NoError(t, err)
-
-		res, err := ts.Client().Do(req)
-		require.NoError(t, err)
-
-		resData, err := io.ReadAll(res.Body)
-		require.NoError(t, err)
-
-		return res, resData
+	makeURL := func(serverURL, mType, mName, mValue string) string {
+		testURL, _ := url.JoinPath(serverURL+"/update", mType, mName, mValue)
+		return testURL
 	}
+	t.Run("Not allowed methods", func(t *testing.T) {
+		methods := []string{
+			http.MethodGet,
+			http.MethodPut,
+			http.MethodPatch,
+			http.MethodDelete,
+			http.MethodHead,
+			http.MethodOptions,
+		}
+		mockService := new(MockUpdateService)
+		mockService.On("Update", nil, nil).Return(nil, nil)
+		mockValidator := new(MockUpdateValidator)
+		mockValidator.On(
+			"VerifyParams", "0", "gauge", "123.450",
+		).Return(nil, nil)
+		mux := chi.NewRouter()
 
-	type want struct {
-		statusCode int
-	}
+		SetUpdateHandler(mux, mockService, mockValidator)
 
-	type test struct {
-		name    string
-		method  string
-		path    string
-		want    want
-		service *MockUpdateService
-	}
+		for _, method := range methods {
+			s := httptest.NewServer(mux)
+			defer s.Close()
 
-	tests := []test{
-		// not allowed methods
-		{
-			name:   "GET not allowed",
-			method: http.MethodGet,
-			path:   "/update/gauge/testName/0",
-			want: want{
-				statusCode: http.StatusMethodNotAllowed,
-			},
-		},
-		{
-			name:   "PUT not allowed",
-			method: http.MethodPut,
-			path:   "/update/gauge/testName/0",
-			want: want{
-				statusCode: http.StatusMethodNotAllowed,
-			},
-		},
-		{
-			name:   "PATCH not allowed",
-			method: http.MethodPatch,
-			path:   "/update/gauge/testName/0",
-			want: want{
-				statusCode: http.StatusMethodNotAllowed,
-			},
-		},
-		{
-			name:   "DELETE not allowed",
-			method: http.MethodDelete,
-			path:   "/update/gauge/testName/0",
-			want: want{
-				statusCode: http.StatusMethodNotAllowed,
-			},
-		},
-		{
-			name:   "HEAD not allowed",
-			method: http.MethodHead,
-			path:   "/update/gauge/testName/0",
-			want: want{
-				statusCode: http.StatusMethodNotAllowed,
-			},
-		},
-		{
-			name:   "OPTIONS not allowed",
-			method: http.MethodOptions,
-			path:   "/update/gauge/testName/0",
-			want: want{
-				statusCode: http.StatusMethodNotAllowed,
-			},
-		},
-
-		// POST
-		{
-			name:   "Should update metrics",
-			method: http.MethodPost,
-			path:   "/update/gauge/testName/1234.56",
-			want: want{
-				statusCode: http.StatusOK,
-			},
-			service: &MockUpdateService{err: false},
-		},
-		{
-			name:   "Wrong gauge format",
-			method: http.MethodPost,
-			path:   "/update/gauge/testName/null",
-			want: want{
-				statusCode: http.StatusBadRequest,
-			},
-			service: &MockUpdateService{err: false},
-		},
-		{
-			name:   "Wrong counter format",
-			method: http.MethodPost,
-			path:   "/update/counter/testName/0.2394871234",
-			want: want{
-				statusCode: http.StatusBadRequest,
-			},
-			service: &MockUpdateService{err: false},
-		},
-		{
-			name:   "Service should return error",
-			method: http.MethodPost,
-			path:   "/update/counter/testName/123456",
-			want: want{
-				statusCode: http.StatusBadRequest,
-			},
-			service: &MockUpdateService{err: true},
-		},
-	}
-
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			mux := chi.NewRouter()
-			SetUpdateHandler(mux, test.service)
-			res, _ := testRequest(t,
-				mux,
-				test.method,
-				test.path,
+			req, err := http.NewRequestWithContext(
+				context.TODO(),
+				method,
+				makeURL(s.URL, "gauge", "Alloc", "123.450"),
 				http.NoBody,
 			)
-			defer res.Body.Close()
+			require.NoError(t, err)
 
-			assert.Equal(t, test.want.statusCode, res.StatusCode)
-		})
-	}
+			res, err := s.Client().Do(req)
+			require.NoError(t, err)
+			assert.Equal(t, http.StatusMethodNotAllowed, res.StatusCode)
+
+			data, err := io.ReadAll(res.Body)
+			res.Body.Close()
+			require.NoError(t, err)
+			assert.Len(t, data, 0)
+
+			mockService.AssertNumberOfCalls(t, "Update", 0)
+			mockValidator.AssertNumberOfCalls(t, "VerifyParams", 0)
+		}
+	})
+
+	t.Run("Error on verify params", func(t *testing.T) {
+		id := "0"
+		mType := "bgauge"
+		value := "123.450"
+		expectedErr := errors.New("test error")
+		mockService := new(MockUpdateService)
+		mockService.On("Update", nil, nil).Return(nil, nil)
+		mockValidator := new(MockUpdateValidator)
+		mockValidator.On(
+			"VerifyParams", id, mType, value,
+		).Return(nil, expectedErr)
+		mux := chi.NewRouter()
+
+		SetUpdateHandler(mux, mockService, mockValidator)
+		s := httptest.NewServer(mux)
+		defer s.Close()
+
+		req, err := http.NewRequestWithContext(
+			context.TODO(),
+			http.MethodPost,
+			makeURL(s.URL, mType, id, value),
+			http.NoBody,
+		)
+		require.NoError(t, err)
+
+		res, err := s.Client().Do(req)
+		require.NoError(t, err)
+		require.Equal(t, http.StatusBadRequest, res.StatusCode)
+
+		data, err := io.ReadAll(res.Body)
+		res.Body.Close()
+		require.NoError(t, err)
+		assert.Equal(t, expectedErr.Error(), strings.TrimSpace(string(data)))
+
+		mockService.AssertNumberOfCalls(t, "Update", 0)
+		mockValidator.AssertNumberOfCalls(t, "VerifyParams", 1)
+	})
+
+	t.Run("Error on verify params", func(t *testing.T) {
+		id := "0"
+		mType := "gauge"
+		value := "123.450"
+		var schemeUpdate metrics.MetricsUpdate
+		mockService := new(MockUpdateService)
+		mockService.On("Update", nil, &schemeUpdate).Return(nil, errors.New("test error"))
+		mockValidator := new(MockUpdateValidator)
+		mockValidator.On(
+			"VerifyParams", id, mType, value,
+		).Return(&schemeUpdate, nil)
+		mux := chi.NewRouter()
+
+		SetUpdateHandler(mux, mockService, mockValidator)
+		s := httptest.NewServer(mux)
+		defer s.Close()
+
+		req, err := http.NewRequestWithContext(
+			context.TODO(),
+			http.MethodPost,
+			makeURL(s.URL, mType, id, value),
+			http.NoBody,
+		)
+		require.NoError(t, err)
+
+		res, err := s.Client().Do(req)
+		require.NoError(t, err)
+		require.Equal(t, http.StatusInternalServerError, res.StatusCode)
+
+		data, err := io.ReadAll(res.Body)
+		res.Body.Close()
+		require.NoError(t, err)
+		assert.Equal(t, server.ErrInternal.Error(), strings.TrimSpace(string(data)))
+
+		mockService.AssertNumberOfCalls(t, "Update", 1)
+		mockValidator.AssertNumberOfCalls(t, "VerifyParams", 1)
+	})
+
+	t.Run("Regular response", func(t *testing.T) {
+		id := "0"
+		mType := "gauge"
+		value := "123.45"
+		schemeValue := 123.45
+		schemeReq := metrics.MetricsUpdate{
+			ID: id, MType: mType, Value: &schemeValue,
+		}
+		schemeRes := metrics.MetricsGauge{
+			ID: id, MType: mType, Value: schemeValue,
+		}
+		mockService := new(MockUpdateService)
+		mockService.On("Update", nil, &schemeReq).Return(&schemeRes, nil)
+		mockValidator := new(MockUpdateValidator)
+		mockValidator.On(
+			"VerifyParams", id, mType, value,
+		).Return(&schemeReq, nil)
+		mux := chi.NewRouter()
+
+		SetUpdateHandler(mux, mockService, mockValidator)
+		s := httptest.NewServer(mux)
+		defer s.Close()
+
+		req, err := http.NewRequestWithContext(
+			context.TODO(),
+			http.MethodPost,
+			makeURL(s.URL, mType, id, value),
+			http.NoBody,
+		)
+		require.NoError(t, err)
+
+		res, err := s.Client().Do(req)
+		require.NoError(t, err)
+		require.Equal(t, http.StatusOK, res.StatusCode)
+		data, err := io.ReadAll(res.Body)
+		require.NoError(t, err)
+		res.Body.Close()
+		assert.Equal(t, "123.45", string(data))
+
+		mockService.AssertNumberOfCalls(t, "Update", 1)
+		mockValidator.AssertNumberOfCalls(t, "VerifyParams", 1)
+	})
 }
