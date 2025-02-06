@@ -533,7 +533,7 @@ func TestUpdateByURLParamsHandler(t *testing.T) {
 		mockValidator.AssertNumberOfCalls(t, "VerifyParams", 1)
 	})
 
-	t.Run("Error on verify params", func(t *testing.T) {
+	t.Run("Error on update", func(t *testing.T) {
 		id := "0"
 		mType := "gauge"
 		value := "123.450"
