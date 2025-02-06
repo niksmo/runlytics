@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"os/signal"
 	"sync"
 	"time"
 
@@ -49,6 +48,10 @@ func NewMemory(
 		ms.decoder = json.NewDecoder(file)
 	}
 	return &ms
+}
+
+func (ms *memoryStorage) CheckDB(_ context.Context) error {
+	return errors.New("database: is not used")
 }
 
 func (ms *memoryStorage) UpdateCounterByName(
@@ -125,14 +128,19 @@ func (ms *memoryStorage) ReadCounter(
 	return counter, nil
 }
 
-func (ms *memoryStorage) Run() {
+func (ms *memoryStorage) Run(ctx context.Context, wg *sync.WaitGroup) {
 	ms.restoreFile()
 
 	if !ms.isSync() {
 		go ms.intervalSave()
 	}
 
-	go ms.interceptSigInt()
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		<-ctx.Done()
+		ms.close()
+	}()
 }
 
 func (ms *memoryStorage) restoreFile() {
@@ -190,15 +198,7 @@ func (ms *memoryStorage) close() {
 	ms.save()
 	if err := ms.file.Close(); err != nil {
 		logger.Log.Error("Close storage file", zap.Error(err))
+	} else {
+		logger.Log.Debug("Storage file closed properly")
 	}
-}
-
-func (ms *memoryStorage) interceptSigInt() {
-	c := make(chan os.Signal, 1)
-	signal.Notify(c, os.Interrupt)
-
-	sig := <-c
-	logger.Log.Debug("Got signal", zap.String("signal", sig.String()))
-	ms.close()
-	os.Exit(0)
 }

@@ -5,7 +5,10 @@ import (
 	"database/sql"
 	"fmt"
 	"os"
+	"os/signal"
 	"strings"
+	"sync"
+	"syscall"
 	"testing"
 	"time"
 
@@ -16,9 +19,10 @@ import (
 )
 
 func TestPSQL(t *testing.T) {
+	DSN := os.Getenv("RUNLYTICS_TEST_DSN")
 	db, err := sql.Open(
 		"pgx",
-		os.Getenv("RUNLYTICS_TEST_DSN"),
+		DSN,
 	)
 	require.NoError(t, err)
 	defer db.Close()
@@ -40,6 +44,12 @@ func TestPSQL(t *testing.T) {
 		)
 		require.NoError(t, err)
 	}
+
+	stopCtx, stop := signal.NotifyContext(
+		context.Background(), os.Interrupt, syscall.SIGTERM,
+	)
+	defer stop()
+	var wg sync.WaitGroup
 
 	t.Run("Create tables on running", func(t *testing.T) {
 		ctxBase := context.Background()
@@ -69,8 +79,9 @@ func TestPSQL(t *testing.T) {
 		require.NoError(t, row.Scan(&count))
 		assert.Zero(t, count)
 
-		storage := NewPSQL(db)
-		storage.Run()
+		storage := NewPSQL(DSN)
+		storage.Run(stopCtx, &wg)
+		defer storage.Close()
 
 		actCtx, actCancel := context.WithTimeout(ctxBase, time.Second)
 		defer actCancel()
@@ -82,8 +93,9 @@ func TestPSQL(t *testing.T) {
 
 	t.Run("Sequence update gauge by name", func(t *testing.T) {
 		clearTables(t)
-		storage := NewPSQL(db)
-		storage.Run()
+		storage := NewPSQL(DSN)
+		storage.Run(stopCtx, &wg)
+		defer storage.Close()
 		ctxBase := context.Background()
 		metricName := "Alloc"
 		seq := []float64{77.55, 33.22, 0}
@@ -100,8 +112,9 @@ func TestPSQL(t *testing.T) {
 
 	t.Run("Sequence update counter by name", func(t *testing.T) {
 		clearTables(t)
-		storage := NewPSQL(db)
-		storage.Run()
+		storage := NewPSQL(DSN)
+		storage.Run(stopCtx, &wg)
+		defer storage.Close()
 		ctxBase := context.Background()
 		metricName := "Counter"
 		seq := []int64{5, 5, 5}
@@ -119,8 +132,9 @@ func TestPSQL(t *testing.T) {
 	})
 
 	t.Run("Read counter by name", func(t *testing.T) {
-		storage := NewPSQL(db)
-		storage.Run()
+		storage := NewPSQL(DSN)
+		storage.Run(stopCtx, &wg)
+		defer storage.Close()
 		ctxBase := context.Background()
 		metricName := "Counter"
 
@@ -160,8 +174,9 @@ func TestPSQL(t *testing.T) {
 	})
 
 	t.Run("Read gauge by name", func(t *testing.T) {
-		storage := NewPSQL(db)
-		storage.Run()
+		storage := NewPSQL(DSN)
+		storage.Run(stopCtx, &wg)
+		defer storage.Close()
 		ctxBase := context.Background()
 		metricName := "Alloc"
 
@@ -201,8 +216,9 @@ func TestPSQL(t *testing.T) {
 	})
 
 	t.Run("Read counter", func(t *testing.T) {
-		storage := NewPSQL(db)
-		storage.Run()
+		storage := NewPSQL(DSN)
+		storage.Run(stopCtx, &wg)
+		defer storage.Close()
 		ctxBase := context.Background()
 
 		t.Run("Should return empty data", func(t *testing.T) {
@@ -254,8 +270,9 @@ func TestPSQL(t *testing.T) {
 	})
 
 	t.Run("Read gauge", func(t *testing.T) {
-		storage := NewPSQL(db)
-		storage.Run()
+		storage := NewPSQL(DSN)
+		storage.Run(stopCtx, &wg)
+		defer storage.Close()
 		ctxBase := context.Background()
 
 		t.Run("Should return empty data", func(t *testing.T) {

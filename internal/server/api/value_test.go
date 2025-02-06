@@ -158,6 +158,7 @@ func TestReadByJSONHandler(t *testing.T) {
 
 		res, err := s.Client().Do(req)
 		require.NoError(t, err)
+		res.Body.Close()
 		require.Equal(t, http.StatusBadRequest, res.StatusCode)
 
 		mockService.AssertNumberOfCalls(t, "Read", 0)
@@ -233,6 +234,7 @@ func TestReadByJSONHandler(t *testing.T) {
 		require.Equal(t, http.StatusNotFound, res.StatusCode)
 		data, err := io.ReadAll(res.Body)
 		require.NoError(t, err)
+		res.Body.Close()
 		assert.Equal(t, expectedErr.Error(), strings.TrimSpace(string(data)))
 
 		mockService.AssertNumberOfCalls(t, "Read", 1)
@@ -269,6 +271,7 @@ func TestReadByJSONHandler(t *testing.T) {
 		require.Equal(t, http.StatusInternalServerError, res.StatusCode)
 		data, err := io.ReadAll(res.Body)
 		require.NoError(t, err)
+		res.Body.Close()
 		assert.Equal(t, server.ErrInternal.Error(), strings.TrimSpace(string(data)))
 
 		mockService.AssertNumberOfCalls(t, "Read", 1)
@@ -587,6 +590,7 @@ func TestReadByURLParamsHandler(t *testing.T) {
 		require.Equal(t, http.StatusNotFound, res.StatusCode)
 		data, err := io.ReadAll(res.Body)
 		require.NoError(t, err)
+		res.Body.Close()
 		assert.Equal(t, expectedErr.Error(), strings.TrimSpace(string(data)))
 
 		mockService.AssertNumberOfCalls(t, "Read", 1)
@@ -623,6 +627,7 @@ func TestReadByURLParamsHandler(t *testing.T) {
 		require.Equal(t, http.StatusInternalServerError, res.StatusCode)
 		data, err := io.ReadAll(res.Body)
 		require.NoError(t, err)
+		res.Body.Close()
 		assert.Equal(t, server.ErrInternal.Error(), strings.TrimSpace(string(data)))
 
 		mockService.AssertNumberOfCalls(t, "Read", 1)

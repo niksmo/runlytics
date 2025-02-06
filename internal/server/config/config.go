@@ -11,7 +11,7 @@ import (
 type Config struct {
 	logLvl      string
 	addr        *net.TCPAddr
-	fileStorage fileStorage
+	fileStorage *fileStorage
 	database    database
 	isDatabase  bool
 }
@@ -32,7 +32,9 @@ func Load() *Config {
 
 	flag.Parse()
 
-	isDatabase := *rawDatabaseDSNFlag != ""
+	database := makeDatabaseConfig(*rawDatabaseDSNFlag)
+
+	isDatabase := database.dsn != ""
 
 	config := Config{
 		logLvl: getLogLvlFlag(*rawLogLvlFlag),
@@ -43,7 +45,7 @@ func Load() *Config {
 			*rawSaveIntervalFlag,
 			*rawRestoreFlag,
 		),
-		database:   makeDatabaseConfig(*rawDatabaseDSNFlag),
+		database:   database,
 		isDatabase: isDatabase,
 	}
 
@@ -59,8 +61,17 @@ func (c *Config) Addr() string {
 }
 
 func (c *Config) File() *os.File {
-	file := *c.fileStorage.file
-	return &file
+	if c.fileStorage.file != nil {
+		file := *c.fileStorage.file
+		return &file
+	}
+	return nil
+}
+func (c *Config) FileName() string {
+	if c.fileStorage.file != nil {
+		return c.fileStorage.file.Name()
+	}
+	return ""
 }
 
 func (c *Config) SaveInterval() time.Duration {

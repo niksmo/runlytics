@@ -36,12 +36,12 @@ func makeFileStorageConfig(
 	storagePath string,
 	saveInterval int,
 	restore bool,
-) fileStorage {
+) *fileStorage {
 	if !isUsed {
-		return fileStorage{}
+		return &fileStorage{}
 	}
 
-	return fileStorage{
+	return &fileStorage{
 		file:         getFilePathFlag(storagePath),
 		saveInterval: getSaveIntervalFlag(saveInterval),
 		restore:      getRestoreFlag(restore),

@@ -169,6 +169,7 @@ func TestUpdateByJSONHandler(t *testing.T) {
 
 		res, err := s.Client().Do(req)
 		require.NoError(t, err)
+		res.Body.Close()
 		require.Equal(t, http.StatusBadRequest, res.StatusCode)
 
 		mockService.AssertNumberOfCalls(t, "Update", 0)
@@ -245,6 +246,7 @@ func TestUpdateByJSONHandler(t *testing.T) {
 		require.Equal(t, http.StatusInternalServerError, res.StatusCode)
 		data, err := io.ReadAll(res.Body)
 		require.NoError(t, err)
+		res.Body.Close()
 		assert.Equal(t, expectedErr.Error(), strings.TrimSpace(string(data)))
 
 		mockService.AssertNumberOfCalls(t, "Update", 1)

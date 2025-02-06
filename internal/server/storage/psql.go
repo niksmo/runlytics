@@ -5,36 +5,59 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"time"
+	"sync"
 
 	"github.com/niksmo/runlytics/internal/logger"
 	"github.com/niksmo/runlytics/internal/server"
 	"go.uber.org/zap"
 )
 
-const (
-	queryTimeout = time.Second
-)
-
 type psqlStorage struct {
-	db           *sql.DB
-	queryTimeout time.Duration
+	db *sql.DB
 }
 
-func NewPSQL(db *sql.DB) *psqlStorage {
-	return &psqlStorage{db: db, queryTimeout: queryTimeout}
+func NewPSQL(dsn string) *psqlStorage {
+	db, err := sql.Open("pgx", dsn)
+	if err != nil {
+		logger.Log.Info("Open DB", zap.Error(err))
+	}
+	if err = db.Ping(); err != nil {
+		logger.Log.Info("DB not connected", zap.Error(err))
+	} else {
+		logger.Log.Info("DB connected")
+	}
+	return &psqlStorage{db: db}
 }
 
-func (ps *psqlStorage) Run() {
+func (ps *psqlStorage) CheckDB(ctx context.Context) error {
+	if err := ps.db.PingContext(ctx); err != nil {
+		return errors.New("database: shutdown")
+	}
+	return nil
+}
+
+func (ps *psqlStorage) Run(ctx context.Context, wg *sync.WaitGroup) {
 	ps.createTables()
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		<-ctx.Done()
+		if err := ps.db.Close(); err != nil {
+			logger.Log.Error("Database connection close error", zap.Error(err))
+			return
+		}
+		logger.Log.Debug("Database connection close properly")
+	}()
+}
+
+func (ps *psqlStorage) Close() {
+	ps.db.Close()
 }
 
 func (ps *psqlStorage) UpdateCounterByName(
 	ctx context.Context, name string, value int64,
 ) (int64, error) {
-	ctx, cancel := ps.newContext(ctx)
-	defer cancel()
-
 	row := ps.db.QueryRowContext(
 		ctx,
 		`INSERT INTO counter (name, value)
@@ -54,9 +77,6 @@ func (ps *psqlStorage) UpdateCounterByName(
 func (ps *psqlStorage) UpdateGaugeByName(
 	ctx context.Context, name string, value float64,
 ) (float64, error) {
-	ctx, cancel := ps.newContext(ctx)
-	defer cancel()
-
 	row := ps.db.QueryRowContext(
 		ctx,
 		`INSERT INTO gauge (name, value)
@@ -76,9 +96,6 @@ func (ps *psqlStorage) UpdateGaugeByName(
 func (ps *psqlStorage) ReadCounterByName(
 	ctx context.Context, name string,
 ) (int64, error) {
-	ctx, cancel := ps.newContext(ctx)
-	defer cancel()
-
 	row := ps.db.QueryRowContext(
 		ctx,
 		`SELECT value
@@ -103,9 +120,6 @@ func (ps *psqlStorage) ReadCounterByName(
 func (ps *psqlStorage) ReadGaugeByName(
 	ctx context.Context, name string,
 ) (float64, error) {
-	ctx, cancel := ps.newContext(ctx)
-	defer cancel()
-
 	row := ps.db.QueryRowContext(
 		ctx,
 		`SELECT value
@@ -130,9 +144,6 @@ func (ps *psqlStorage) ReadGaugeByName(
 func (ps *psqlStorage) ReadGauge(
 	ctx context.Context,
 ) (map[string]float64, error) {
-	ctx, cancel := ps.newContext(ctx)
-	defer cancel()
-
 	rows, err := ps.db.QueryContext(
 		ctx, `SELECT name, value FROM gauge;`,
 	)
@@ -162,9 +173,6 @@ func (ps *psqlStorage) ReadGauge(
 func (ps *psqlStorage) ReadCounter(
 	ctx context.Context,
 ) (map[string]int64, error) {
-	ctx, cancel := ps.newContext(ctx)
-	defer cancel()
-
 	rows, err := ps.db.QueryContext(
 		ctx, `SELECT name, value FROM counter;`,
 	)
@@ -189,12 +197,6 @@ func (ps *psqlStorage) ReadCounter(
 	}
 
 	return counterMap, nil
-}
-
-func (ps *psqlStorage) newContext(
-	ctx context.Context,
-) (context.Context, context.CancelFunc) {
-	return context.WithTimeout(ctx, ps.queryTimeout)
 }
 
 func (ps *psqlStorage) createTables() {
