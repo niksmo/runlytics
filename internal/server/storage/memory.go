@@ -58,10 +58,10 @@ func (ms *memoryStorage) UpdateCounterByName(
 	_ context.Context, name string, value int64,
 ) (int64, error) {
 	ms.mu.Lock()
+	defer ms.mu.Unlock()
 	prev := ms.data.Counter[name]
 	current := prev + value
 	ms.data.Counter[name] = current
-	ms.mu.Unlock()
 	return current, nil
 }
 
@@ -69,17 +69,35 @@ func (ms *memoryStorage) UpdateGaugeByName(
 	_ context.Context, name string, value float64,
 ) (float64, error) {
 	ms.mu.Lock()
+	defer ms.mu.Unlock()
 	ms.data.Gauge[name] = value
-	ms.mu.Unlock()
 	return value, nil
+}
+
+func (ms *memoryStorage) UpdateCounterList(ctx context.Context, m map[string]int64) error {
+	ms.mu.Lock()
+	defer ms.mu.Unlock()
+	for name, value := range m {
+		ms.data.Counter[name] += value
+	}
+	return nil
+}
+
+func (ms *memoryStorage) UpdateGaugeList(ctx context.Context, m map[string]float64) error {
+	ms.mu.Lock()
+	defer ms.mu.Unlock()
+	for name, value := range m {
+		ms.data.Gauge[name] = value
+	}
+	return nil
 }
 
 func (ms *memoryStorage) ReadCounterByName(
 	_ context.Context, name string,
 ) (int64, error) {
 	ms.mu.RLock()
+	defer ms.mu.RUnlock()
 	value, ok := ms.data.Counter[name]
-	ms.mu.RUnlock()
 
 	if !ok {
 		return 0, fmt.Errorf("metric '%s' is %w", name, server.ErrNotExists)
@@ -91,8 +109,8 @@ func (ms *memoryStorage) ReadGaugeByName(
 	_ context.Context, name string,
 ) (float64, error) {
 	ms.mu.RLock()
+	defer ms.mu.RUnlock()
 	value, ok := ms.data.Gauge[name]
-	ms.mu.RUnlock()
 
 	if !ok {
 		return 0, fmt.Errorf("metric '%s' is %w", name, server.ErrNotExists)
@@ -106,10 +124,10 @@ func (ms *memoryStorage) ReadGauge(
 	gauge := make(map[string]float64, len(ms.data.Gauge))
 
 	ms.mu.RLock()
+	defer ms.mu.RUnlock()
 	for k, v := range ms.data.Gauge {
 		gauge[k] = v
 	}
-	ms.mu.RUnlock()
 
 	return gauge, nil
 }
@@ -120,10 +138,10 @@ func (ms *memoryStorage) ReadCounter(
 	counter := make(map[string]int64, len(ms.data.Counter))
 
 	ms.mu.RLock()
+	defer ms.mu.RUnlock()
 	for k, v := range ms.data.Counter {
 		counter[k] = v
 	}
-	ms.mu.RUnlock()
 
 	return counter, nil
 }

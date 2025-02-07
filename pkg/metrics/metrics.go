@@ -33,14 +33,6 @@ func (ev VerifyErrors) Error() string {
 	return strings.Join(errStrings, "; ")
 }
 
-type ValueStringer interface {
-	StrconvValue() string
-}
-
-type Metrics interface {
-	ValueStringer
-}
-
 type MetricsCounter struct {
 	ID    string `json:"id"`
 	MType string `json:"type"`
@@ -71,7 +63,7 @@ func strconvDelta(d int64) string {
 
 func verifyFieldID(id string) error {
 	if strings.TrimSpace(id) == "" {
-		return fmt.Errorf("'ID': %w", ErrRequired)
+		return fmt.Errorf("'ID':%w", ErrRequired)
 	}
 	return nil
 }
@@ -79,7 +71,7 @@ func verifyFieldID(id string) error {
 func verifyFiledMType(mType string) error {
 	allowed := map[string]struct{}{MTypeCounter: {}, MTypeGauge: {}}
 	if _, ok := allowed[mType]; !ok {
-		return fmt.Errorf("'MType': allowed 'gauge', 'counter'")
+		return fmt.Errorf("'MType':allowed 'gauge'|'counter'")
 	}
 
 	return nil
@@ -88,18 +80,18 @@ func verifyFiledMType(mType string) error {
 func verifyFieldDelta(value *int64) error {
 	field := "'Delta'"
 	if value == nil {
-		return fmt.Errorf("%s: %w, expect int64", field, ErrRequired)
+		return fmt.Errorf("%s:%w expect int64", field, ErrRequired)
 	}
 
 	if *value < 0 {
-		return fmt.Errorf("%s: less then 0", field)
+		return fmt.Errorf("%s:less then 0", field)
 	}
 	return nil
 }
 
 func verifyFieldValue(value *float64) error {
 	if value == nil {
-		return fmt.Errorf("'Value': %w, expect float64", ErrRequired)
+		return fmt.Errorf("'Value':%w expect float64", ErrRequired)
 	}
 	return nil
 }

@@ -29,13 +29,13 @@ type MockUpdateService struct {
 
 func (service *MockUpdateService) Update(
 	ctx context.Context, scheme *metrics.MetricsUpdate,
-) (metrics.Metrics, error) {
+) (di.Metrics, error) {
 	retArgs := service.Called(nil, scheme)
 
-	if _, ok := retArgs.Get(0).(metrics.Metrics); !ok {
+	if _, ok := retArgs.Get(0).(di.Metrics); !ok {
 		return nil, retArgs.Error(1)
 	}
-	return retArgs.Get(0).(metrics.Metrics), retArgs.Error(1)
+	return retArgs.Get(0).(di.Metrics), retArgs.Error(1)
 }
 
 type MockUpdateValidator struct {

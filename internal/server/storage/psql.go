@@ -78,6 +78,58 @@ func (ps *psqlStorage) UpdateGaugeByName(
 	return actualValue, err
 }
 
+func (ps *psqlStorage) UpdateCounterList(ctx context.Context, m map[string]int64) error {
+	tx, err := ps.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+
+	for name, value := range m {
+		_, err = tx.ExecContext(
+			ctx,
+			`INSERT INTO counter (name, value)
+		     VALUES ($1, $2)
+		     ON CONFLICT (name) DO UPDATE SET
+		     value = (SELECT value FROM counter WHERE name=$1) + EXCLUDED.value;`,
+			name,
+			value,
+		)
+		if err != nil {
+			if err := tx.Rollback(); err != nil {
+				return err
+			}
+			return err
+		}
+	}
+	return tx.Commit()
+}
+
+func (ps *psqlStorage) UpdateGaugeList(ctx context.Context, m map[string]float64) error {
+	tx, err := ps.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+
+	for name, value := range m {
+		_, err = tx.ExecContext(
+			ctx,
+			`INSERT INTO gauge (name, value)
+		    VALUES ($1, $2)
+		    ON CONFLICT (name) DO UPDATE SET
+		    value = EXCLUDED.value;`,
+			name,
+			value,
+		)
+		if err != nil {
+			if err := tx.Rollback(); err != nil {
+				return err
+			}
+			return err
+		}
+	}
+	return tx.Commit()
+}
+
 func (ps *psqlStorage) ReadCounterByName(
 	ctx context.Context, name string,
 ) (int64, error) {

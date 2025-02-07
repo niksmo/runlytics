@@ -18,7 +18,7 @@ func NewValueService(repository di.ReadByNameRepository) *ReadService {
 
 func (service *ReadService) Read(
 	ctx context.Context, scheme *metrics.MetricsRead,
-) (metrics.Metrics, error) {
+) (di.Metrics, error) {
 	switch scheme.MType {
 	case metrics.MTypeGauge:
 		value, err := service.repository.ReadGaugeByName(ctx, scheme.ID)

@@ -10,6 +10,14 @@ import (
 	"github.com/niksmo/runlytics/pkg/metrics"
 )
 
+type ValueStringer interface {
+	StrconvValue() string
+}
+
+type Metrics interface {
+	ValueStringer
+}
+
 type GaugeMetricsGetter interface {
 	GetGaugeMetrics() map[string]float64
 }
@@ -57,6 +65,11 @@ type UpdateRepository interface {
 	UpdateGaugeByName(ctx context.Context, name string, value float64) (float64, error)
 }
 
+type UpdateListRepository interface {
+	UpdateCounterList(ctx context.Context, m map[string]int64) error
+	UpdateGaugeList(ctx context.Context, m map[string]float64) error
+}
+
 type ReadByNameRepository interface {
 	ReadCounterByName(ctx context.Context, name string) (int64, error)
 	ReadGaugeByName(ctx context.Context, name string) (float64, error)
@@ -68,9 +81,10 @@ type ReadRepository interface {
 }
 
 type Repository interface {
-	UpdateRepository
 	ReadByNameRepository
 	ReadRepository
+	UpdateRepository
+	UpdateListRepository
 	Run(stopCtx context.Context, wg *sync.WaitGroup)
 }
 
@@ -82,10 +96,14 @@ type HTMLService interface {
 	RenderMetricsList(ctx context.Context, buf *bytes.Buffer) error
 }
 
-type UpdateService interface {
-	Update(context.Context, *metrics.MetricsUpdate) (metrics.Metrics, error)
+type ReadService interface {
+	Read(ctx context.Context, mData *metrics.MetricsRead) (Metrics, error)
 }
 
-type ReadService interface {
-	Read(ctx context.Context, mData *metrics.MetricsRead) (metrics.Metrics, error)
+type UpdateService interface {
+	Update(context.Context, *metrics.MetricsUpdate) (Metrics, error)
+}
+
+type BatchUpdateService interface {
+	BatchUpdate(context.Context, metrics.MetricsBatchUpdate) error
 }

@@ -1,5 +1,11 @@
 package metrics
 
+import (
+	"errors"
+	"fmt"
+	"strings"
+)
+
 // Mtype is 'gauge' or 'counter'.
 // Delta is not nil for 'counter',
 // otherwise Value is not nil for 'gauge'.
@@ -38,6 +44,23 @@ func (mu *MetricsUpdate) Verify() error {
 		return errSlice
 	}
 
+	return nil
+}
+
+type MetricsBatchUpdate []MetricsUpdate
+
+func (mbu *MetricsBatchUpdate) Verify() error {
+	var stringSlice []string
+	for i, item := range *mbu {
+		if err := item.Verify(); err != nil {
+			stringSlice = append(
+				stringSlice, fmt.Sprintf("%d: %s", i, err.Error()),
+			)
+		}
+	}
+	if len(stringSlice) != 0 {
+		return errors.New("[" + strings.Join(stringSlice, ", ") + "]")
+	}
 	return nil
 }
 

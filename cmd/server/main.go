@@ -50,6 +50,11 @@ func main() {
 		validator.NewUpdateValidator(),
 	)
 
+	api.SetBatchUpdateHandler(mux,
+		service.NewBatchUpdateService(repository),
+		validator.NewBatchUpdateValidator(),
+	)
+
 	api.SetValueHandler(
 		mux,
 		service.NewValueService(repository),

@@ -18,7 +18,7 @@ func NewUpdateService(repository di.UpdateRepository) *UpdateService {
 
 func (s *UpdateService) Update(
 	ctx context.Context, scheme *metrics.MetricsUpdate,
-) (metrics.Metrics, error) {
+) (di.Metrics, error) {
 	switch scheme.MType {
 	case metrics.MTypeGauge:
 		value, err := s.repository.UpdateGaugeByName(ctx, scheme.ID, *scheme.Value)
