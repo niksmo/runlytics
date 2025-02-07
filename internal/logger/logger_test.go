@@ -13,7 +13,7 @@ func TestLogger(t *testing.T) {
 	}
 
 	t.Run("Wrong level", func(t *testing.T) {
-		Init("Jinfo")
+		assert.Panics(t, func() { Init("Jinfo") })
 		assert.Equal(t, zap.NewNop(), Log)
 		t.Cleanup(clear)
 	})
