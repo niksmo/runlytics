@@ -23,7 +23,7 @@ func SetBatchUpdateHandler(
 	handler := &BatchUpdateHandler{service, validator}
 	mux.Route(path, func(r chi.Router) {
 		batchUpdate := "/"
-		r.With(middleware.AllowJSON).Post(path+batchUpdate, handler.batchUpdate())
+		r.With(middleware.AllowJSON).Post(batchUpdate, handler.batchUpdate())
 		debugLogRegister(path + batchUpdate)
 	})
 }
@@ -40,11 +40,13 @@ func (handler *BatchUpdateHandler) batchUpdate() http.HandlerFunc {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
+
 		err := handler.service.BatchUpdate(r.Context(), scheme)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
+
 		w.WriteHeader(http.StatusOK)
 	}
 }
