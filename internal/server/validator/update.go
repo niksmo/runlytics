@@ -3,7 +3,8 @@ package validator
 import (
 	"strconv"
 
-	"github.com/niksmo/runlytics/internal/metrics"
+	"github.com/niksmo/runlytics/pkg/di"
+	"github.com/niksmo/runlytics/pkg/metrics"
 )
 
 type UpdateValidator struct{}
@@ -12,7 +13,7 @@ func NewUpdateValidator() *UpdateValidator {
 	return &UpdateValidator{}
 }
 
-func (v *UpdateValidator) VerifyScheme(object Verifier) error {
+func (v *UpdateValidator) VerifyScheme(object di.Verifier) error {
 	return object.Verify()
 }
 

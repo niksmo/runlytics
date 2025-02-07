@@ -14,10 +14,10 @@ import (
 	"testing"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/niksmo/runlytics/internal/metrics"
 	"github.com/niksmo/runlytics/internal/server"
 	"github.com/niksmo/runlytics/internal/server/middleware"
-	"github.com/niksmo/runlytics/internal/server/validator"
+	"github.com/niksmo/runlytics/pkg/di"
+	"github.com/niksmo/runlytics/pkg/metrics"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -43,7 +43,7 @@ type MockValueValidator struct {
 }
 
 func (validator *MockValueValidator) VerifyScheme(
-	verifier validator.Verifier,
+	verifier di.Verifier,
 ) error {
 	retArgs := validator.Called(verifier)
 	return retArgs.Error(0)

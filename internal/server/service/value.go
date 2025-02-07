@@ -3,20 +3,16 @@ package service
 import (
 	"context"
 
-	"github.com/niksmo/runlytics/internal/metrics"
 	"github.com/niksmo/runlytics/internal/server"
+	"github.com/niksmo/runlytics/pkg/di"
+	"github.com/niksmo/runlytics/pkg/metrics"
 )
 
-type ReaderByNameRepository interface {
-	ReadCounterByName(ctx context.Context, name string) (int64, error)
-	ReadGaugeByName(ctx context.Context, name string) (float64, error)
-}
-
 type ReadService struct {
-	repository ReaderByNameRepository
+	repository di.ReadByNameRepository
 }
 
-func NewValueService(repository ReaderByNameRepository) *ReadService {
+func NewValueService(repository di.ReadByNameRepository) *ReadService {
 	return &ReadService{repository}
 }
 

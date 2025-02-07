@@ -3,20 +3,16 @@ package service
 import (
 	"context"
 
-	"github.com/niksmo/runlytics/internal/metrics"
 	"github.com/niksmo/runlytics/internal/server"
+	"github.com/niksmo/runlytics/pkg/di"
+	"github.com/niksmo/runlytics/pkg/metrics"
 )
 
-type UpdaterRepository interface {
-	UpdateCounterByName(ctx context.Context, name string, value int64) (int64, error)
-	UpdateGaugeByName(ctx context.Context, name string, value float64) (float64, error)
-}
-
 type UpdateService struct {
-	repository UpdaterRepository
+	repository di.UpdateRepository
 }
 
-func NewUpdateService(repository UpdaterRepository) *UpdateService {
+func NewUpdateService(repository di.UpdateRepository) *UpdateService {
 	return &UpdateService{repository}
 }
 

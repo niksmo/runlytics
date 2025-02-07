@@ -2,6 +2,9 @@ package service
 
 import (
 	"context"
+	"database/sql"
+	"errors"
+	"fmt"
 	"strings"
 )
 
@@ -22,25 +25,28 @@ func (errSlice CheckErr) Unwrap() []error {
 	return errSlice
 }
 
-type DBChecker interface {
-	CheckDB(context.Context) error
-}
-
 type HealthCheckService struct {
-	dbChecker DBChecker
+	db *sql.DB
 }
 
-func NewHealthCheckService(dbChecker DBChecker) *HealthCheckService {
-	return &HealthCheckService{dbChecker}
+func NewHealthCheckService(db *sql.DB) *HealthCheckService {
+	return &HealthCheckService{db}
 }
 
 func (service *HealthCheckService) Check(ctx context.Context) error {
 	var errList CheckErr
-	if err := service.dbChecker.CheckDB(ctx); err != nil {
-		errList = append(errList, err)
+	if err := service.pingDB(ctx); err != nil {
+		errList = append(errList, fmt.Errorf("database: %w", err))
 	}
 	if len(errList) != 0 {
 		return errList
+	}
+	return nil
+}
+
+func (service *HealthCheckService) pingDB(ctx context.Context) error {
+	if err := service.db.PingContext(ctx); err != nil {
+		return errors.New("down")
 	}
 	return nil
 }

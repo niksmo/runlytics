@@ -54,10 +54,10 @@ func TestPSQL(t *testing.T) {
 	t.Run("Create tables on running", func(t *testing.T) {
 		ctxBase := context.Background()
 
-		arrangeCtx0, arrangeCancel0 := context.WithTimeout(ctxBase, time.Second)
-		defer arrangeCancel0()
+		ctx, cancel := context.WithTimeout(ctxBase, time.Second)
+		defer cancel()
 		_, err := db.ExecContext(
-			arrangeCtx0,
+			ctx,
 			`DROP TABLE IF EXISTS gauge;
 		     DROP TABLE IF EXISTS counter;`,
 		)
@@ -69,31 +69,31 @@ func TestPSQL(t *testing.T) {
 			WHERE tablename IN ('gauge', 'counter');
 		`
 
-		arrangeCtx1, arrangeCancel1 := context.WithTimeout(ctxBase, time.Second)
-		defer arrangeCancel1()
+		ctx, cancel = context.WithTimeout(ctxBase, time.Second)
+		defer cancel()
 		row := db.QueryRowContext(
-			arrangeCtx1,
+			ctx,
 			qCountTables,
 		)
 		var count int
 		require.NoError(t, row.Scan(&count))
 		assert.Zero(t, count)
 
-		storage := NewPSQL(DSN)
+		storage := newPSQL(db)
 		storage.Run(stopCtx, &wg)
 		defer storage.Close()
 
-		actCtx, actCancel := context.WithTimeout(ctxBase, time.Second)
-		defer actCancel()
+		ctx, cancel = context.WithTimeout(ctxBase, time.Second)
+		defer cancel()
 
-		row = db.QueryRowContext(actCtx, qCountTables)
+		row = db.QueryRowContext(ctx, qCountTables)
 		require.NoError(t, row.Scan(&count))
 		assert.Equal(t, 2, count)
 	})
 
 	t.Run("Sequence update gauge by name", func(t *testing.T) {
 		clearTables(t)
-		storage := NewPSQL(DSN)
+		storage := newPSQL(db)
 		storage.Run(stopCtx, &wg)
 		defer storage.Close()
 		ctxBase := context.Background()
@@ -112,7 +112,7 @@ func TestPSQL(t *testing.T) {
 
 	t.Run("Sequence update counter by name", func(t *testing.T) {
 		clearTables(t)
-		storage := NewPSQL(DSN)
+		storage := newPSQL(db)
 		storage.Run(stopCtx, &wg)
 		defer storage.Close()
 		ctxBase := context.Background()
@@ -132,7 +132,7 @@ func TestPSQL(t *testing.T) {
 	})
 
 	t.Run("Read counter by name", func(t *testing.T) {
-		storage := NewPSQL(DSN)
+		storage := newPSQL(db)
 		storage.Run(stopCtx, &wg)
 		defer storage.Close()
 		ctxBase := context.Background()
@@ -153,20 +153,20 @@ func TestPSQL(t *testing.T) {
 		t.Run("Should return entry value", func(t *testing.T) {
 			clearTables(t)
 			expected := int64(10)
-			arrangeCtx, arrangeCancel := context.WithTimeout(ctxBase, time.Second)
-			defer arrangeCancel()
+			ctx, cancel := context.WithTimeout(ctxBase, time.Second)
+			defer cancel()
 			_, err := db.ExecContext(
-				arrangeCtx,
+				ctx,
 				`INSERT INTO counter (name, value)
 				 VALUES ($1, $2);`,
 				metricName,
 				expected,
 			)
 			require.NoError(t, err)
-			actCtx, actCancel := context.WithTimeout(ctxBase, time.Second)
-			defer actCancel()
+			ctx, cancel = context.WithTimeout(ctxBase, time.Second)
+			defer cancel()
 			actualValue, err := storage.ReadCounterByName(
-				actCtx, metricName,
+				ctx, metricName,
 			)
 			require.NoError(t, err)
 			assert.Equal(t, expected, actualValue)
@@ -174,7 +174,7 @@ func TestPSQL(t *testing.T) {
 	})
 
 	t.Run("Read gauge by name", func(t *testing.T) {
-		storage := NewPSQL(DSN)
+		storage := newPSQL(db)
 		storage.Run(stopCtx, &wg)
 		defer storage.Close()
 		ctxBase := context.Background()
@@ -195,20 +195,20 @@ func TestPSQL(t *testing.T) {
 		t.Run("Should return entry value", func(t *testing.T) {
 			clearTables(t)
 			expected := float64(10)
-			arrangeCtx, arrangeCancel := context.WithTimeout(ctxBase, time.Second)
-			defer arrangeCancel()
+			ctx, cancel := context.WithTimeout(ctxBase, time.Second)
+			defer cancel()
 			_, err := db.ExecContext(
-				arrangeCtx,
+				ctx,
 				`INSERT INTO gauge (name, value)
 				 VALUES ($1, $2);`,
 				metricName,
 				expected,
 			)
 			require.NoError(t, err)
-			actCtx, actCancel := context.WithTimeout(ctxBase, time.Second)
-			defer actCancel()
+			ctx, cancel = context.WithTimeout(ctxBase, time.Second)
+			defer cancel()
 			actualValue, err := storage.ReadGaugeByName(
-				actCtx, metricName,
+				ctx, metricName,
 			)
 			require.NoError(t, err)
 			assert.Equal(t, expected, actualValue)
@@ -216,7 +216,7 @@ func TestPSQL(t *testing.T) {
 	})
 
 	t.Run("Read counter", func(t *testing.T) {
-		storage := NewPSQL(DSN)
+		storage := newPSQL(db)
 		storage.Run(stopCtx, &wg)
 		defer storage.Close()
 		ctxBase := context.Background()
@@ -249,18 +249,18 @@ func TestPSQL(t *testing.T) {
 				)
 			}
 
-			arrangeCtx, arrangeCancel := context.WithTimeout(ctxBase, time.Second)
-			defer arrangeCancel()
+			ctx, cancel := context.WithTimeout(ctxBase, time.Second)
+			defer cancel()
 			_, err := db.ExecContext(
-				arrangeCtx,
+				ctx,
 				`INSERT INTO counter (name, value) VALUES `+
 					strings.Join(insertValues, ", ")+";",
 			)
 			require.NoError(t, err)
 
-			actCtx, actCancel := context.WithTimeout(ctxBase, time.Second)
-			defer actCancel()
-			counterData, err := storage.ReadCounter(actCtx)
+			ctx, cancel = context.WithTimeout(ctxBase, time.Second)
+			defer cancel()
+			counterData, err := storage.ReadCounter(ctx)
 			require.NoError(t, err)
 			assert.Len(t, counterData, expectedDataLen)
 			for _, counter := range testList {
@@ -270,7 +270,7 @@ func TestPSQL(t *testing.T) {
 	})
 
 	t.Run("Read gauge", func(t *testing.T) {
-		storage := NewPSQL(DSN)
+		storage := newPSQL(db)
 		storage.Run(stopCtx, &wg)
 		defer storage.Close()
 		ctxBase := context.Background()
@@ -303,18 +303,18 @@ func TestPSQL(t *testing.T) {
 				)
 			}
 
-			arrangeCtx, arrangeCancel := context.WithTimeout(ctxBase, time.Second)
-			defer arrangeCancel()
+			ctx, cancel := context.WithTimeout(ctxBase, time.Second)
+			defer cancel()
 			_, err := db.ExecContext(
-				arrangeCtx,
+				ctx,
 				`INSERT INTO gauge (name, value) VALUES `+
 					strings.Join(insertValues, ", ")+";",
 			)
 			require.NoError(t, err)
 
-			actCtx, actCancel := context.WithTimeout(ctxBase, time.Second)
-			defer actCancel()
-			gaugeData, err := storage.ReadGauge(actCtx)
+			ctx, cancel = context.WithTimeout(ctxBase, time.Second)
+			defer cancel()
+			gaugeData, err := storage.ReadGauge(ctx)
 			require.NoError(t, err)
 			assert.Len(t, gaugeData, expectedDataLen)
 			for _, gauge := range testList {

@@ -30,7 +30,7 @@ type memoryStorage struct {
 	decoder  *json.Decoder
 }
 
-func NewMemory(
+func newMemory(
 	file *os.File, interval time.Duration, restore bool,
 ) *memoryStorage {
 	ms := memoryStorage{
@@ -128,6 +128,7 @@ func (ms *memoryStorage) ReadCounter(
 	return counter, nil
 }
 
+// Restoring file, starting save interval and waiting graceful shutdown
 func (ms *memoryStorage) Run(ctx context.Context, wg *sync.WaitGroup) {
 	ms.restoreFile()
 

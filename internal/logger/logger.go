@@ -6,18 +6,16 @@ import (
 
 var Log = zap.NewNop()
 
-func Init(lvl string) error {
+func Init(lvl string) {
 	atomicLvl, err := zap.ParseAtomicLevel(lvl)
 	if err != nil {
-		return err
+		panic(err)
 	}
 
 	config := zap.NewDevelopmentConfig()
 	config.Level = atomicLvl
 
 	if Log, err = config.Build(); err != nil {
-		return err
+		panic(err)
 	}
-
-	return nil
 }

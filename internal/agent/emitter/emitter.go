@@ -10,18 +10,14 @@ import (
 	"time"
 
 	"github.com/niksmo/runlytics/internal/logger"
-	"github.com/niksmo/runlytics/internal/metrics"
+	"github.com/niksmo/runlytics/pkg/di"
+	"github.com/niksmo/runlytics/pkg/metrics"
 	"go.uber.org/zap"
 )
 
-type MetricsData interface {
-	GetGaugeMetrics() map[string]float64
-	GetCounterMetrics() map[string]int64
-}
-
 type HTTPEmitter struct {
 	interval        time.Duration
-	metricsData     MetricsData
+	metricsData     di.GaugeCounterMetricsGetter
 	client          *http.Client
 	baseURL         *url.URL
 	prevPollCounter int64
@@ -29,7 +25,7 @@ type HTTPEmitter struct {
 
 func New(
 	interval time.Duration,
-	metricsData MetricsData,
+	metricsData di.GaugeCounterMetricsGetter,
 	client *http.Client,
 	baseURL *url.URL,
 ) *HTTPEmitter {

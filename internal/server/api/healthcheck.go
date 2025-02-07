@@ -1,21 +1,17 @@
 package api
 
 import (
-	"context"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/niksmo/runlytics/pkg/di"
 )
 
 type HealthCheckHandler struct {
-	service HealthCheckService
+	service di.HealthCheckService
 }
 
-type HealthCheckService interface {
-	Check(ctx context.Context) error
-}
-
-func SetHealthCheckHandler(mux *chi.Mux, service HealthCheckService) {
+func SetHealthCheckHandler(mux *chi.Mux, service di.HealthCheckService) {
 	path := "/ping"
 	handler := &HealthCheckHandler{service}
 	mux.Get(path, handler.Ping())

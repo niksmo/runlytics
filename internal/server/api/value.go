@@ -1,33 +1,24 @@
 package api
 
 import (
-	"context"
 	"errors"
 	"io"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/niksmo/runlytics/internal/metrics"
 	"github.com/niksmo/runlytics/internal/server"
 	"github.com/niksmo/runlytics/internal/server/middleware"
-	"github.com/niksmo/runlytics/internal/server/validator"
+	"github.com/niksmo/runlytics/pkg/di"
+	"github.com/niksmo/runlytics/pkg/metrics"
 )
 
 type ValueHandler struct {
-	service   ValueService
-	validator ValueValidator
-}
-
-type ValueService interface {
-	Read(ctx context.Context, mData *metrics.MetricsRead) (metrics.Metrics, error)
-}
-
-type ValueValidator interface {
-	VerifyScheme(validator.Verifier) error
+	service   di.ReadService
+	validator di.SchemeVerifier
 }
 
 func SetValueHandler(
-	mux *chi.Mux, service ValueService, validator ValueValidator,
+	mux *chi.Mux, service di.ReadService, validator di.SchemeVerifier,
 ) {
 	path := "/value"
 	handler := &ValueHandler{service, validator}

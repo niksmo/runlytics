@@ -68,8 +68,8 @@ type gzipWriter struct {
 func newGzipWriter(w http.ResponseWriter) *gzipWriter {
 	gzip, _ := gzip.NewWriterLevel(w, gzip.BestSpeed)
 	contentTypes := map[string]struct{}{
-		"application/json": {},
-		"text/html":        {},
+		JSONMediaType:     {},
+		TextHTMLMediaType: {},
 	}
 	return &gzipWriter{ResponseWriter: w, gzip: gzip, contentTypes: contentTypes}
 }

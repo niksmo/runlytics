@@ -2,21 +2,17 @@ package api
 
 import (
 	"bytes"
-	"context"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/niksmo/runlytics/pkg/di"
 )
 
 type HTMLHandler struct {
-	service HTMLService
+	service di.HTMLService
 }
 
-type HTMLService interface {
-	RenderMetricsList(ctx context.Context, buf *bytes.Buffer) error
-}
-
-func SetHTMLHandler(mux *chi.Mux, service HTMLService) {
+func SetHTMLHandler(mux *chi.Mux, service di.HTMLService) {
 	path := "/"
 	handler := &HTMLHandler{service}
 	mux.Route(path, func(r chi.Router) {

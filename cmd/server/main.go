@@ -2,12 +2,9 @@ package main
 
 import (
 	"context"
-	"errors"
-	"net/http"
 	"os"
 	"os/signal"
 	"sync"
-	"time"
 
 	"github.com/go-chi/chi/v5"
 	_ "github.com/jackc/pgx/v5/stdlib"
@@ -18,19 +15,14 @@ import (
 	"github.com/niksmo/runlytics/internal/server/service"
 	"github.com/niksmo/runlytics/internal/server/storage"
 	"github.com/niksmo/runlytics/internal/server/validator"
+	"github.com/niksmo/runlytics/pkg/httpserver"
+	"github.com/niksmo/runlytics/pkg/sqldb"
 	"go.uber.org/zap"
 )
 
 func main() {
-	var wg sync.WaitGroup
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
-	defer stop()
-
 	config := config.Load()
-
-	if err := logger.Init(config.LogLvl()); err != nil {
-		panic(err)
-	}
+	logger.Init(config.LogLvl())
 
 	logger.Log.Info(
 		"Bootstrap server with flags",
@@ -47,17 +39,8 @@ func main() {
 	mux.Use(middleware.AllowContentEncoding("gzip"))
 	mux.Use(middleware.Gzip)
 
-	var repository storage.Storage
-	if config.IsDatabase() {
-		repository = storage.NewPSQL(config.DatabaseDSN())
-	} else {
-		repository = storage.NewMemory(
-			config.File(),
-			config.SaveInterval(),
-			config.Restore(),
-		)
-	}
-	repository.Run(ctx, &wg)
+	pgDB := sqldb.New("pgx", config.DatabaseDSN(), logger.Log.Sugar())
+	repository := storage.New(pgDB, config)
 
 	api.SetHTMLHandler(mux, service.NewHTMLService(repository))
 
@@ -73,28 +56,14 @@ func main() {
 		validator.NewValueValidator(),
 	)
 
-	api.SetHealthCheckHandler(mux, service.NewHealthCheckService(repository))
+	api.SetHealthCheckHandler(mux, service.NewHealthCheckService(pgDB))
 
-	server := http.Server{
-		Addr:    config.Addr(),
-		Handler: mux,
-	}
-	logger.Log.Info("Listen", zap.String("host", server.Addr))
+	HTTPServer := httpserver.New(config.Addr(), mux, logger.Log.Sugar())
 
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		<-ctx.Done()
-		shutdownCtx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-		defer cancel()
-		if err := server.Shutdown(shutdownCtx); err != nil {
-			logger.Log.Error("Server shutdown", zap.Error(err))
-		}
-	}()
-
-	if err := server.ListenAndServe(); !errors.Is(err, http.ErrServerClosed) {
-		logger.Log.Error("Server closed with errors", zap.Error(err))
-	}
-
+	var wg sync.WaitGroup
+	interruptCtx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
+	defer stop()
+	repository.Run(interruptCtx, &wg)
+	HTTPServer.Run(interruptCtx, &wg)
 	wg.Wait()
 }

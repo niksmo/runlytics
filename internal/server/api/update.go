@@ -1,32 +1,26 @@
 package api
 
 import (
-	"context"
 	"io"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/niksmo/runlytics/internal/metrics"
 	"github.com/niksmo/runlytics/internal/server"
 	"github.com/niksmo/runlytics/internal/server/middleware"
-	"github.com/niksmo/runlytics/internal/server/validator"
+	"github.com/niksmo/runlytics/pkg/di"
+	"github.com/niksmo/runlytics/pkg/metrics"
 )
 
 type UpdateHandler struct {
-	service   UpdateService
-	validator UpdateValidator
+	service   di.UpdateService
+	validator di.MetricsParamsSchemeVerifier
 }
 
-type UpdateService interface {
-	Update(context.Context, *metrics.MetricsUpdate) (metrics.Metrics, error)
-}
-
-type UpdateValidator interface {
-	VerifyScheme(validator.Verifier) error
-	VerifyParams(id, mType, value string) (*metrics.MetricsUpdate, error)
-}
-
-func SetUpdateHandler(mux *chi.Mux, service UpdateService, validator UpdateValidator) {
+func SetUpdateHandler(
+	mux *chi.Mux,
+	service di.UpdateService,
+	validator di.MetricsParamsSchemeVerifier,
+) {
 	path := "/update"
 	handler := &UpdateHandler{service, validator}
 	mux.Route(path, func(r chi.Router) {

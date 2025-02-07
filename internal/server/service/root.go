@@ -10,20 +10,16 @@ import (
 
 	"github.com/niksmo/runlytics/internal/logger"
 	"github.com/niksmo/runlytics/internal/server"
+	"github.com/niksmo/runlytics/pkg/di"
 	"go.uber.org/zap"
 )
 
-type ReadRepository interface {
-	ReadCounter(ctx context.Context) (map[string]int64, error)
-	ReadGauge(ctx context.Context) (map[string]float64, error)
-}
-
 type HTMLService struct {
 	template   *template.Template
-	repository ReadRepository
+	repository di.ReadRepository
 }
 
-func NewHTMLService(repository ReadRepository) *HTMLService {
+func NewHTMLService(repository di.ReadRepository) *HTMLService {
 	text := `<!DOCTYPE html>
 <html lang="en">
 <head>

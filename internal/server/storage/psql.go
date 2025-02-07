@@ -16,33 +16,18 @@ type psqlStorage struct {
 	db *sql.DB
 }
 
-func NewPSQL(dsn string) *psqlStorage {
-	db, err := sql.Open("pgx", dsn)
-	if err != nil {
-		logger.Log.Info("Open DB", zap.Error(err))
-	}
-	if err = db.Ping(); err != nil {
-		logger.Log.Info("DB not connected", zap.Error(err))
-	} else {
-		logger.Log.Info("DB connected")
-	}
-	return &psqlStorage{db: db}
+func newPSQL(db *sql.DB) *psqlStorage {
+	return &psqlStorage{db}
 }
 
-func (ps *psqlStorage) CheckDB(ctx context.Context) error {
-	if err := ps.db.PingContext(ctx); err != nil {
-		return errors.New("database: shutdown")
-	}
-	return nil
-}
-
-func (ps *psqlStorage) Run(ctx context.Context, wg *sync.WaitGroup) {
+// Creating database tables and waiting graceful shutdown
+func (ps *psqlStorage) Run(stopCtx context.Context, wg *sync.WaitGroup) {
 	ps.createTables()
 
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		<-ctx.Done()
+		<-stopCtx.Done()
 		if err := ps.db.Close(); err != nil {
 			logger.Log.Error("Database connection close error", zap.Error(err))
 			return
