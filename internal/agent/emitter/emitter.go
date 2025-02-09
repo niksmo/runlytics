@@ -10,13 +10,12 @@ import (
 	"time"
 
 	"github.com/niksmo/runlytics/internal/logger"
-	"github.com/niksmo/runlytics/internal/repeat"
 	"github.com/niksmo/runlytics/pkg/di"
 	"github.com/niksmo/runlytics/pkg/metrics"
 	"go.uber.org/zap"
 )
 
-var tries = []time.Duration{time.Second, 3 * time.Second, 5 * time.Second}
+var triesDuration = []time.Duration{time.Second, 3 * time.Second, 5 * time.Second}
 
 type HTTPEmitter struct {
 	interval        time.Duration
@@ -110,24 +109,28 @@ func (e *HTTPEmitter) post(metrics metrics.MetricsBatchUpdate) {
 	request.Header.Set("Accept-Encoding", "gzip")
 
 	start := time.Now()
-	var res *http.Response
-
-	repeat.WithTries("Do request", tries, func() error {
-		res, err = e.client.Do(request)
-		return err
-	})
-
+	res, err := e.client.Do(request)
 	if err != nil {
-		logger.Log.Info(
-			"Got response",
-			zap.String("URL", reqURL),
-			zap.String("method", "POST"),
-			zap.Duration("duration", time.Since(start)),
-			zap.Error(err),
-		)
-		return
-	}
+		for _, wait := range triesDuration {
+			logger.Log.Debug("Do request", zap.Duration("try_after", wait), zap.Error(err))
+			time.Sleep(wait)
+			res, err = e.client.Do(request)
+			if err == nil {
+				break
+			}
+		}
 
+		if err != nil {
+			logger.Log.Info(
+				"Got response",
+				zap.String("URL", reqURL),
+				zap.String("method", "POST"),
+				zap.Duration("duration", time.Since(start)),
+				zap.Error(err),
+			)
+			return
+		}
+	}
 	defer res.Body.Close()
 
 	var data []byte

@@ -313,21 +313,26 @@ func (ps *psqlStorage) ReadGaugeByName(
 func (ps *psqlStorage) ReadGauge(
 	ctx context.Context,
 ) (map[string]float64, error) {
-	var (
-		rows *sql.Rows
-		err  error
-	)
-
-	queryFn := func() error {
-		rows, err = ps.db.QueryContext(
-			ctx, `SELECT name, value FROM gauge;`,
-		)
-		return err
-	}
-
-	repeat.WithTries("Read gauge", tries, queryFn)
+	rows, err := ps.db.QueryContext(ctx, `SELECT name, value FROM gauge;`)
 	if err != nil {
-		return nil, err
+	retry:
+		for _, wait := range tries {
+			logger.Log.Debug(
+				"Read gauge", zap.Duration("try_after", wait), zap.Error(err),
+			)
+			select {
+			case <-ctx.Done():
+				break retry
+			case <-time.After(wait):
+				rows, err = ps.db.QueryContext(ctx, `SELECT name, value FROM gauge;`)
+				if err == nil {
+					break retry
+				}
+			}
+		}
+		if err != nil {
+			return nil, err
+		}
 	}
 	defer rows.Close()
 
@@ -352,21 +357,29 @@ func (ps *psqlStorage) ReadGauge(
 func (ps *psqlStorage) ReadCounter(
 	ctx context.Context,
 ) (map[string]int64, error) {
-	var (
-		rows *sql.Rows
-		err  error
-	)
+	query := `SELECT name, value FROM counter;`
 
-	queryFn := func() error {
-		rows, err = ps.db.QueryContext(
-			ctx, `SELECT name, value FROM counter;`,
-		)
-		return err
-	}
+	rows, err := ps.db.QueryContext(ctx, query)
 
-	repeat.WithTries("Read counter", tries, queryFn)
 	if err != nil {
-		return nil, err
+	retry:
+		for _, wait := range tries {
+			logger.Log.Debug(
+				"Read counter", zap.Duration("try_after", wait), zap.Error(err),
+			)
+			select {
+			case <-ctx.Done():
+				break retry
+			case <-time.After(wait):
+				rows, err = ps.db.QueryContext(ctx, query)
+				if err == nil {
+					break retry
+				}
+			}
+		}
+		if err != nil {
+			return nil, err
+		}
 	}
 	defer rows.Close()
 
