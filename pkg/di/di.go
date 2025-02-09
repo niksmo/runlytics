@@ -66,8 +66,8 @@ type UpdateRepository interface {
 }
 
 type UpdateListRepository interface {
-	UpdateCounterList(ctx context.Context, m map[string]int64) error
-	UpdateGaugeList(ctx context.Context, m map[string]float64) error
+	UpdateCounterList(ctx context.Context, slice []metrics.MetricsCounter) error
+	UpdateGaugeList(ctx context.Context, slice []metrics.MetricsGauge) error
 }
 
 type ReadByNameRepository interface {

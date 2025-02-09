@@ -12,6 +12,7 @@ import (
 
 	"github.com/niksmo/runlytics/internal/logger"
 	"github.com/niksmo/runlytics/internal/server"
+	"github.com/niksmo/runlytics/pkg/metrics"
 	"go.uber.org/zap"
 )
 
@@ -74,20 +75,16 @@ func (ms *memoryStorage) UpdateGaugeByName(
 	return value, nil
 }
 
-func (ms *memoryStorage) UpdateCounterList(ctx context.Context, m map[string]int64) error {
-	ms.mu.Lock()
-	defer ms.mu.Unlock()
-	for name, value := range m {
-		ms.data.Counter[name] += value
+func (ms *memoryStorage) UpdateCounterList(ctx context.Context, mSlice []metrics.MetricsCounter) error {
+	for _, item := range mSlice {
+		ms.UpdateCounterByName(ctx, item.ID, item.Delta)
 	}
 	return nil
 }
 
-func (ms *memoryStorage) UpdateGaugeList(ctx context.Context, m map[string]float64) error {
-	ms.mu.Lock()
-	defer ms.mu.Unlock()
-	for name, value := range m {
-		ms.data.Gauge[name] = value
+func (ms *memoryStorage) UpdateGaugeList(ctx context.Context, mSlice []metrics.MetricsGauge) error {
+	for _, item := range mSlice {
+		ms.UpdateGaugeByName(ctx, item.ID, item.Value)
 	}
 	return nil
 }

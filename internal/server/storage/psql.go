@@ -9,6 +9,7 @@ import (
 
 	"github.com/niksmo/runlytics/internal/logger"
 	"github.com/niksmo/runlytics/internal/server"
+	"github.com/niksmo/runlytics/pkg/metrics"
 	"go.uber.org/zap"
 )
 
@@ -78,21 +79,21 @@ func (ps *psqlStorage) UpdateGaugeByName(
 	return actualValue, err
 }
 
-func (ps *psqlStorage) UpdateCounterList(ctx context.Context, m map[string]int64) error {
+func (ps *psqlStorage) UpdateCounterList(ctx context.Context, mSlice []metrics.MetricsCounter) error {
 	tx, err := ps.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
 
-	for name, value := range m {
+	for _, item := range mSlice {
 		_, err = tx.ExecContext(
 			ctx,
 			`INSERT INTO counter (name, value)
 		     VALUES ($1, $2)
 		     ON CONFLICT (name) DO UPDATE SET
 		     value = (SELECT value FROM counter WHERE name=$1) + EXCLUDED.value;`,
-			name,
-			value,
+			item.ID,
+			item.Delta,
 		)
 		if err != nil {
 			if err := tx.Rollback(); err != nil {
@@ -104,21 +105,21 @@ func (ps *psqlStorage) UpdateCounterList(ctx context.Context, m map[string]int64
 	return tx.Commit()
 }
 
-func (ps *psqlStorage) UpdateGaugeList(ctx context.Context, m map[string]float64) error {
+func (ps *psqlStorage) UpdateGaugeList(ctx context.Context, mSlice []metrics.MetricsGauge) error {
 	tx, err := ps.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
 
-	for name, value := range m {
+	for _, item := range mSlice {
 		_, err = tx.ExecContext(
 			ctx,
 			`INSERT INTO gauge (name, value)
 		    VALUES ($1, $2)
 		    ON CONFLICT (name) DO UPDATE SET
 		    value = EXCLUDED.value;`,
-			name,
-			value,
+			item.ID,
+			item.Value,
 		)
 		if err != nil {
 			if err := tx.Rollback(); err != nil {
