@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/niksmo/runlytics/internal/logger"
-	"github.com/niksmo/runlytics/internal/repeater"
+	"github.com/niksmo/runlytics/internal/repeat"
 	"github.com/niksmo/runlytics/pkg/di"
 	"github.com/niksmo/runlytics/pkg/metrics"
 	"go.uber.org/zap"
@@ -111,15 +111,11 @@ func (e *HTTPEmitter) post(metrics metrics.MetricsBatchUpdate) {
 
 	start := time.Now()
 	var res *http.Response
-	repeater := repeater.New(
-		"Do request",
-		tries,
-		func() error {
-			res, err = e.client.Do(request)
-			return err
-		},
-	)
-	repeater.DoFn()
+
+	repeat.WithTries("Do request", tries, func() error {
+		res, err = e.client.Do(request)
+		return err
+	})
 
 	if err != nil {
 		logger.Log.Info(
