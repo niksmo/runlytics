@@ -10,10 +10,13 @@ import (
 	"time"
 
 	"github.com/niksmo/runlytics/internal/logger"
+	"github.com/niksmo/runlytics/internal/repeater"
 	"github.com/niksmo/runlytics/pkg/di"
 	"github.com/niksmo/runlytics/pkg/metrics"
 	"go.uber.org/zap"
 )
+
+var tries = []time.Duration{time.Second, 3 * time.Second, 5 * time.Second}
 
 type HTTPEmitter struct {
 	interval        time.Duration
@@ -98,7 +101,6 @@ func (e *HTTPEmitter) post(metrics metrics.MetricsBatchUpdate) {
 	}
 	gzipWriter.Close()
 
-	start := time.Now()
 	request, err := http.NewRequest("POST", reqURL, &buf)
 	if err != nil {
 		logger.Log.Warn("Error while creating http request", zap.Error(err))
@@ -107,7 +109,18 @@ func (e *HTTPEmitter) post(metrics metrics.MetricsBatchUpdate) {
 	request.Header.Set("Content-Encoding", "gzip")
 	request.Header.Set("Accept-Encoding", "gzip")
 
-	res, err := e.client.Do(request)
+	start := time.Now()
+	var res *http.Response
+	repeater := repeater.New(
+		"Do request",
+		tries,
+		func() error {
+			res, err = e.client.Do(request)
+			return err
+		},
+	)
+	repeater.DoFn()
+
 	if err != nil {
 		logger.Log.Info(
 			"Got response",
@@ -118,6 +131,7 @@ func (e *HTTPEmitter) post(metrics metrics.MetricsBatchUpdate) {
 		)
 		return
 	}
+
 	defer res.Body.Close()
 
 	var data []byte
