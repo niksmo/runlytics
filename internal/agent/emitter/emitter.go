@@ -130,6 +130,7 @@ func (e *HTTPEmitter) post(metrics metrics.MetricsBatchUpdate) {
 			return
 		}
 	}
+	defer res.Body.Close()
 
 	if res.Header.Get("Content-Encoding") == "gzip" {
 		gzipReader, err := gzip.NewReader(res.Body)
@@ -142,7 +143,6 @@ func (e *HTTPEmitter) post(metrics metrics.MetricsBatchUpdate) {
 
 	var data []byte
 	data, err = io.ReadAll(res.Body)
-	res.Body.Close()
 
 	if err != nil {
 		logger.Log.Error("Read response data error", zap.Error(err))
