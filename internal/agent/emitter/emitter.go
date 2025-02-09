@@ -29,8 +29,13 @@ func New(
 	client *http.Client,
 	baseURL *url.URL,
 ) *HTTPEmitter {
-
-	return &HTTPEmitter{interval, metricsData, client, baseURL, int64(0)}
+	return &HTTPEmitter{
+		interval:        interval,
+		metricsData:     metricsData,
+		client:          client,
+		baseURL:         baseURL,
+		prevPollCounter: 0,
+	}
 }
 
 func (e *HTTPEmitter) Run() {
@@ -43,32 +48,42 @@ func (e *HTTPEmitter) Run() {
 	for {
 		logger.Log.Debug("Wait", zap.Float64("seconds", e.interval.Seconds()))
 		time.Sleep(e.interval)
-		e.emitGauge()
-		e.emitCounter()
+		e.emit()
 	}
 }
 
-func (e *HTTPEmitter) emitGauge() {
-	logger.Log.Debug("Emit gauge metrics")
+func (e *HTTPEmitter) emit() {
+	var batch metrics.MetricsBatchUpdate
+
 	for name, value := range e.metricsData.GetGaugeMetrics() {
-		gaugeMetrics := metrics.MetricsUpdate{ID: name, MType: metrics.MTypeGauge, Value: &value}
-		e.post(gaugeMetrics)
+		batch = append(
+			batch,
+			metrics.MetricsUpdate{
+				ID: name, MType: metrics.MTypeGauge, Value: &value,
+			},
+		)
 	}
-}
 
-func (e *HTTPEmitter) emitCounter() {
-	logger.Log.Debug("Emit counter metrics")
 	for name, value := range e.metricsData.GetCounterMetrics() {
-		delta := value - e.prevPollCounter
-		e.prevPollCounter = value
-		counterMetrics := metrics.MetricsUpdate{ID: name, MType: metrics.MTypeCounter, Delta: &delta}
+		if name == "PollCount" {
+			prev := e.prevPollCounter
+			e.prevPollCounter = value
+			value = value - prev
+		}
+		batch = append(
+			batch,
+			metrics.MetricsUpdate{
+				ID: name, MType: metrics.MTypeCounter, Delta: &value,
+			},
+		)
 
-		e.post(counterMetrics)
 	}
+
+	e.post(batch)
 }
 
-func (e *HTTPEmitter) post(metrics metrics.MetricsUpdate) {
-	reqURL := e.baseURL.JoinPath("update").String()
+func (e *HTTPEmitter) post(metrics metrics.MetricsBatchUpdate) {
+	reqURL := e.baseURL.JoinPath("updates").String()
 	logger.Log.Info(
 		"Start request",
 		zap.String("URL", reqURL),
@@ -108,17 +123,15 @@ func (e *HTTPEmitter) post(metrics metrics.MetricsUpdate) {
 	var data []byte
 
 	if res.Header.Get("Content-Encoding") == "gzip" {
-		var gzipReader *gzip.Reader
-		gzipReader, err = gzip.NewReader(res.Body)
+		gzipReader, err := gzip.NewReader(res.Body)
 
 		if err != nil {
 			logger.Log.Warn("Error while creating new gzip reader", zap.Error(err))
 		}
-
-		data, err = io.ReadAll(gzipReader)
-	} else {
-		data, err = io.ReadAll(res.Body)
+		res.Body = gzipReader
 	}
+
+	data, err = io.ReadAll(res.Body)
 
 	if err != nil {
 		logger.Log.Error("Read response data error", zap.Error(err))

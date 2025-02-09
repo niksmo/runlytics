@@ -23,12 +23,18 @@ func (service *BatchUpdateService) BatchUpdate(ctx context.Context, batch metric
 	for _, item := range batch {
 		switch item.MType {
 		case metrics.MTypeGauge:
+			if item.Value == nil {
+				return server.ErrInternal
+			}
 			gaugeSlice = append(gaugeSlice, metrics.MetricsGauge{
 				ID:    item.ID,
 				MType: item.MType,
 				Value: *item.Value,
 			})
 		case metrics.MTypeCounter:
+			if item.Delta == nil {
+				return server.ErrInternal
+			}
 			counterSlice = append(counterSlice, metrics.MetricsCounter{
 				ID:    item.ID,
 				MType: item.MType,
