@@ -9,16 +9,16 @@ import (
 	"go.uber.org/zap"
 )
 
-func WithTries(logPrefix string, tries []time.Duration, fn func() error) {
+func WithTries(logPrefix string, waitIntervals []time.Duration, fn func() error) {
 	err := fn()
 
 	if err == nil {
 		return
 	}
 
-	for _, duration := range tries {
-		logger.Log.Debug(logPrefix, zap.Duration("try_after", duration), zap.Error(err))
-		time.Sleep(duration)
+	for _, interval := range waitIntervals {
+		logger.Log.Debug(logPrefix, zap.Duration("try_after", interval), zap.Error(err))
+		time.Sleep(interval)
 		err = fn()
 		if err == nil || errors.Is(err, context.Canceled) {
 			break

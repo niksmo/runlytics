@@ -15,7 +15,7 @@ import (
 	"go.uber.org/zap"
 )
 
-var triesDuration = []time.Duration{time.Second, 3 * time.Second, 5 * time.Second}
+var waitIntervals = []time.Duration{time.Second, 3 * time.Second, 5 * time.Second}
 
 type HTTPEmitter struct {
 	interval        time.Duration
@@ -109,26 +109,16 @@ func (e *HTTPEmitter) post(metrics metrics.MetricsBatchUpdate) {
 	request.Header.Set("Accept-Encoding", "gzip")
 
 	start := time.Now()
-	res, err := e.client.Do(request)
+	res, err := doRequestWithRetries(e.client, request)
 	if err != nil {
-		for _, wait := range triesDuration {
-			logger.Log.Debug("Do request", zap.Duration("try_after", wait), zap.Error(err))
-			time.Sleep(wait)
-			res, err = e.client.Do(request)
-			if err == nil {
-				break
-			}
-		}
-		if err != nil {
-			logger.Log.Info(
-				"Got response",
-				zap.String("URL", reqURL),
-				zap.String("method", "POST"),
-				zap.Duration("duration", time.Since(start)),
-				zap.Error(err),
-			)
-			return
-		}
+		logger.Log.Info(
+			"Got response",
+			zap.String("URL", reqURL),
+			zap.String("method", "POST"),
+			zap.Duration("duration", time.Since(start)),
+			zap.Error(err),
+		)
+		return
 	}
 	defer res.Body.Close()
 
@@ -157,4 +147,21 @@ func (e *HTTPEmitter) post(metrics metrics.MetricsBatchUpdate) {
 		zap.String("data", string(data)),
 	)
 
+}
+
+func doRequestWithRetries(
+	client *http.Client, req *http.Request,
+) (*http.Response, error) {
+	res, err := client.Do(req)
+	if err != nil {
+		for _, interval := range waitIntervals {
+			logger.Log.Debug("Do request", zap.Duration("tryAfter", interval), zap.Error(err))
+			time.Sleep(interval)
+			res, err = client.Do(req)
+			if err == nil {
+				break
+			}
+		}
+	}
+	return res, err
 }

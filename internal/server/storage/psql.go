@@ -15,7 +15,7 @@ import (
 	"go.uber.org/zap"
 )
 
-var tries = []time.Duration{time.Second, 3 * time.Second, 5 * time.Second}
+var waitIntervals = []time.Duration{time.Second, 3 * time.Second, 5 * time.Second, 5 * time.Second, 5 * time.Second}
 
 type psqlStorage struct {
 	db *sql.DB
@@ -30,53 +30,25 @@ func (ps *psqlStorage) Run(stopCtx context.Context, wg *sync.WaitGroup) {
 	ps.createTables(stopCtx)
 
 	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		<-stopCtx.Done()
-		if err := ps.db.Close(); err != nil {
-			logger.Log.Error("Database connection close error", zap.Error(err))
-			return
-		}
-		logger.Log.Debug("Database disconnected")
-	}()
+	go ps.waitStop(stopCtx, wg)
 }
 
-func (ps *psqlStorage) Close() {
-	ps.db.Close()
+func (ps *psqlStorage) Close() error {
+	return ps.db.Close()
 }
 
 func (ps *psqlStorage) UpdateCounterByName(
 	ctx context.Context, name string, value int64,
 ) (int64, error) {
-	var (
-		row *sql.Row
-		err error
-	)
-	queryFn := func() error {
-		row = ps.db.QueryRowContext(
-			ctx,
-			`INSERT INTO counter (name, value)
-
-			VALUES ($1, $2)
+	stmt := `INSERT INTO counter (name, value)
+			 VALUES ($1, $2)
 			 ON CONFLICT (name) DO UPDATE SET
 			 value = (SELECT value FROM counter WHERE name=$1) + EXCLUDED.value
-			 RETURNING value;`,
-			name,
-			value,
-		)
-		return row.Err()
-	}
-	repeat.WithTries("Update counter by name query", tries, queryFn)
-	if err != nil {
-		return 0, err
-	}
+			 RETURNING value;`
+	row := ps.db.QueryRowContext(ctx, stmt, name, value)
 
 	var retValue int64
-	queryFn = func() error {
-		err = row.Scan(&retValue)
-		return err
-	}
-	repeat.WithTries("Update counter by name scan", tries, queryFn)
+	err := scanRowWithRetries(ctx, row, "Update counter by", &retValue)
 	if err != nil {
 		return 0, err
 	}
@@ -87,36 +59,15 @@ func (ps *psqlStorage) UpdateCounterByName(
 func (ps *psqlStorage) UpdateGaugeByName(
 	ctx context.Context, name string, value float64,
 ) (float64, error) {
-	var (
-		row *sql.Row
-		err error
-	)
-
-	queryFn := func() error {
-		row = ps.db.QueryRowContext(
-			ctx,
-			`INSERT INTO gauge (name, value)
+	stmt := `INSERT INTO gauge (name, value)
 			 VALUES ($1, $2)
 			 ON CONFLICT (name) DO UPDATE SET
 			 value = EXCLUDED.value
-			 RETURNING value;`,
-			name,
-			value,
-		)
-		return row.Err()
-	}
-
-	repeat.WithTries("Update gauge by name query", tries, queryFn)
-	if err != nil {
-		return 0, err
-	}
+			 RETURNING value;`
+	row := ps.db.QueryRowContext(ctx, stmt, name, value)
 
 	var retValue float64
-	queryFn = func() error {
-		err = row.Scan(&retValue)
-		return err
-	}
-	repeat.WithTries("Update gauge by name scan", tries, queryFn)
+	err := scanRowWithRetries(ctx, row, "Update gauge by name", &retValue)
 	if err != nil {
 		return 0, err
 	}
@@ -137,7 +88,7 @@ func (ps *psqlStorage) UpdateCounterList(
 		tx, err = ps.db.BeginTx(ctx, nil)
 		return err
 	}
-	repeat.WithTries("Update counter list begin transaction", tries, queryFn)
+	repeat.WithTries("Update counter list begin transaction", waitIntervals, queryFn)
 	if err != nil {
 		return err
 	}
@@ -155,7 +106,7 @@ func (ps *psqlStorage) UpdateCounterList(
 		if err != nil {
 			repeat.WithTries(
 				"Update counter list rollback",
-				tries,
+				waitIntervals,
 				func() error {
 					err = tx.Rollback()
 					return err
@@ -167,7 +118,7 @@ func (ps *psqlStorage) UpdateCounterList(
 
 	repeat.WithTries(
 		"Update counter list commit",
-		tries,
+		waitIntervals,
 		func() error {
 			err = tx.Commit()
 			return err
@@ -186,7 +137,7 @@ func (ps *psqlStorage) UpdateGaugeList(
 
 	repeat.WithTries(
 		"Update gauge list begin transaction",
-		tries,
+		waitIntervals,
 		func() error {
 			tx, err = ps.db.BeginTx(ctx, nil)
 			return err
@@ -209,7 +160,7 @@ func (ps *psqlStorage) UpdateGaugeList(
 		if err != nil {
 			repeat.WithTries(
 				"Update gauge list rollback",
-				tries,
+				waitIntervals,
 				func() error {
 					err = tx.Rollback()
 					return err
@@ -221,7 +172,7 @@ func (ps *psqlStorage) UpdateGaugeList(
 
 	repeat.WithTries(
 		"Update gauge list commit",
-		tries,
+		waitIntervals,
 		func() error {
 			err = tx.Commit()
 			return err
@@ -233,37 +184,15 @@ func (ps *psqlStorage) UpdateGaugeList(
 func (ps *psqlStorage) ReadCounterByName(
 	ctx context.Context, name string,
 ) (int64, error) {
-	var (
-		row *sql.Row
-		err error
-	)
-
-	queryFn := func() error {
-		row = ps.db.QueryRowContext(
-			ctx,
-			`SELECT value
-			 FROM counter
-			 WHERE name = $1;`,
-			name,
-		)
-		return row.Err()
-	}
-	repeat.WithTries("Read counter by name query", tries, queryFn)
-	if err != nil {
-		return 0, err
-	}
+	stmt := `SELECT value FROM counter WHERE name = $1;`
+	row := ps.db.QueryRow(stmt, name)
 
 	var value int64
-	queryFn = func() error {
-		err = row.Scan(&value)
+	err := scanRowWithRetries(ctx, row, "Read counter by name", &value)
+	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			err = fmt.Errorf("metric '%s' is %w", name, server.ErrNotExists)
-			return nil
 		}
-		return err
-	}
-	repeat.WithTries("Read counter by name scan", tries, queryFn)
-	if err != nil {
 		return 0, err
 	}
 
@@ -273,37 +202,15 @@ func (ps *psqlStorage) ReadCounterByName(
 func (ps *psqlStorage) ReadGaugeByName(
 	ctx context.Context, name string,
 ) (float64, error) {
-	var (
-		row *sql.Row
-		err error
-	)
-
-	queryFn := func() error {
-		row = ps.db.QueryRowContext(
-			ctx,
-			`SELECT value
-			FROM gauge
-			WHERE name = $1;`,
-			name,
-		)
-		return row.Err()
-	}
-	repeat.WithTries("Read gauge by name query", tries, queryFn)
-	if err != nil {
-		return 0, err
-	}
+	stmt := `SELECT value FROM gauge WHERE name = $1;`
+	row := ps.db.QueryRow(stmt, name)
 
 	var value float64
-	queryFn = func() error {
-		err = row.Scan(&value)
+	err := scanRowWithRetries(ctx, row, "Read gauge by name", &value)
+	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			err = fmt.Errorf("metric '%s' is %w", name, server.ErrNotExists)
-			return nil
 		}
-		return err
-	}
-	repeat.WithTries("Read gauge by name scan", tries, queryFn)
-	if err != nil {
 		return 0, err
 	}
 
@@ -313,26 +220,10 @@ func (ps *psqlStorage) ReadGaugeByName(
 func (ps *psqlStorage) ReadGauge(
 	ctx context.Context,
 ) (map[string]float64, error) {
-	rows, err := ps.db.QueryContext(ctx, `SELECT name, value FROM gauge;`)
+	stmt := `SELECT name, value FROM gauge;`
+	rows, err := queryWithRetries(ctx, ps.db, stmt, "Read gauge")
 	if err != nil {
-	retry:
-		for _, wait := range tries {
-			logger.Log.Debug(
-				"Read gauge", zap.Duration("try_after", wait), zap.Error(err),
-			)
-			select {
-			case <-ctx.Done():
-				break retry
-			case <-time.After(wait):
-				rows, err = ps.db.QueryContext(ctx, `SELECT name, value FROM gauge;`)
-				if err == nil {
-					break retry
-				}
-			}
-		}
-		if err != nil {
-			return nil, err
-		}
+		return nil, err
 	}
 	defer rows.Close()
 
@@ -357,29 +248,10 @@ func (ps *psqlStorage) ReadGauge(
 func (ps *psqlStorage) ReadCounter(
 	ctx context.Context,
 ) (map[string]int64, error) {
-	query := `SELECT name, value FROM counter;`
-
-	rows, err := ps.db.QueryContext(ctx, query)
-
+	stmt := `SELECT name, value FROM counter;`
+	rows, err := queryWithRetries(ctx, ps.db, stmt, "Read counter")
 	if err != nil {
-	retry:
-		for _, wait := range tries {
-			logger.Log.Debug(
-				"Read counter", zap.Duration("try_after", wait), zap.Error(err),
-			)
-			select {
-			case <-ctx.Done():
-				break retry
-			case <-time.After(wait):
-				rows, err = ps.db.QueryContext(ctx, query)
-				if err == nil {
-					break retry
-				}
-			}
-		}
-		if err != nil {
-			return nil, err
-		}
+		return nil, err
 	}
 	defer rows.Close()
 
@@ -402,7 +274,7 @@ func (ps *psqlStorage) ReadCounter(
 }
 
 func (ps *psqlStorage) createTables(ctx context.Context) {
-	query := `
+	stmt := `
 	CREATE TABLE IF NOT EXISTS gauge (
 	    name TEXT PRIMARY KEY,
 		value DOUBLE PRECISION NOT NULL
@@ -413,14 +285,99 @@ func (ps *psqlStorage) createTables(ctx context.Context) {
 		value BIGINT NOT NULL
 	);`
 
-	queryFn := func() error {
-		_, err := ps.db.ExecContext(ctx, query)
+	_, err := execWithRetries(ctx, ps.db, stmt, "Create tables")
+	if err != nil {
+		logger.Log.Error("Crate tables", zap.Error(err))
+	}
+}
+
+func (ps *psqlStorage) waitStop(stopCtx context.Context, wg *sync.WaitGroup) {
+	defer wg.Done()
+	<-stopCtx.Done()
+	if err := ps.Close(); err != nil {
+		logger.Log.Error("Database connection close error", zap.Error(err))
+		return
+	}
+	logger.Log.Debug("Database disconnected")
+}
+
+const tryAfter = "tryAfter"
+
+func execWithRetries(
+	ctx context.Context, db *sql.DB, stmt, logPrefix string, args ...any,
+) (sql.Result, error) {
+	result, err := db.ExecContext(ctx, stmt, args...)
+	if err != nil {
+	retries:
+		for _, interval := range waitIntervals {
+			logger.Log.Debug(logPrefix, zap.Duration(tryAfter, interval))
+			select {
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			case <-time.After(interval):
+				result, err = db.ExecContext(ctx, stmt, args...)
+				if err == nil {
+					break retries
+				}
+			}
+		}
+	}
+	return result, err
+}
+
+func queryWithRetries(
+	ctx context.Context, db *sql.DB, stmt, logPrefix string, args ...any,
+) (*sql.Rows, error) {
+	rows, err := db.QueryContext(ctx, stmt, args...)
+
+	if err != nil {
+	retries:
+		for _, interval := range waitIntervals {
+			logger.Log.Debug(
+				logPrefix, zap.Duration(tryAfter, interval), zap.Error(err),
+			)
+			select {
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			case <-time.After(interval):
+				rows, err = db.QueryContext(ctx, stmt, args...)
+				if err == nil {
+					break retries
+				}
+			}
+		}
+	}
+
+	return rows, err
+}
+
+func scanRowWithRetries(
+	ctx context.Context, row *sql.Row, logPrefix string, args ...any,
+) error {
+	err := row.Scan(args...)
+	if errors.Is(err, sql.ErrNoRows) {
 		return err
 	}
 
-	repeat.WithTries(
-		"PSQL storage create tables",
-		tries,
-		queryFn,
-	)
+	if err != nil {
+	retries:
+		for _, interval := range waitIntervals {
+			logger.Log.Info(
+				logPrefix,
+				zap.Duration(tryAfter, interval),
+				zap.Error(err),
+			)
+			select {
+			case <-ctx.Done():
+				return err
+			case <-time.After(interval):
+				err = row.Scan(args...)
+				if err == nil || errors.Is(err, sql.ErrNoRows) {
+					break retries
+				}
+			}
+		}
+	}
+
+	return err
 }

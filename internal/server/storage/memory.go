@@ -51,8 +51,16 @@ func newMemory(
 	return &ms
 }
 
-func (ms *memoryStorage) CheckDB(_ context.Context) error {
-	return errors.New("database: is not used")
+// Restoring file, starting save interval and waiting graceful shutdown
+func (ms *memoryStorage) Run(stopCtx context.Context, wg *sync.WaitGroup) {
+	ms.restoreFile()
+
+	if !ms.isSync() {
+		go ms.intervalSave()
+	}
+
+	wg.Add(1)
+	go ms.waitStop(stopCtx, wg)
 }
 
 func (ms *memoryStorage) UpdateCounterByName(
@@ -143,22 +151,6 @@ func (ms *memoryStorage) ReadCounter(
 	return counter, nil
 }
 
-// Restoring file, starting save interval and waiting graceful shutdown
-func (ms *memoryStorage) Run(ctx context.Context, wg *sync.WaitGroup) {
-	ms.restoreFile()
-
-	if !ms.isSync() {
-		go ms.intervalSave()
-	}
-
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		<-ctx.Done()
-		ms.close()
-	}()
-}
-
 func (ms *memoryStorage) restoreFile() {
 
 	if !ms.restore {
@@ -217,4 +209,12 @@ func (ms *memoryStorage) close() {
 	} else {
 		logger.Log.Debug("Storage file closed properly")
 	}
+}
+
+func (ms *memoryStorage) waitStop(
+	stopCtx context.Context, wg *sync.WaitGroup,
+) {
+	defer wg.Done()
+	<-stopCtx.Done()
+	ms.close()
 }
