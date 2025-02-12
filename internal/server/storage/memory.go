@@ -3,7 +3,9 @@ package storage
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"sync"
 	"time"
 
@@ -58,14 +60,10 @@ func (ms *memoryStorage) UpdateCounterByName(
 	_ context.Context, name string, value int64,
 ) (int64, error) {
 	ms.mu.Lock()
+	defer ms.mu.Unlock()
 	prev := ms.data.Counter[name]
 	current := prev + value
 	ms.data.Counter[name] = current
-	ms.mu.Unlock()
-
-	if ms.isSync() {
-		ms.save()
-	}
 	return current, nil
 }
 
@@ -73,12 +71,8 @@ func (ms *memoryStorage) UpdateGaugeByName(
 	_ context.Context, name string, value float64,
 ) (float64, error) {
 	ms.mu.Lock()
+	defer ms.mu.Unlock()
 	ms.data.Gauge[name] = value
-	ms.mu.Unlock()
-
-	if ms.isSync() {
-		ms.save()
-	}
 	return value, nil
 }
 
@@ -151,22 +145,19 @@ func (ms *memoryStorage) ReadCounter(
 }
 
 func (ms *memoryStorage) restoreData() {
+
 	if !ms.restore {
 		ms.fo.Clear()
 		return
 	}
 
 	rawData, err := ms.fo.Load()
-	if err != nil {
+	switch {
+	case errors.Is(err, io.EOF):
+		logger.Log.Info("File is empty")
+	case err != nil:
 		logger.Log.Error("FileOperator load", zap.Error(err))
-		return
 	}
-
-	if len(rawData) == 0 {
-		logger.Log.Info("Storage file is empty")
-		return
-	}
-
 	var data storageData
 	err = json.Unmarshal(rawData, &data)
 	if err != nil {
