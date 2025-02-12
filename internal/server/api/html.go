@@ -5,17 +5,14 @@ import (
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/niksmo/runlytics/pkg/di"
 )
 
 type HTMLHandler struct {
-	service HTMLService
+	service di.HTMLService
 }
 
-type HTMLService interface {
-	RenderMetricsList(buf *bytes.Buffer) error
-}
-
-func SetHTMLHandler(mux *chi.Mux, service HTMLService) {
+func SetHTMLHandler(mux *chi.Mux, service di.HTMLService) {
 	path := "/"
 	handler := &HTMLHandler{service}
 	mux.Route(path, func(r chi.Router) {
@@ -26,15 +23,18 @@ func SetHTMLHandler(mux *chi.Mux, service HTMLService) {
 
 func (handler *HTMLHandler) get() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-
 		var buf bytes.Buffer
-		if err := handler.service.RenderMetricsList(&buf); err != nil {
+		err := handler.service.RenderMetricsList(r.Context(), &buf)
+		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 
 		w.Header().Set(ContentType, "text/html; charset=utf-8")
 		w.WriteHeader(http.StatusOK)
-		buf.WriteTo(w)
+		if _, err = buf.WriteTo(w); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
 	}
 }

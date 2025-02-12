@@ -1,42 +1,45 @@
 package service
 
 import (
-	"fmt"
+	"context"
 
-	"github.com/niksmo/runlytics/internal/schemas"
 	"github.com/niksmo/runlytics/internal/server"
+	"github.com/niksmo/runlytics/pkg/di"
+	"github.com/niksmo/runlytics/pkg/metrics"
 )
 
 type ReadService struct {
-	repository ReadByNameRepository
+	repository di.ReadByNameRepository
 }
 
-type ReadByNameRepository interface {
-	ReadCounterByName(name string) (int64, error)
-	ReadGaugeByName(name string) (float64, error)
-}
-
-func NewReadService(repository ReadByNameRepository) *ReadService {
+func NewValueService(repository di.ReadByNameRepository) *ReadService {
 	return &ReadService{repository}
 }
 
-func (service *ReadService) Read(metrics *schemas.Metrics) error {
-	switch metrics.MType {
-	case server.MTypeGauge:
-		v, err := service.repository.ReadGaugeByName(metrics.ID)
+func (service *ReadService) Read(
+	ctx context.Context, scheme *metrics.MetricsRead,
+) (di.Metrics, error) {
+	switch scheme.MType {
+	case metrics.MTypeGauge:
+		value, err := service.repository.ReadGaugeByName(ctx, scheme.ID)
 		if err != nil {
-			return err
+			return nil, err
 		}
-		metrics.Value = &v
-	case server.MTypeCounter:
-		v, err := service.repository.ReadCounterByName(metrics.ID)
+		mGauge := metrics.MetricsGauge{
+			ID: scheme.ID, MType: scheme.MType, Value: value,
+		}
+		return mGauge, nil
+
+	case metrics.MTypeCounter:
+		delta, err := service.repository.ReadCounterByName(ctx, scheme.ID)
 		if err != nil {
-			return err
+			return nil, err
 		}
-		metrics.Delta = &v
-	default:
-		return fmt.Errorf("wrong type value: '%s'. Expect 'counter' or 'gauge'", metrics.MType)
+		mCounter := metrics.MetricsCounter{
+			ID: scheme.ID, MType: scheme.MType, Delta: delta,
+		}
+		return mCounter, nil
 	}
 
-	return nil
+	return nil, server.ErrInternal
 }

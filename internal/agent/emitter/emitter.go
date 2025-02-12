@@ -10,19 +10,16 @@ import (
 	"time"
 
 	"github.com/niksmo/runlytics/internal/logger"
-	"github.com/niksmo/runlytics/internal/schemas"
-	"github.com/niksmo/runlytics/internal/server"
+	"github.com/niksmo/runlytics/pkg/di"
+	"github.com/niksmo/runlytics/pkg/metrics"
 	"go.uber.org/zap"
 )
 
-type MetricsData interface {
-	GetGaugeMetrics() map[string]float64
-	GetCounterMetrics() map[string]int64
-}
+var waitIntervals = []time.Duration{time.Second, 3 * time.Second, 5 * time.Second}
 
 type HTTPEmitter struct {
 	interval        time.Duration
-	metricsData     MetricsData
+	metricsData     di.GaugeCounterMetricsGetter
 	client          *http.Client
 	baseURL         *url.URL
 	prevPollCounter int64
@@ -30,12 +27,17 @@ type HTTPEmitter struct {
 
 func New(
 	interval time.Duration,
-	metricsData MetricsData,
+	metricsData di.GaugeCounterMetricsGetter,
 	client *http.Client,
 	baseURL *url.URL,
 ) *HTTPEmitter {
-
-	return &HTTPEmitter{interval, metricsData, client, baseURL, int64(0)}
+	return &HTTPEmitter{
+		interval:        interval,
+		metricsData:     metricsData,
+		client:          client,
+		baseURL:         baseURL,
+		prevPollCounter: 0,
+	}
 }
 
 func (e *HTTPEmitter) Run() {
@@ -48,32 +50,42 @@ func (e *HTTPEmitter) Run() {
 	for {
 		logger.Log.Debug("Wait", zap.Float64("seconds", e.interval.Seconds()))
 		time.Sleep(e.interval)
-		e.emitGauge()
-		e.emitCounter()
+		e.emit()
 	}
 }
 
-func (e *HTTPEmitter) emitGauge() {
-	logger.Log.Debug("Emit gauge metrics")
+func (e *HTTPEmitter) emit() {
+	var batch metrics.MetricsBatchUpdate
+
 	for name, value := range e.metricsData.GetGaugeMetrics() {
-		gaugeMetrics := schemas.Metrics{ID: name, MType: server.MTypeGauge, Value: &value}
-		e.post(gaugeMetrics)
+		batch = append(
+			batch,
+			metrics.MetricsUpdate{
+				ID: name, MType: metrics.MTypeGauge, Value: &value,
+			},
+		)
 	}
-}
 
-func (e *HTTPEmitter) emitCounter() {
-	logger.Log.Debug("Emit counter metrics")
 	for name, value := range e.metricsData.GetCounterMetrics() {
-		delta := value - e.prevPollCounter
-		e.prevPollCounter = value
-		counterMetrics := schemas.Metrics{ID: name, MType: server.MTypeCounter, Delta: &delta}
+		if name == "PollCount" {
+			prev := e.prevPollCounter
+			e.prevPollCounter = value
+			value = value - prev
+		}
+		batch = append(
+			batch,
+			metrics.MetricsUpdate{
+				ID: name, MType: metrics.MTypeCounter, Delta: &value,
+			},
+		)
 
-		e.post(counterMetrics)
 	}
+
+	e.post(batch)
 }
 
-func (e *HTTPEmitter) post(metrics schemas.Metrics) {
-	reqURL := e.baseURL.JoinPath("update").String()
+func (e *HTTPEmitter) post(metrics metrics.MetricsBatchUpdate) {
+	reqURL := e.baseURL.JoinPath("updates").String()
 	logger.Log.Info(
 		"Start request",
 		zap.String("URL", reqURL),
@@ -88,7 +100,6 @@ func (e *HTTPEmitter) post(metrics schemas.Metrics) {
 	}
 	gzipWriter.Close()
 
-	start := time.Now()
 	request, err := http.NewRequest("POST", reqURL, &buf)
 	if err != nil {
 		logger.Log.Warn("Error while creating http request", zap.Error(err))
@@ -97,7 +108,8 @@ func (e *HTTPEmitter) post(metrics schemas.Metrics) {
 	request.Header.Set("Content-Encoding", "gzip")
 	request.Header.Set("Accept-Encoding", "gzip")
 
-	res, err := e.client.Do(request)
+	start := time.Now()
+	res, err := doRequestWithRetries(e.client, request)
 	if err != nil {
 		logger.Log.Info(
 			"Got response",
@@ -110,20 +122,17 @@ func (e *HTTPEmitter) post(metrics schemas.Metrics) {
 	}
 	defer res.Body.Close()
 
-	var data []byte
-
 	if res.Header.Get("Content-Encoding") == "gzip" {
-		var gzipReader *gzip.Reader
-		gzipReader, err = gzip.NewReader(res.Body)
+		gzipReader, err := gzip.NewReader(res.Body)
 
 		if err != nil {
 			logger.Log.Warn("Error while creating new gzip reader", zap.Error(err))
 		}
-
-		data, err = io.ReadAll(gzipReader)
-	} else {
-		data, err = io.ReadAll(res.Body)
+		res.Body = gzipReader
 	}
+
+	var data []byte
+	data, err = io.ReadAll(res.Body)
 
 	if err != nil {
 		logger.Log.Error("Read response data error", zap.Error(err))
@@ -138,4 +147,21 @@ func (e *HTTPEmitter) post(metrics schemas.Metrics) {
 		zap.String("data", string(data)),
 	)
 
+}
+
+func doRequestWithRetries(
+	client *http.Client, req *http.Request,
+) (*http.Response, error) {
+	res, err := client.Do(req)
+	if err != nil {
+		for _, interval := range waitIntervals {
+			logger.Log.Debug("Do request", zap.Duration("tryAfter", interval), zap.Error(err))
+			time.Sleep(interval)
+			res, err = client.Do(req)
+			if err == nil {
+				break
+			}
+		}
+	}
+	return res, err
 }

@@ -1,27 +1,10 @@
 package server
 
-const (
-	MTypeGauge   = "gauge"
-	MTypeCounter = "counter"
+import (
+	"errors"
 )
 
-type MetricType string
-
-const (
-	Counter MetricType = "counter"
-	Gauge   MetricType = "gauge"
+var (
+	ErrNotExists = errors.New("not exists")
+	ErrInternal  = errors.New("internal server error")
 )
-
-type RepoUpdate interface {
-	SetCounter(name string, value int64)
-	SetGauge(name string, value float64)
-}
-
-type RepoReadByName interface {
-	GetCounter(name string) (int64, error)
-	GetGauge(name string) (float64, error)
-}
-
-type RepoRead interface {
-	GetData() (map[string]float64, map[string]int64)
-}

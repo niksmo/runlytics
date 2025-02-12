@@ -1,82 +1,65 @@
 package service
 
 import (
-	"fmt"
-	"strings"
+	"context"
 
-	"github.com/niksmo/runlytics/internal/logger"
-	"github.com/niksmo/runlytics/internal/schemas"
 	"github.com/niksmo/runlytics/internal/server"
-	"go.uber.org/zap"
+	"github.com/niksmo/runlytics/pkg/di"
+	"github.com/niksmo/runlytics/pkg/metrics"
 )
 
-const emptyFieldStatus = "field is empty"
-
-type ErrMetricsField []error
-
-func (e ErrMetricsField) Error() string {
-	var s []string
-	for _, err := range e {
-		s = append(s, err.Error())
-	}
-	return strings.Join(s, "; ")
-}
-
 type UpdateService struct {
-	repository UpdateRepository
+	repository di.UpdateRepository
 }
 
-type UpdateRepository interface {
-	UpdateCounterByName(name string, value int64) int64
-	UpdateGaugeByName(name string, value float64) float64
-}
-
-func NewUpdateService(repository UpdateRepository) *UpdateService {
+func NewUpdateService(repository di.UpdateRepository) *UpdateService {
 	return &UpdateService{repository}
 }
 
-func (service *UpdateService) Update(metrics *schemas.Metrics) error {
-	var errs ErrMetricsField
-	if metrics.ID == "" {
-		errs = append(errs, fmt.Errorf("'id' %s", emptyFieldStatus))
+func (s *UpdateService) Update(
+	ctx context.Context, scheme *metrics.MetricsUpdate,
+) (di.Metrics, error) {
+	if scheme == nil {
+		return nil, server.ErrInternal
 	}
 
-	switch metrics.MType {
-	case server.MTypeGauge:
-		if metrics.Value == nil {
-			errs = append(errs, fmt.Errorf("'value' %s", emptyFieldStatus))
-		} else {
-			v := service.repository.UpdateGaugeByName(
-				metrics.ID,
-				*metrics.Value,
-			)
-			metrics.Value = &v
-		}
-	case server.MTypeCounter:
-		if metrics.Delta == nil {
-			errs = append(errs, fmt.Errorf("'delta' %s", emptyFieldStatus))
-		} else {
-			v := service.repository.UpdateCounterByName(
-				metrics.ID,
-				*metrics.Delta,
-			)
-			metrics.Delta = &v
-		}
-	default:
-		errs = append(
-			errs,
-			fmt.Errorf("wrong type value: '%s'. Expect 'counter' or 'gauge'", metrics.MType),
-		)
+	switch scheme.MType {
+	case metrics.MTypeGauge:
+		return s.updateGauge(ctx, scheme)
+	case metrics.MTypeCounter:
+		return s.updateCounter(ctx, scheme)
 	}
+	return nil, server.ErrInternal
+}
 
-	if len(errs) != 0 {
-		logger.Log.Debug(
-			"The metrics have not been updated",
-			zap.String("metricsID", metrics.ID),
-			zap.Error(errs),
-		)
-		return errs
+func (s *UpdateService) updateGauge(
+	ctx context.Context, scheme *metrics.MetricsUpdate,
+) (metrics.MetricsGauge, error) {
+	if scheme.Value == nil {
+		return metrics.MetricsGauge{}, server.ErrInternal
 	}
+	value, err := s.repository.UpdateGaugeByName(ctx, scheme.ID, *scheme.Value)
+	if err != nil {
+		return metrics.MetricsGauge{}, err
+	}
+	mGauge := metrics.MetricsGauge{
+		ID: scheme.ID, MType: scheme.MType, Value: value,
+	}
+	return mGauge, nil
+}
 
-	return nil
+func (s *UpdateService) updateCounter(
+	ctx context.Context, scheme *metrics.MetricsUpdate,
+) (metrics.MetricsCounter, error) {
+	if scheme.Delta == nil {
+		return metrics.MetricsCounter{}, server.ErrInternal
+	}
+	delta, err := s.repository.UpdateCounterByName(ctx, scheme.ID, *scheme.Delta)
+	if err != nil {
+		return metrics.MetricsCounter{}, err
+	}
+	mCounter := metrics.MetricsCounter{
+		ID: scheme.ID, MType: scheme.MType, Delta: delta,
+	}
+	return mCounter, nil
 }

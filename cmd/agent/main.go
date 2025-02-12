@@ -11,7 +11,7 @@ import (
 func main() {
 	parseFlags()
 
-	logger.Initialize(flagLog)
+	logger.Init(flagLog)
 
 	logger.Log.Debug("Start agent")
 

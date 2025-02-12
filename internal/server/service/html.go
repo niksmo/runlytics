@@ -2,25 +2,25 @@ package service
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"html/template"
 	"slices"
 	"strconv"
+	"sync"
 
 	"github.com/niksmo/runlytics/internal/logger"
+	"github.com/niksmo/runlytics/internal/server"
+	"github.com/niksmo/runlytics/pkg/di"
 	"go.uber.org/zap"
 )
 
 type HTMLService struct {
 	template   *template.Template
-	repository ReadRepository
-}
-type ReadRepository interface {
-	ReadCounter() map[string]int64
-	ReadGauge() map[string]float64
+	repository di.ReadRepository
 }
 
-func NewHTMLService(repository ReadRepository) *HTMLService {
+func NewHTMLService(repository di.ReadRepository) *HTMLService {
 	text := `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -48,9 +48,42 @@ func NewHTMLService(repository ReadRepository) *HTMLService {
 	}
 }
 
-func (s *HTMLService) RenderMetricsList(buf *bytes.Buffer) error {
-	gauge := s.repository.ReadGauge()
-	counter := s.repository.ReadCounter()
+func (s *HTMLService) RenderMetricsList(ctx context.Context, buf *bytes.Buffer) error {
+	var (
+		wg       sync.WaitGroup
+		gauge    map[string]float64
+		counter  map[string]int64
+		errSlice []error
+	)
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		var err error
+		gauge, err = s.repository.ReadGauge(ctx)
+		if err != nil {
+			errSlice = append(errSlice, err)
+			logger.Log.Error("Read all gauge metrics", zap.Error(err))
+		}
+	}()
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		var err error
+		counter, err = s.repository.ReadCounter(ctx)
+		if err != nil {
+			errSlice = append(errSlice, err)
+			logger.Log.Error("Read all counter metrics", zap.Error(err))
+		}
+	}()
+
+	wg.Wait()
+
+	if len(errSlice) != 0 {
+		return server.ErrInternal
+	}
+
 	render := make([]string, 0, len(gauge)+len(counter))
 
 	for k, v := range gauge {
