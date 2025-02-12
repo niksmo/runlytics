@@ -12,7 +12,7 @@ func New(driver, dsn string, logger di.Logger) *sql.DB {
 		logger.Infow("SQL driver initialization", "error", err)
 	}
 	if err = db.Ping(); err != nil {
-		logger.Infow("Database ping", "error", err)
+		logger.Debugw("Database ping", "error", err)
 	}
 	return db
 }
