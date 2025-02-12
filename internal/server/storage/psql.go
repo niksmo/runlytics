@@ -9,13 +9,12 @@ import (
 	"time"
 
 	"github.com/niksmo/runlytics/internal/logger"
-	"github.com/niksmo/runlytics/internal/repeat"
 	"github.com/niksmo/runlytics/internal/server"
 	"github.com/niksmo/runlytics/pkg/metrics"
 	"go.uber.org/zap"
 )
 
-var waitIntervals = []time.Duration{time.Second, 3 * time.Second, 5 * time.Second, 5 * time.Second, 5 * time.Second}
+var waitIntervals = []time.Duration{time.Second, 3 * time.Second}
 
 type psqlStorage struct {
 	db *sql.DB
@@ -40,6 +39,7 @@ func (ps *psqlStorage) Close() error {
 func (ps *psqlStorage) UpdateCounterByName(
 	ctx context.Context, name string, value int64,
 ) (int64, error) {
+	logPrefix := "Update counter by name"
 	stmt := `INSERT INTO counter (name, value)
 			 VALUES ($1, $2)
 			 ON CONFLICT (name) DO UPDATE SET
@@ -48,17 +48,19 @@ func (ps *psqlStorage) UpdateCounterByName(
 	row := ps.db.QueryRowContext(ctx, stmt, name, value)
 
 	var retValue int64
-	err := scanRowWithRetries(ctx, row, "Update counter by", &retValue)
+	err := scanRowWithRetries(ctx, row, logPrefix, &retValue)
 	if err != nil {
+		logger.Log.Error(logPrefix+": scan row", zap.Error(err))
 		return 0, err
 	}
 
-	return retValue, err
+	return retValue, nil
 }
 
 func (ps *psqlStorage) UpdateGaugeByName(
 	ctx context.Context, name string, value float64,
 ) (float64, error) {
+	logPrefix := "Update gauge by name"
 	stmt := `INSERT INTO gauge (name, value)
 			 VALUES ($1, $2)
 			 ON CONFLICT (name) DO UPDATE SET
@@ -69,160 +71,145 @@ func (ps *psqlStorage) UpdateGaugeByName(
 	var retValue float64
 	err := scanRowWithRetries(ctx, row, "Update gauge by name", &retValue)
 	if err != nil {
+		logger.Log.Error(logPrefix+": scan row", zap.Error(err))
 		return 0, err
 	}
 
-	return retValue, err
+	return retValue, nil
 }
 
 func (ps *psqlStorage) UpdateCounterList(
 	ctx context.Context, mSlice []metrics.MetricsCounter,
 ) error {
-
-	var (
-		tx  *sql.Tx
-		err error
+	logPrefix := "Update counter list"
+	tx, err := beginTxWithRetries(
+		ctx, ps.db, logPrefix+": begin transaction", nil,
 	)
-
-	queryFn := func() error {
-		tx, err = ps.db.BeginTx(ctx, nil)
-		return err
-	}
-	repeat.WithTries("Update counter list begin transaction", waitIntervals, queryFn)
 	if err != nil {
+		logger.Log.Error(logPrefix+": begin transaction", zap.Error(err))
 		return err
 	}
+	stmt, err := tx.PrepareContext(
+		ctx,
+		`INSERT INTO counter (name, value)
+		 VALUES ($1, $2)
+		 ON CONFLICT (name) DO UPDATE SET
+		 value = (SELECT value FROM counter WHERE name=$1) + EXCLUDED.value;`,
+	)
+	if err != nil {
+		logger.Log.Error(logPrefix+": prepare", zap.Error(err))
+		return err
+	}
+	defer stmt.Close()
 
 	for _, item := range mSlice {
-		_, err = tx.ExecContext(
-			ctx,
-			`INSERT INTO counter (name, value)
-		     VALUES ($1, $2)
-		     ON CONFLICT (name) DO UPDATE SET
-		     value = (SELECT value FROM counter WHERE name=$1) + EXCLUDED.value;`,
-			item.ID,
-			item.Delta,
-		)
+		_, err = stmt.ExecContext(ctx, item.ID, item.Delta)
 		if err != nil {
-			repeat.WithTries(
-				"Update counter list rollback",
-				waitIntervals,
-				func() error {
-					err = tx.Rollback()
-					return err
-				},
-			)
-			return err
+			err = rollbackWithRetries(ctx, tx, logPrefix+": rollback")
+			if err != nil {
+				logger.Log.Error(logPrefix+": rollback", zap.Error(err))
+				return err
+			}
 		}
 	}
 
-	repeat.WithTries(
-		"Update counter list commit",
-		waitIntervals,
-		func() error {
-			err = tx.Commit()
-			return err
-		},
-	)
-	return err
+	if err = commitWithRetries(ctx, tx, logPrefix+": commit"); err != nil {
+		logger.Log.Error(logPrefix+": commit", zap.Error(err))
+		return err
+	}
+	return nil
 }
 
 func (ps *psqlStorage) UpdateGaugeList(
 	ctx context.Context, mSlice []metrics.MetricsGauge,
 ) error {
-	var (
-		tx  *sql.Tx
-		err error
-	)
-
-	repeat.WithTries(
-		"Update gauge list begin transaction",
-		waitIntervals,
-		func() error {
-			tx, err = ps.db.BeginTx(ctx, nil)
-			return err
-		},
+	logPrefix := "Update gauge list"
+	tx, err := beginTxWithRetries(
+		ctx, ps.db, logPrefix+": begin transaction", nil,
 	)
 	if err != nil {
+		logger.Log.Error(logPrefix+": begin transaction", zap.Error(err))
 		return err
 	}
+	stmt, err := tx.PrepareContext(
+		ctx,
+		`INSERT INTO gauge (name, value)
+	     VALUES ($1, $2)
+		 ON CONFLICT (name) DO UPDATE SET
+		 value = EXCLUDED.value;`,
+	)
+	if err != nil {
+		logger.Log.Error(logPrefix+": prepare", zap.Error(err))
+		return err
+	}
+	defer stmt.Close()
 
 	for _, item := range mSlice {
-		_, err = tx.ExecContext(
-			ctx,
-			`INSERT INTO gauge (name, value)
-		    VALUES ($1, $2)
-		    ON CONFLICT (name) DO UPDATE SET
-		    value = EXCLUDED.value;`,
-			item.ID,
-			item.Value,
-		)
+		_, err = stmt.ExecContext(ctx, item.ID, item.Value)
 		if err != nil {
-			repeat.WithTries(
-				"Update gauge list rollback",
-				waitIntervals,
-				func() error {
-					err = tx.Rollback()
-					return err
-				},
-			)
-			return err
+			err = rollbackWithRetries(ctx, tx, logPrefix+": rollback")
+			if err != nil {
+				logger.Log.Error(logPrefix+": rollback", zap.Error(err))
+				return err
+			}
 		}
 	}
 
-	repeat.WithTries(
-		"Update gauge list commit",
-		waitIntervals,
-		func() error {
-			err = tx.Commit()
-			return err
-		},
-	)
-	return err
+	if err = commitWithRetries(ctx, tx, logPrefix+": commit"); err != nil {
+		logger.Log.Error(logPrefix+": commit", zap.Error(err))
+		return err
+	}
+	return nil
 }
 
 func (ps *psqlStorage) ReadCounterByName(
 	ctx context.Context, name string,
 ) (int64, error) {
+	logPrefix := "Read counter by name"
 	stmt := `SELECT value FROM counter WHERE name = $1;`
 	row := ps.db.QueryRow(stmt, name)
 
 	var value int64
-	err := scanRowWithRetries(ctx, row, "Read counter by name", &value)
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			err = fmt.Errorf("metric '%s' is %w", name, server.ErrNotExists)
-		}
+	err := scanRowWithRetries(ctx, row, logPrefix, &value)
+	switch {
+	case errors.Is(err, sql.ErrNoRows):
+		return 0, fmt.Errorf("metric '%s' is %w", name, server.ErrNotExists)
+	case err != nil:
+		logger.Log.Error(logPrefix+": scan row", zap.Error(err))
 		return 0, err
 	}
 
-	return value, err
+	return value, nil
 }
 
 func (ps *psqlStorage) ReadGaugeByName(
 	ctx context.Context, name string,
 ) (float64, error) {
+	logPrefix := "Read gauge by name"
 	stmt := `SELECT value FROM gauge WHERE name = $1;`
 	row := ps.db.QueryRow(stmt, name)
 
 	var value float64
-	err := scanRowWithRetries(ctx, row, "Read gauge by name", &value)
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			err = fmt.Errorf("metric '%s' is %w", name, server.ErrNotExists)
-		}
+	err := scanRowWithRetries(ctx, row, logPrefix, &value)
+	switch {
+	case errors.Is(err, sql.ErrNoRows):
+		return 0, fmt.Errorf("metric '%s' is %w", name, server.ErrNotExists)
+	case err != nil:
+		logger.Log.Error(logPrefix+": scan row", zap.Error(err))
 		return 0, err
 	}
 
-	return value, err
+	return value, nil
 }
 
 func (ps *psqlStorage) ReadGauge(
 	ctx context.Context,
 ) (map[string]float64, error) {
+	logPrefix := "Read gauge"
 	stmt := `SELECT name, value FROM gauge;`
-	rows, err := queryWithRetries(ctx, ps.db, stmt, "Read gauge")
+	rows, err := queryWithRetries(ctx, ps.db, stmt, logPrefix)
 	if err != nil {
+		logger.Log.Error(logPrefix+": query", zap.Error(err))
 		return nil, err
 	}
 	defer rows.Close()
@@ -234,11 +221,13 @@ func (ps *psqlStorage) ReadGauge(
 	)
 	for rows.Next() {
 		if err = rows.Scan(&name, &value); err != nil {
+			logger.Log.Error(logPrefix+": scan rows", zap.Error(err))
 			return nil, err
 		}
 		gaugeMap[name] = value
 	}
 	if err = rows.Err(); err != nil {
+		logger.Log.Error(logPrefix+": after rows scan iteration", zap.Error(err))
 		return nil, err
 	}
 
@@ -248,9 +237,11 @@ func (ps *psqlStorage) ReadGauge(
 func (ps *psqlStorage) ReadCounter(
 	ctx context.Context,
 ) (map[string]int64, error) {
+	logPrefix := "Read counter"
 	stmt := `SELECT name, value FROM counter;`
-	rows, err := queryWithRetries(ctx, ps.db, stmt, "Read counter")
+	rows, err := queryWithRetries(ctx, ps.db, stmt, logPrefix)
 	if err != nil {
+		logger.Log.Error(logPrefix+": query", zap.Error(err))
 		return nil, err
 	}
 	defer rows.Close()
@@ -262,11 +253,13 @@ func (ps *psqlStorage) ReadCounter(
 	)
 	for rows.Next() {
 		if err = rows.Scan(&name, &value); err != nil {
+			logger.Log.Error(logPrefix+": scan rows", zap.Error(err))
 			return nil, err
 		}
 		counterMap[name] = value
 	}
 	if err = rows.Err(); err != nil {
+		logger.Log.Error(logPrefix+": after rows scan iteration", zap.Error(err))
 		return nil, err
 	}
 
@@ -274,20 +267,20 @@ func (ps *psqlStorage) ReadCounter(
 }
 
 func (ps *psqlStorage) createTables(ctx context.Context) {
+	logPrefix := "Create tables"
 	stmt := `
 	CREATE TABLE IF NOT EXISTS gauge (
 	    name TEXT PRIMARY KEY,
 		value DOUBLE PRECISION NOT NULL
 	);
-	
 	CREATE TABLE IF NOT EXISTS counter (
 	    name TEXT PRIMARY KEY,
 		value BIGINT NOT NULL
 	);`
 
-	_, err := execWithRetries(ctx, ps.db, stmt, "Create tables")
+	_, err := execWithRetries(ctx, ps.db, stmt, logPrefix)
 	if err != nil {
-		logger.Log.Error("Crate tables", zap.Error(err))
+		logger.Log.Error(logPrefix+": exec", zap.Error(err))
 	}
 }
 
@@ -295,7 +288,7 @@ func (ps *psqlStorage) waitStop(stopCtx context.Context, wg *sync.WaitGroup) {
 	defer wg.Done()
 	<-stopCtx.Done()
 	if err := ps.Close(); err != nil {
-		logger.Log.Error("Database connection close error", zap.Error(err))
+		logger.Log.Error("Database close connection", zap.Error(err))
 		return
 	}
 	logger.Log.Debug("Database disconnected")
@@ -379,5 +372,84 @@ func scanRowWithRetries(
 		}
 	}
 
+	return err
+}
+
+func beginTxWithRetries(
+	ctx context.Context, db *sql.DB, logPrefix string, opts *sql.TxOptions,
+) (*sql.Tx, error) {
+	tx, err := db.BeginTx(ctx, opts)
+	if err != nil {
+	retries:
+		for _, interval := range waitIntervals {
+			logger.Log.Info(
+				logPrefix,
+				zap.Duration(tryAfter, interval),
+				zap.Error(err),
+			)
+			select {
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			case <-time.After(interval):
+				tx, err = db.BeginTx(ctx, opts)
+				if err == nil {
+					break retries
+				}
+			}
+		}
+	}
+
+	return tx, err
+}
+
+func rollbackWithRetries(
+	ctx context.Context, tx *sql.Tx, logPrefix string,
+) error {
+	err := tx.Rollback()
+	if err != nil {
+	retries:
+		for _, interval := range waitIntervals {
+			logger.Log.Info(
+				logPrefix,
+				zap.Duration(tryAfter, interval),
+				zap.Error(err),
+			)
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			case <-time.After(interval):
+				err = tx.Rollback()
+				if err == nil {
+					break retries
+				}
+			}
+		}
+	}
+	return err
+}
+
+func commitWithRetries(
+	ctx context.Context, tx *sql.Tx, logPrefix string,
+) error {
+	err := tx.Commit()
+	if err != nil {
+	retries:
+		for _, interval := range waitIntervals {
+			logger.Log.Info(
+				logPrefix,
+				zap.Duration(tryAfter, interval),
+				zap.Error(err),
+			)
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			case <-time.After(interval):
+				err = tx.Commit()
+				if err == nil {
+					break retries
+				}
+			}
+		}
+	}
 	return err
 }

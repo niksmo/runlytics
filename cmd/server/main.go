@@ -15,6 +15,7 @@ import (
 	"github.com/niksmo/runlytics/internal/server/service"
 	"github.com/niksmo/runlytics/internal/server/storage"
 	"github.com/niksmo/runlytics/internal/server/validator"
+	"github.com/niksmo/runlytics/pkg/fileoperator"
 	"github.com/niksmo/runlytics/pkg/httpserver"
 	"github.com/niksmo/runlytics/pkg/sqldb"
 	"go.uber.org/zap"
@@ -40,7 +41,8 @@ func main() {
 	mux.Use(middleware.Gzip)
 
 	pgDB := sqldb.New("pgx", config.DatabaseDSN(), logger.Log.Sugar())
-	repository := storage.New(pgDB, config)
+	fileOperator := fileoperator.New(config.File())
+	repository := storage.New(pgDB, fileOperator, config)
 
 	api.SetHTMLHandler(mux, service.NewHTMLService(repository))
 

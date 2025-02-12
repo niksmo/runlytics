@@ -60,6 +60,13 @@ type MetricsParamsSchemeVerifier interface {
 	SchemeVerifier
 }
 
+type FileOperator interface {
+	Clear() (err error)
+	Load() ([]byte, error)
+	Save([]byte) (err error)
+	Close() error
+}
+
 type UpdateRepository interface {
 	UpdateCounterByName(ctx context.Context, name string, value int64) (int64, error)
 	UpdateGaugeByName(ctx context.Context, name string, value float64) (float64, error)

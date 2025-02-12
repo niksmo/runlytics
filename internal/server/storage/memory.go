@@ -6,12 +6,12 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"os"
 	"sync"
 	"time"
 
 	"github.com/niksmo/runlytics/internal/logger"
 	"github.com/niksmo/runlytics/internal/server"
+	"github.com/niksmo/runlytics/pkg/di"
 	"github.com/niksmo/runlytics/pkg/metrics"
 	"go.uber.org/zap"
 )
@@ -25,14 +25,12 @@ type memoryStorage struct {
 	mu       sync.RWMutex
 	data     storageData
 	interval time.Duration
-	file     *os.File
+	fo       di.FileOperator
 	restore  bool
-	encoder  *json.Encoder
-	decoder  *json.Decoder
 }
 
 func newMemory(
-	file *os.File, interval time.Duration, restore bool,
+	fo di.FileOperator, interval time.Duration, restore bool,
 ) *memoryStorage {
 	ms := memoryStorage{
 		data: storageData{
@@ -40,20 +38,15 @@ func newMemory(
 			Gauge:   make(map[string]float64),
 		},
 		interval: interval,
-		file:     file,
+		fo:       fo,
 		restore:  restore,
-		encoder:  json.NewEncoder(file),
-	}
-
-	if restore {
-		ms.decoder = json.NewDecoder(file)
 	}
 	return &ms
 }
 
 // Restoring file, starting save interval and waiting graceful shutdown
 func (ms *memoryStorage) Run(stopCtx context.Context, wg *sync.WaitGroup) {
-	ms.restoreFile()
+	ms.restoreData()
 
 	if !ms.isSync() {
 		go ms.intervalSave()
@@ -151,23 +144,24 @@ func (ms *memoryStorage) ReadCounter(
 	return counter, nil
 }
 
-func (ms *memoryStorage) restoreFile() {
+func (ms *memoryStorage) restoreData() {
 
 	if !ms.restore {
-		ms.file.Truncate(0)
+		ms.fo.Clear()
 		return
 	}
 
+	rawData, err := ms.fo.Load()
+	switch {
+	case errors.Is(err, io.EOF):
+		logger.Log.Info("File is empty")
+	case err != nil:
+		logger.Log.Error("FileOperator load", zap.Error(err))
+	}
 	var data storageData
-	err := ms.decoder.Decode(&data)
-	if errors.Is(err, io.EOF) {
-		logger.Log.Info("File storage is empty")
-		return
-	}
-
+	err = json.Unmarshal(rawData, &data)
 	if err != nil {
-		logger.Log.Error("JSON decode", zap.Error(err))
-		return
+		logger.Log.Error("JSON unmarshal", zap.Error(err))
 	}
 
 	ms.mu.Lock()
@@ -175,10 +169,7 @@ func (ms *memoryStorage) restoreFile() {
 	ms.mu.Unlock()
 	nMetrics := len(data.Counter) + len(data.Gauge)
 
-	logger.Log.Info(
-		"Restore metrics",
-		zap.Int("count", nMetrics),
-	)
+	logger.Log.Info("Restore metrics", zap.Int("count", nMetrics))
 }
 
 func (ms *memoryStorage) isSync() bool {
@@ -186,10 +177,13 @@ func (ms *memoryStorage) isSync() bool {
 }
 
 func (ms *memoryStorage) save() {
-	ms.file.Seek(0, 0)
 	ms.mu.RLock()
-	if err := ms.encoder.Encode(ms.data); err != nil {
-		logger.Log.Error("JSON encode", zap.Error(err))
+	rawData, err := json.Marshal(ms.data)
+	if err != nil {
+		logger.Log.Error("JSON marshal", zap.Error(err))
+	}
+	if err = ms.fo.Save(rawData); err != nil {
+		logger.Log.Error("FileOperator save", zap.Error(err))
 	}
 	ms.mu.RUnlock()
 	logger.Log.Debug("Save metrics to file")
@@ -204,10 +198,10 @@ func (ms *memoryStorage) intervalSave() {
 
 func (ms *memoryStorage) close() {
 	ms.save()
-	if err := ms.file.Close(); err != nil {
-		logger.Log.Error("Close storage file", zap.Error(err))
+	if err := ms.fo.Close(); err != nil {
+		logger.Log.Error("FileOperator close", zap.Error(err))
 	} else {
-		logger.Log.Debug("Storage file closed properly")
+		logger.Log.Debug("FileOperator closed properly")
 	}
 }
 
