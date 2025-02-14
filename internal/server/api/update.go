@@ -20,12 +20,16 @@ func SetUpdateHandler(
 	mux *chi.Mux,
 	service di.UpdateService,
 	validator di.MetricsParamsSchemeVerifier,
+	config di.KeyGetter,
 ) {
 	path := "/update"
 	handler := &UpdateHandler{service, validator}
 	mux.Route(path, func(r chi.Router) {
 		byJSONPath := "/"
-		r.With(middleware.AllowJSON).Post(byJSONPath, handler.updateByJSON())
+		r.With(
+			middleware.AllowJSON,
+			middleware.VerifyAndWriteSHA256(config.Key()),
+		).Post(byJSONPath, handler.updateByJSON())
 		debugLogRegister(path + byJSONPath)
 
 		byURLParamsPath := "/{type}/{name}/{value}"

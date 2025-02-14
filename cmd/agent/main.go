@@ -20,6 +20,7 @@ func main() {
 		zap.String("LOG_LVL", config.LogLvl()),
 		zap.String("POLL_INTERVAL", config.Poll().String()),
 		zap.String("REPORT_INTERVAL", config.Report().String()),
+		zap.String("KEY", config.Key()),
 	)
 
 	collector := collector.New(config.Poll())

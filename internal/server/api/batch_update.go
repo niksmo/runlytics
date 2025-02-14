@@ -18,12 +18,16 @@ func SetBatchUpdateHandler(
 	mux *chi.Mux,
 	service di.BatchUpdateService,
 	validator di.SchemeVerifier,
+	config di.ServerConfig,
 ) {
 	path := "/updates"
 	handler := &BatchUpdateHandler{service, validator}
 	mux.Route(path, func(r chi.Router) {
 		batchUpdate := "/"
-		r.With(middleware.AllowJSON).Post(batchUpdate, handler.batchUpdate())
+		r.With(
+			middleware.AllowJSON,
+			middleware.VerifyAndWriteSHA256(config.Key()),
+		).Post(batchUpdate, handler.batchUpdate())
 		debugLogRegister(path + batchUpdate)
 	})
 }

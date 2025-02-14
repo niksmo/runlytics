@@ -33,6 +33,7 @@ func main() {
 		zap.String("FILE_STORAGE_PATH", config.FileName()),
 		zap.Bool("RESTORE", config.Restore()),
 		zap.String("DATABASE_DSN", config.DatabaseDSN()),
+		zap.String("KEY", config.Key()),
 	)
 
 	mux := chi.NewRouter()
@@ -50,17 +51,20 @@ func main() {
 		mux,
 		service.NewUpdateService(repository),
 		validator.NewUpdateValidator(),
+		config,
 	)
 
 	api.SetBatchUpdateHandler(mux,
 		service.NewBatchUpdateService(repository),
 		validator.NewBatchUpdateValidator(),
+		config,
 	)
 
 	api.SetValueHandler(
 		mux,
 		service.NewValueService(repository),
 		validator.NewValueValidator(),
+		config,
 	)
 
 	api.SetHealthCheckHandler(mux, service.NewHealthCheckService(pgDB))

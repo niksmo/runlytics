@@ -5,6 +5,7 @@ import (
 	"compress/gzip"
 	"crypto/hmac"
 	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -141,7 +142,7 @@ func (e *HTTPEmitter) post(metrics metrics.MetricsBatchUpdate) {
 	data, err = io.ReadAll(res.Body)
 
 	if err != nil {
-		logger.Log.Error("Read response data error", zap.Error(err))
+		logger.Log.Error("Read response data", zap.Error(err))
 	}
 
 	logger.Log.Info(
@@ -176,8 +177,8 @@ func setHashHeader(req *http.Request, body []byte, key string) {
 	h := hmac.New(sha256.New, []byte(key))
 	_, err := h.Write(body)
 	if err == nil {
-		SHA256Sum := string(h.Sum(nil))
-		req.Header.Set("HashSHA256", SHA256Sum)
+		hexSHA256 := hex.EncodeToString(h.Sum(nil))
+		req.Header.Set("HashSHA256", hexSHA256)
 	} else {
 		logger.Log.Panic("Header set HashSHA256", zap.Error(err))
 	}

@@ -60,6 +60,12 @@ func (validator *MockUpdateValidator) VerifyParams(
 	return retArgs.Get(0).(*metrics.MetricsUpdate), retArgs.Error(1)
 }
 
+type MockUpdateConfig struct{}
+
+func (config *MockUpdateConfig) Key() string {
+	return ""
+}
+
 func TestUpdateByJSONHandler(t *testing.T) {
 	makeURL := func(serverURL string) string {
 		return serverURL + "/update/"
@@ -80,7 +86,7 @@ func TestUpdateByJSONHandler(t *testing.T) {
 		mockValidator.On("VerifyScheme", nil).Return(nil)
 		mux := chi.NewRouter()
 
-		SetUpdateHandler(mux, mockService, mockValidator)
+		SetUpdateHandler(mux, mockService, mockValidator, new(MockUpdateConfig))
 
 		for _, method := range methods {
 			s := httptest.NewServer(mux)
@@ -117,7 +123,7 @@ func TestUpdateByJSONHandler(t *testing.T) {
 		mockValidator.On("VerifyScheme", nil).Return(nil)
 		mux := chi.NewRouter()
 
-		SetUpdateHandler(mux, mockService, mockValidator)
+		SetUpdateHandler(mux, mockService, mockValidator, new(MockUpdateConfig))
 
 		s := httptest.NewServer(mux)
 		defer s.Close()
@@ -152,7 +158,7 @@ func TestUpdateByJSONHandler(t *testing.T) {
 		mockValidator.On("VerifyScheme", nil).Return(nil)
 		mux := chi.NewRouter()
 
-		SetUpdateHandler(mux, mockService, mockValidator)
+		SetUpdateHandler(mux, mockService, mockValidator, new(MockUpdateConfig))
 
 		s := httptest.NewServer(mux)
 		defer s.Close()
@@ -187,7 +193,7 @@ func TestUpdateByJSONHandler(t *testing.T) {
 		mockValidator.On("VerifyScheme", &schemeReq).Return(expectedErr)
 		mux := chi.NewRouter()
 
-		SetUpdateHandler(mux, mockService, mockValidator)
+		SetUpdateHandler(mux, mockService, mockValidator, new(MockUpdateConfig))
 
 		s := httptest.NewServer(mux)
 		defer s.Close()
@@ -226,7 +232,7 @@ func TestUpdateByJSONHandler(t *testing.T) {
 		mockValidator.On("VerifyScheme", &schemeReq).Return(nil)
 		mux := chi.NewRouter()
 
-		SetUpdateHandler(mux, mockService, mockValidator)
+		SetUpdateHandler(mux, mockService, mockValidator, new(MockUpdateConfig))
 
 		s := httptest.NewServer(mux)
 		defer s.Close()
@@ -269,7 +275,7 @@ func TestUpdateByJSONHandler(t *testing.T) {
 		mockValidator.On("VerifyScheme", &schemeReq).Return(nil)
 		mux := chi.NewRouter()
 
-		SetUpdateHandler(mux, mockService, mockValidator)
+		SetUpdateHandler(mux, mockService, mockValidator, new(MockUpdateConfig))
 
 		s := httptest.NewServer(mux)
 		defer s.Close()
@@ -308,7 +314,7 @@ func TestUpdateByJSONHandler(t *testing.T) {
 			mux.Use(middleware.AllowContentEncoding("gzip"))
 			mux.Use(middleware.Gzip)
 
-			SetUpdateHandler(mux, mockService, mockValidator)
+			SetUpdateHandler(mux, mockService, mockValidator, new(MockUpdateConfig))
 
 			s := httptest.NewServer(mux)
 			defer s.Close()
@@ -358,7 +364,7 @@ func TestUpdateByJSONHandler(t *testing.T) {
 			mux.Use(middleware.AllowContentEncoding("gzip"))
 			mux.Use(middleware.Gzip)
 
-			SetUpdateHandler(mux, mockService, mockValidator)
+			SetUpdateHandler(mux, mockService, mockValidator, new(MockUpdateConfig))
 
 			s := httptest.NewServer(mux)
 			defer s.Close()
@@ -413,7 +419,7 @@ func TestUpdateByJSONHandler(t *testing.T) {
 			mux.Use(middleware.AllowContentEncoding("gzip"))
 			mux.Use(middleware.Gzip)
 
-			SetUpdateHandler(mux, mockService, mockValidator)
+			SetUpdateHandler(mux, mockService, mockValidator, new(MockUpdateConfig))
 
 			s := httptest.NewServer(mux)
 			defer s.Close()
@@ -469,7 +475,7 @@ func TestUpdateByURLParamsHandler(t *testing.T) {
 		).Return(nil, nil)
 		mux := chi.NewRouter()
 
-		SetUpdateHandler(mux, mockService, mockValidator)
+		SetUpdateHandler(mux, mockService, mockValidator, new(MockUpdateConfig))
 
 		for _, method := range methods {
 			s := httptest.NewServer(mux)
@@ -510,7 +516,7 @@ func TestUpdateByURLParamsHandler(t *testing.T) {
 		).Return(nil, expectedErr)
 		mux := chi.NewRouter()
 
-		SetUpdateHandler(mux, mockService, mockValidator)
+		SetUpdateHandler(mux, mockService, mockValidator, new(MockUpdateConfig))
 		s := httptest.NewServer(mux)
 		defer s.Close()
 
@@ -548,7 +554,7 @@ func TestUpdateByURLParamsHandler(t *testing.T) {
 		).Return(&schemeUpdate, nil)
 		mux := chi.NewRouter()
 
-		SetUpdateHandler(mux, mockService, mockValidator)
+		SetUpdateHandler(mux, mockService, mockValidator, new(MockUpdateConfig))
 		s := httptest.NewServer(mux)
 		defer s.Close()
 
@@ -592,7 +598,7 @@ func TestUpdateByURLParamsHandler(t *testing.T) {
 		).Return(&schemeReq, nil)
 		mux := chi.NewRouter()
 
-		SetUpdateHandler(mux, mockService, mockValidator)
+		SetUpdateHandler(mux, mockService, mockValidator, new(MockUpdateConfig))
 		s := httptest.NewServer(mux)
 		defer s.Close()
 

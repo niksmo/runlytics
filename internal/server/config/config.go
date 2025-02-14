@@ -14,6 +14,7 @@ type Config struct {
 	fileStorage *fileStorage
 	database    database
 	isDatabase  bool
+	key         string
 }
 
 func Load() *Config {
@@ -29,7 +30,7 @@ func Load() *Config {
 
 	rawRestoreFlag := flag.Bool("r", restoreDefault, restoreUsage)
 	rawDatabaseDSNFlag := flag.String("d", databaseDSNDefault, databaseDSNUsage)
-
+	rawKeyFlag := flag.String("k", keyDefault, keyUsage)
 	flag.Parse()
 
 	database := makeDatabaseConfig(*rawDatabaseDSNFlag)
@@ -47,6 +48,7 @@ func Load() *Config {
 		),
 		database:   database,
 		isDatabase: isDatabase,
+		key:        getKeyFlag(*rawKeyFlag),
 	}
 
 	return &config
@@ -88,6 +90,10 @@ func (c *Config) IsDatabase() bool {
 
 func (c *Config) DatabaseDSN() string {
 	return c.database.dsn
+}
+
+func (c *Config) Key() string {
+	return c.key
 }
 
 func printUsedDefault(configField, value string) {
