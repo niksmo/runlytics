@@ -3,6 +3,8 @@ package emitter
 import (
 	"bytes"
 	"compress/gzip"
+	"crypto/hmac"
+	"crypto/sha256"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -23,20 +25,21 @@ type HTTPEmitter struct {
 	client          *http.Client
 	baseURL         *url.URL
 	prevPollCounter int64
+	key             string
 }
 
 func New(
-	interval time.Duration,
+	config di.AgentConfig,
 	metricsData di.GaugeCounterMetricsGetter,
 	client *http.Client,
-	baseURL *url.URL,
 ) *HTTPEmitter {
 	return &HTTPEmitter{
-		interval:        interval,
+		interval:        config.Report(),
 		metricsData:     metricsData,
 		client:          client,
-		baseURL:         baseURL,
+		baseURL:         config.Addr(),
 		prevPollCounter: 0,
+		key:             config.Key(),
 	}
 }
 
@@ -107,6 +110,9 @@ func (e *HTTPEmitter) post(metrics metrics.MetricsBatchUpdate) {
 	request.Header.Set("Content-Type", "application/json")
 	request.Header.Set("Content-Encoding", "gzip")
 	request.Header.Set("Accept-Encoding", "gzip")
+	if e.key != "" {
+		setHashHeader(request, buf.Bytes(), e.key)
+	}
 
 	start := time.Now()
 	res, err := doRequestWithRetries(e.client, request)
@@ -164,4 +170,15 @@ func doRequestWithRetries(
 		}
 	}
 	return res, err
+}
+
+func setHashHeader(req *http.Request, body []byte, key string) {
+	h := hmac.New(sha256.New, []byte(key))
+	_, err := h.Write(body)
+	if err == nil {
+		SHA256Sum := string(h.Sum(nil))
+		req.Header.Set("HashSHA256", SHA256Sum)
+	} else {
+		logger.Log.Panic("Header set HashSHA256", zap.Error(err))
+	}
 }

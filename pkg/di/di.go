@@ -3,12 +3,21 @@ package di
 import (
 	"bytes"
 	"context"
+	"net/url"
 	"os"
 	"sync"
 	"time"
 
 	"github.com/niksmo/runlytics/pkg/metrics"
 )
+
+type AgentConfig interface {
+	LogLvl() string
+	Addr() *url.URL
+	Poll() time.Duration
+	Report() time.Duration
+	Key() string
+}
 
 type ValueStringer interface {
 	StrconvValue() string

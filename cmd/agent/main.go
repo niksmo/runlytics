@@ -25,10 +25,9 @@ func main() {
 	collector := collector.New(config.Poll())
 
 	HTTPEmitter := emitter.New(
-		config.Report(),
+		config,
 		collector,
 		http.DefaultClient,
-		config.Addr(),
 	)
 
 	go collector.Run()

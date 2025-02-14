@@ -12,6 +12,7 @@ type Config struct {
 	addr   *url.URL
 	poll   time.Duration
 	report time.Duration
+	key    string
 }
 
 func Load() *Config {
@@ -19,6 +20,7 @@ func Load() *Config {
 	rawAddrFlag := flag.String("a", addrDefault, addrUsage)
 	rawPollFlag := flag.Int("p", pollDefault, pollUsage)
 	rawReportFlag := flag.Int("r", reportDefault, reportUsage)
+	rawKeyFlag := flag.String("k", keyDefault, keyUsage)
 	flag.Parse()
 
 	pollFlag := getPollFlag(*rawPollFlag)
@@ -33,6 +35,7 @@ func Load() *Config {
 		addr:   getAddrFlag(*rawAddrFlag),
 		poll:   pollFlag,
 		report: reportFlag,
+		key:    getKeyFlag(*rawKeyFlag),
 	}
 	return &config
 }
@@ -52,6 +55,10 @@ func (c *Config) Poll() time.Duration {
 
 func (c *Config) Report() time.Duration {
 	return c.report
+}
+
+func (c *Config) Key() string {
+	return c.key
 }
 
 func verifyPollVsReport(poll, report time.Duration) error {
