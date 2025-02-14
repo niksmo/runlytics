@@ -94,15 +94,15 @@ func printUsedDefault(configField, value string) {
 	fmt.Println("Used default", configField+":", value)
 }
 
-func printParamError(isEnv bool, envP, cliP, errText string) {
+func printParamError(isEnv bool, envP, cmdP, errText string) {
 	var prefix string
 	var p string
 	if isEnv {
 		prefix = "Env param"
 		p = envP
 	} else {
-		prefix = "CLI param"
-		p = cliP
+		prefix = "Cmd param"
+		p = cmdP
 	}
 	fmt.Println(prefix, p, errText)
 }
