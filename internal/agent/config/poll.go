@@ -14,6 +14,12 @@ const (
 )
 
 func getPollFlag(rawPoll int) time.Duration {
+	printMinIntervalErr := func(isEnv bool) {
+		printParamError(
+			isEnv, pollEnv, "-p", "should be more or equal 1 second",
+		)
+	}
+
 	var (
 		isEnv    bool
 		envValue string
@@ -26,15 +32,13 @@ func getPollFlag(rawPoll int) time.Duration {
 
 	if isEnv {
 		pollInt, err := strconv.Atoi(envValue)
-		if err == nil {
-			if pollInt >= minPollInterval {
-				return time.Duration(pollInt) * time.Second
-			}
-			printParamError(
-				isEnv, pollEnv, "-p", "should be more or equal 1 second",
-			)
-		} else {
+		switch {
+		case err != nil:
 			printParamError(isEnv, pollEnv, "-p", "invalid poll interval")
+		case pollInt >= minPollInterval:
+			return time.Duration(pollInt) * time.Second
+		default:
+			printMinIntervalErr(isEnv)
 		}
 		isEnv = false
 	}
@@ -43,9 +47,7 @@ func getPollFlag(rawPoll int) time.Duration {
 		if rawPoll >= minPollInterval {
 			return time.Duration(rawPoll) * time.Second
 		}
-		printParamError(
-			isEnv, pollEnv, "-p", "should be more or equal 1 second",
-		)
+		printMinIntervalErr(isEnv)
 		isCmd = false
 	}
 
