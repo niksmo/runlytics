@@ -46,16 +46,11 @@ type Logger interface {
 	Errorw(msg string, keysAndValues ...any)
 }
 
-type KeyGetter interface {
-	Key() string
-}
-
 type ServerConfig interface {
 	IsDatabase() bool
 	File() *os.File
 	SaveInterval() time.Duration
 	Restore() bool
-	KeyGetter
 }
 
 type Verifier interface {

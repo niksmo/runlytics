@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"net/http"
 	"os"
 	"os/signal"
 	"sync"
@@ -40,6 +41,7 @@ func main() {
 	mux.Use(middleware.Logger)
 	mux.Use(middleware.AllowContentEncoding("gzip"))
 	mux.Use(middleware.Gzip)
+	mux.Use(middleware.VerifyAndWriteSHA256(config.Key(), http.MethodPost))
 
 	pgDB := sqldb.New("pgx", config.DatabaseDSN(), logger.Log.Sugar())
 	fileOperator := fileoperator.New(config.File())
@@ -51,20 +53,17 @@ func main() {
 		mux,
 		service.NewUpdateService(repository),
 		validator.NewUpdateValidator(),
-		config,
 	)
 
 	api.SetBatchUpdateHandler(mux,
 		service.NewBatchUpdateService(repository),
 		validator.NewBatchUpdateValidator(),
-		config,
 	)
 
 	api.SetValueHandler(
 		mux,
 		service.NewValueService(repository),
 		validator.NewValueValidator(),
-		config,
 	)
 
 	api.SetHealthCheckHandler(mux, service.NewHealthCheckService(pgDB))

@@ -49,12 +49,6 @@ func (validator *MockValueValidator) VerifyScheme(
 	return retArgs.Error(0)
 }
 
-type MockValueConfig struct{}
-
-func (config *MockValueConfig) Key() string {
-	return ""
-}
-
 func TestReadByJSONHandler(t *testing.T) {
 	makeURL := func(serverURL string) string {
 		return serverURL + "/value/"
@@ -75,7 +69,7 @@ func TestReadByJSONHandler(t *testing.T) {
 		mockValidator.On("VerifyScheme", nil).Return(nil)
 		mux := chi.NewRouter()
 
-		SetValueHandler(mux, mockService, mockValidator, new(MockValueConfig))
+		SetValueHandler(mux, mockService, mockValidator)
 
 		for _, method := range methods {
 			s := httptest.NewServer(mux)
@@ -112,7 +106,7 @@ func TestReadByJSONHandler(t *testing.T) {
 		mockValidator.On("VerifyScheme", nil).Return(nil)
 		mux := chi.NewRouter()
 
-		SetValueHandler(mux, mockService, mockValidator, new(MockValueConfig))
+		SetValueHandler(mux, mockService, mockValidator)
 
 		s := httptest.NewServer(mux)
 		defer s.Close()
@@ -147,7 +141,7 @@ func TestReadByJSONHandler(t *testing.T) {
 		mockValidator.On("VerifyScheme", nil).Return(nil)
 		mux := chi.NewRouter()
 
-		SetValueHandler(mux, mockService, mockValidator, new(MockValueConfig))
+		SetValueHandler(mux, mockService, mockValidator)
 
 		s := httptest.NewServer(mux)
 		defer s.Close()
@@ -182,7 +176,7 @@ func TestReadByJSONHandler(t *testing.T) {
 		mockValidator.On("VerifyScheme", &schemeReq).Return(expectedErr)
 		mux := chi.NewRouter()
 
-		SetValueHandler(mux, mockService, mockValidator, new(MockValueConfig))
+		SetValueHandler(mux, mockService, mockValidator)
 
 		s := httptest.NewServer(mux)
 		defer s.Close()
@@ -220,7 +214,7 @@ func TestReadByJSONHandler(t *testing.T) {
 		mockValidator.On("VerifyScheme", &schemeReq).Return(nil)
 		mux := chi.NewRouter()
 
-		SetValueHandler(mux, mockService, mockValidator, new(MockValueConfig))
+		SetValueHandler(mux, mockService, mockValidator)
 
 		s := httptest.NewServer(mux)
 		defer s.Close()
@@ -257,7 +251,7 @@ func TestReadByJSONHandler(t *testing.T) {
 		mockValidator.On("VerifyScheme", &schemeReq).Return(nil)
 		mux := chi.NewRouter()
 
-		SetValueHandler(mux, mockService, mockValidator, new(MockValueConfig))
+		SetValueHandler(mux, mockService, mockValidator)
 
 		s := httptest.NewServer(mux)
 		defer s.Close()
@@ -300,7 +294,7 @@ func TestReadByJSONHandler(t *testing.T) {
 		mockValidator.On("VerifyScheme", &schemeReq).Return(nil)
 		mux := chi.NewRouter()
 
-		SetValueHandler(mux, mockService, mockValidator, new(MockValueConfig))
+		SetValueHandler(mux, mockService, mockValidator)
 
 		s := httptest.NewServer(mux)
 		defer s.Close()
@@ -339,7 +333,7 @@ func TestReadByJSONHandler(t *testing.T) {
 			mux.Use(middleware.AllowContentEncoding("gzip"))
 			mux.Use(middleware.Gzip)
 
-			SetValueHandler(mux, mockService, mockValidator, new(MockValueConfig))
+			SetValueHandler(mux, mockService, mockValidator)
 
 			s := httptest.NewServer(mux)
 			defer s.Close()
@@ -389,7 +383,7 @@ func TestReadByJSONHandler(t *testing.T) {
 			mux.Use(middleware.AllowContentEncoding("gzip"))
 			mux.Use(middleware.Gzip)
 
-			SetValueHandler(mux, mockService, mockValidator, new(MockValueConfig))
+			SetValueHandler(mux, mockService, mockValidator)
 
 			s := httptest.NewServer(mux)
 			defer s.Close()
@@ -444,7 +438,7 @@ func TestReadByJSONHandler(t *testing.T) {
 			mux.Use(middleware.AllowContentEncoding("gzip"))
 			mux.Use(middleware.Gzip)
 
-			SetValueHandler(mux, mockService, mockValidator, new(MockValueConfig))
+			SetValueHandler(mux, mockService, mockValidator)
 
 			s := httptest.NewServer(mux)
 			defer s.Close()
@@ -499,7 +493,7 @@ func TestReadByURLParamsHandler(t *testing.T) {
 		mockValidator.On("VerifyScheme", nil).Return(nil)
 		mux := chi.NewRouter()
 
-		SetValueHandler(mux, mockService, mockValidator, new(MockValueConfig))
+		SetValueHandler(mux, mockService, mockValidator)
 
 		for _, method := range methods {
 			s := httptest.NewServer(mux)
@@ -540,7 +534,7 @@ func TestReadByURLParamsHandler(t *testing.T) {
 		mockValidator.On("VerifyScheme", &schemeReq).Return(expectedErr)
 		mux := chi.NewRouter()
 
-		SetValueHandler(mux, mockService, mockValidator, new(MockValueConfig))
+		SetValueHandler(mux, mockService, mockValidator)
 
 		s := httptest.NewServer(mux)
 		defer s.Close()
@@ -578,7 +572,7 @@ func TestReadByURLParamsHandler(t *testing.T) {
 		mockValidator.On("VerifyScheme", &schemeReq).Return(nil)
 		mux := chi.NewRouter()
 
-		SetValueHandler(mux, mockService, mockValidator, new(MockValueConfig))
+		SetValueHandler(mux, mockService, mockValidator)
 
 		s := httptest.NewServer(mux)
 		defer s.Close()
@@ -615,7 +609,7 @@ func TestReadByURLParamsHandler(t *testing.T) {
 		mockValidator.On("VerifyScheme", &schemeReq).Return(nil)
 		mux := chi.NewRouter()
 
-		SetValueHandler(mux, mockService, mockValidator, new(MockValueConfig))
+		SetValueHandler(mux, mockService, mockValidator)
 
 		s := httptest.NewServer(mux)
 		defer s.Close()
@@ -656,7 +650,7 @@ func TestReadByURLParamsHandler(t *testing.T) {
 		mockValidator.On("VerifyScheme", &schemeReq).Return(nil)
 		mux := chi.NewRouter()
 
-		SetValueHandler(mux, mockService, mockValidator, new(MockValueConfig))
+		SetValueHandler(mux, mockService, mockValidator)
 
 		s := httptest.NewServer(mux)
 		defer s.Close()

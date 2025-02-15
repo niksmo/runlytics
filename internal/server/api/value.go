@@ -21,16 +21,12 @@ func SetValueHandler(
 	mux *chi.Mux,
 	service di.ReadService,
 	validator di.SchemeVerifier,
-	config di.KeyGetter,
 ) {
 	path := "/value"
 	handler := &ValueHandler{service, validator}
 	mux.Route(path, func(r chi.Router) {
 		byJSONPath := "/"
-		r.With(
-			middleware.AllowJSON,
-			middleware.VerifyAndWriteSHA256(config.Key()),
-		).Post(byJSONPath, handler.readByJSON())
+		r.With(middleware.AllowJSON).Post(byJSONPath, handler.readByJSON())
 		debugLogRegister(path + byJSONPath)
 
 		byURLParamsPath := "/{type}/{name}"
