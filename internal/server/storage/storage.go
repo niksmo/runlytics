@@ -6,7 +6,7 @@ import (
 	"github.com/niksmo/runlytics/pkg/di"
 )
 
-func New(db *sql.DB, fo di.FileOperator, config di.Config) di.Repository {
+func New(db *sql.DB, fo di.FileOperator, config di.ServerConfig) di.Repository {
 	if config.IsDatabase() {
 		return newPSQL(db)
 	}

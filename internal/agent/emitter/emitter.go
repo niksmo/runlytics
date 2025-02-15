@@ -3,6 +3,9 @@ package emitter
 import (
 	"bytes"
 	"compress/gzip"
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -15,6 +18,8 @@ import (
 	"go.uber.org/zap"
 )
 
+const headerHashKey = "HashSHA256"
+
 var waitIntervals = []time.Duration{time.Second, 3 * time.Second, 5 * time.Second}
 
 type HTTPEmitter struct {
@@ -23,20 +28,21 @@ type HTTPEmitter struct {
 	client          *http.Client
 	baseURL         *url.URL
 	prevPollCounter int64
+	key             string
 }
 
 func New(
-	interval time.Duration,
+	config di.AgentConfig,
 	metricsData di.GaugeCounterMetricsGetter,
 	client *http.Client,
-	baseURL *url.URL,
 ) *HTTPEmitter {
 	return &HTTPEmitter{
-		interval:        interval,
+		interval:        config.Report(),
 		metricsData:     metricsData,
 		client:          client,
-		baseURL:         baseURL,
+		baseURL:         config.Addr(),
 		prevPollCounter: 0,
+		key:             config.Key(),
 	}
 }
 
@@ -92,21 +98,33 @@ func (e *HTTPEmitter) post(metrics metrics.MetricsBatchUpdate) {
 		zap.String("method", "POST"),
 	)
 
+	jsonData, err := json.Marshal(metrics)
+	if err != nil {
+		logger.Log.Panic("Encode to JSON error", zap.Error(err))
+	}
+
+	var hexSHA256 string
+	if e.key != "" {
+		hexSHA256 = getHexHashSHA256(jsonData, e.key)
+	}
+
 	var buf bytes.Buffer
 	gzipWriter := gzip.NewWriter(&buf)
-
-	if err := json.NewEncoder(gzipWriter).Encode(metrics); err != nil {
-		logger.Log.Debug("Encode to JSON error", zap.Error(err))
+	if _, err = gzipWriter.Write(jsonData); err != nil {
+		logger.Log.Panic("Write gzip", zap.Error(err))
 	}
 	gzipWriter.Close()
 
 	request, err := http.NewRequest("POST", reqURL, &buf)
 	if err != nil {
-		logger.Log.Warn("Error while creating http request", zap.Error(err))
+		logger.Log.Panic("Error while creating http request", zap.Error(err))
 	}
 	request.Header.Set("Content-Type", "application/json")
 	request.Header.Set("Content-Encoding", "gzip")
 	request.Header.Set("Accept-Encoding", "gzip")
+	if hexSHA256 != "" {
+		request.Header.Set(headerHashKey, hexSHA256)
+	}
 
 	start := time.Now()
 	res, err := doRequestWithRetries(e.client, request)
@@ -135,7 +153,7 @@ func (e *HTTPEmitter) post(metrics metrics.MetricsBatchUpdate) {
 	data, err = io.ReadAll(res.Body)
 
 	if err != nil {
-		logger.Log.Error("Read response data error", zap.Error(err))
+		logger.Log.Error("Read response data", zap.Error(err))
 	}
 
 	logger.Log.Info(
@@ -144,6 +162,7 @@ func (e *HTTPEmitter) post(metrics metrics.MetricsBatchUpdate) {
 		zap.String("method", "POST"),
 		zap.Duration("duration", time.Since(start)),
 		zap.Int("statusCode", res.StatusCode),
+		zap.String("hash", res.Header.Get(headerHashKey)),
 		zap.String("data", string(data)),
 	)
 
@@ -164,4 +183,13 @@ func doRequestWithRetries(
 		}
 	}
 	return res, err
+}
+
+func getHexHashSHA256(data []byte, key string) string {
+	h := hmac.New(sha256.New, []byte(key))
+	_, err := h.Write(data)
+	if err != nil {
+		logger.Log.Panic("Write to Hash", zap.Error(err))
+	}
+	return hex.EncodeToString(h.Sum(nil))
 }
