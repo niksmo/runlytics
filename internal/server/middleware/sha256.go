@@ -11,6 +11,7 @@ import (
 	"net/http"
 
 	"github.com/niksmo/runlytics/internal/logger"
+	"go.uber.org/zap"
 )
 
 const headerHashKey = "HashSHA256"
@@ -28,31 +29,22 @@ func VerifyAndWriteSHA256(key string, method ...string) func(http.Handler) http.
 	return func(next http.Handler) http.Handler {
 		mdw := func(w http.ResponseWriter, r *http.Request) {
 			if key == "" || r.Header.Get(headerHashKey) == "" {
-				logger.Log.Info("Key is not using, skip header check")
+				logger.Log.Debug("Key is not using, skip header check")
 				next.ServeHTTP(w, r)
 				return
 			}
 
 			if _, ok := verifyMethods[r.Method]; !ok {
-				logger.Log.Info("Not verifying method, skip header check")
+				logger.Log.Debug("Not verifying method, skip header check")
 				next.ServeHTTP(w, r)
 				return
 			}
 
 			reqSHA256Hex := r.Header.Get(headerHashKey)
-			// if reqSHA256Hex == "" {
-			// 	logger.Log.Info("HashSHA256 header is empty or not exists")
-			// 	http.Error(
-			// 		w,
-			// 		"Require header 'HashSHA256'",
-			// 		http.StatusBadRequest,
-			// 	)
-			// 	return
-			// }
 
 			reqSHA256, err := hex.DecodeString(reqSHA256Hex)
 			if err != nil {
-				logger.Log.Info("Decode hex hash")
+				logger.Log.Debug("Decode hex hash", zap.Error(err))
 				http.Error(
 					w,
 					"Require header 'HashSHA256' in hex format",
@@ -101,7 +93,7 @@ func (hashReader *hashReader) Read(p []byte) (int, error) {
 		}
 
 		if !hmac.Equal(hashReader.hash.Sum(nil), hashReader.compare) {
-			logger.Log.Info("Hash is not equal")
+			logger.Log.Debug("Hash is not equal")
 			return 0, ErrNotEqualHash
 		}
 	}

@@ -102,7 +102,6 @@ func (e *HTTPEmitter) post(metrics metrics.MetricsBatchUpdate) {
 	if err != nil {
 		logger.Log.Panic("Encode to JSON error", zap.Error(err))
 	}
-	logger.Log.Info("JSON data", zap.String("data", string(jsonData)))
 
 	var hexSHA256 string
 	if e.key != "" {
@@ -125,7 +124,6 @@ func (e *HTTPEmitter) post(metrics metrics.MetricsBatchUpdate) {
 	request.Header.Set("Accept-Encoding", "gzip")
 	if hexSHA256 != "" {
 		request.Header.Set(headerHashKey, hexSHA256)
-		logger.Log.Info("Set hash", zap.String("hash", hexSHA256))
 	}
 
 	start := time.Now()
