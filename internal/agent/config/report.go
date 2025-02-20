@@ -49,7 +49,6 @@ func getReportFlag(rawReport int) time.Duration {
 			return time.Duration(rawReport) * time.Second
 		}
 		printMinIntervalErr(isEnv)
-		isCmd = false
 	}
 
 	report := reportDefault * time.Second

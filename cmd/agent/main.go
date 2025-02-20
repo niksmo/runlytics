@@ -21,6 +21,7 @@ func main() {
 		zap.String("POLL_INTERVAL", config.Poll().String()),
 		zap.String("REPORT_INTERVAL", config.Report().String()),
 		zap.String("KEY", config.Key()),
+		zap.Int("RATE_LIMIT", config.RateLimit()),
 	)
 
 	collector := collector.New(config.Poll())

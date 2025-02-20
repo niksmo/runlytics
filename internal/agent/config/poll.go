@@ -48,7 +48,6 @@ func getPollFlag(rawPoll int) time.Duration {
 			return time.Duration(rawPoll) * time.Second
 		}
 		printMinIntervalErr(isEnv)
-		isCmd = false
 	}
 
 	poll := pollDefault * time.Second

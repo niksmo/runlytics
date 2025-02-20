@@ -8,19 +8,21 @@ import (
 )
 
 type Config struct {
-	logLvl string
-	addr   *url.URL
-	poll   time.Duration
-	report time.Duration
-	key    string
+	logLvl    string
+	addr      *url.URL
+	poll      time.Duration
+	report    time.Duration
+	key       string
+	rateLimit int
 }
 
 func Load() *Config {
-	rawLogLvlFlag := flag.String("l", logLvlDefault, logLvlUsage)
+	rawLogLvlFlag := flag.String("log", logLvlDefault, logLvlUsage)
 	rawAddrFlag := flag.String("a", addrDefault, addrUsage)
 	rawPollFlag := flag.Int("p", pollDefault, pollUsage)
 	rawReportFlag := flag.Int("r", reportDefault, reportUsage)
 	rawKeyFlag := flag.String("k", keyDefault, keyUsage)
+	rawRateLimitFlag := flag.Int("l", rateLimitDefault, rateLimitUsage)
 	flag.Parse()
 
 	pollFlag := getPollFlag(*rawPollFlag)
@@ -31,11 +33,12 @@ func Load() *Config {
 	}
 
 	config := Config{
-		logLvl: getLogLvlFlag(*rawLogLvlFlag),
-		addr:   getAddrFlag(*rawAddrFlag),
-		poll:   pollFlag,
-		report: reportFlag,
-		key:    getKeyFlag(*rawKeyFlag),
+		logLvl:    getLogLvlFlag(*rawLogLvlFlag),
+		addr:      getAddrFlag(*rawAddrFlag),
+		poll:      pollFlag,
+		report:    reportFlag,
+		key:       getKeyFlag(*rawKeyFlag),
+		rateLimit: getRateLimitFlag(*rawRateLimitFlag),
 	}
 	return &config
 }
@@ -61,6 +64,10 @@ func (c *Config) Key() string {
 	return c.key
 }
 
+func (c *Config) RateLimit() int {
+	return c.rateLimit
+}
+
 func verifyPollVsReport(poll, report time.Duration) error {
 	if report >= poll {
 		return nil
@@ -69,7 +76,7 @@ func verifyPollVsReport(poll, report time.Duration) error {
 	return fmt.Errorf("Report should be more or equal poll")
 }
 
-func printUsedDefault(configField, value string) {
+func printUsedDefault(configField string, value any) {
 	fmt.Println("Used default", configField+":", value)
 }
 

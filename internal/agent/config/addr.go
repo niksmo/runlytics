@@ -45,7 +45,6 @@ func getAddrFlag(addr string) *url.URL {
 			return URL
 		}
 		printParamError(isEnv, addrEnv, "-a", "invalid addr")
-		isCmd = false
 	}
 
 	URL, _ := url.ParseRequestURI(addrDefault)

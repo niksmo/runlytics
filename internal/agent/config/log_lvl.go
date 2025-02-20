@@ -7,13 +7,13 @@ import (
 
 const (
 	logLvlDefault = "info"
-	logLvlUsage   = "Logging level, e.g. 'debug'"
+	logLvlUsage   = `Logging level, e.g. "debug"`
 	logLvlEnv     = "LOG_LVL"
 )
 
 func getLogLvlFlag(logLvl string) string {
 	printError := func(isEnv bool, text string) {
-		printParamError(isEnv, logLvlEnv, "-l", text)
+		printParamError(isEnv, logLvlEnv, "-log", text)
 	}
 
 	allowed := map[string]struct{}{
@@ -33,8 +33,7 @@ func getLogLvlFlag(logLvl string) string {
 	}
 
 	if _, ok := allowed[strings.ToLower(logLvl)]; !ok {
-		text := "error: level is not allowed"
-		printError(isEnv, text)
+		printError(isEnv, "error: level is not allowed")
 		logLvl = logLvlDefault
 		printUsedDefault("logging level", logLvlDefault)
 	}
