@@ -40,6 +40,7 @@ func main() {
 	collectors := []di.MetricsCollector{
 		collector.NewRuntimeMemStat(config.Poll()),
 		collector.NewManualStat(config.Poll()),
+		collector.NewPsUtilStat(config.Poll()),
 	}
 	for _, collector := range collectors {
 		go collector.Run()
