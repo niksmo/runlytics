@@ -33,7 +33,12 @@ type CounterMetricsGetter interface {
 	GetCounterMetrics() map[string]int64
 }
 
-type GaugeCounterMetricsGetter interface {
+type Runner interface {
+	Run()
+}
+
+type MetricsCollector interface {
+	Runner
 	GaugeMetricsGetter
 	CounterMetricsGetter
 }
@@ -121,4 +126,14 @@ type UpdateService interface {
 
 type BatchUpdateService interface {
 	BatchUpdate(context.Context, metrics.MetricsBatchUpdate) error
+}
+
+type Job interface {
+	ID() int64
+	Payload() []metrics.MetricsUpdate
+}
+
+type JobErr interface {
+	ID() int64
+	Err() error
 }

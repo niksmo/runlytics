@@ -23,26 +23,27 @@ const headerHashKey = "HashSHA256"
 var waitIntervals = []time.Duration{time.Second, 3 * time.Second, 5 * time.Second}
 
 type HTTPEmitter struct {
-	interval        time.Duration
-	metricsData     di.GaugeCounterMetricsGetter
-	client          *http.Client
-	baseURL         *url.URL
-	prevPollCounter int64
-	key             string
+	interval            time.Duration
+	metricsCollector    di.MetricsCollector
+	client              *http.Client
+	baseURL             *url.URL
+	prevPollCounter     int64
+	key                 string
+	rollbackPollCounter func()
 }
 
 func New(
 	config di.AgentConfig,
-	metricsData di.GaugeCounterMetricsGetter,
+	metricsCollector di.MetricsCollector,
 	client *http.Client,
 ) *HTTPEmitter {
 	return &HTTPEmitter{
-		interval:        config.Report(),
-		metricsData:     metricsData,
-		client:          client,
-		baseURL:         config.Addr(),
-		prevPollCounter: 0,
-		key:             config.Key(),
+		interval:         config.Report(),
+		metricsCollector: metricsCollector,
+		client:           client,
+		baseURL:          config.Addr(),
+		prevPollCounter:  0,
+		key:              config.Key(),
 	}
 }
 
@@ -63,7 +64,7 @@ func (e *HTTPEmitter) Run() {
 func (e *HTTPEmitter) emit() {
 	var batch metrics.MetricsBatchUpdate
 
-	for name, value := range e.metricsData.GetGaugeMetrics() {
+	for name, value := range e.metricsCollector.GetGaugeMetrics() {
 		batch = append(
 			batch,
 			metrics.MetricsUpdate{
@@ -72,11 +73,14 @@ func (e *HTTPEmitter) emit() {
 		)
 	}
 
-	for name, value := range e.metricsData.GetCounterMetrics() {
+	for name, value := range e.metricsCollector.GetCounterMetrics() {
 		if name == "PollCount" {
 			prev := e.prevPollCounter
 			e.prevPollCounter = value
 			value = value - prev
+			e.rollbackPollCounter = func() {
+				e.prevPollCounter = prev
+			}
 		}
 		batch = append(
 			batch,
@@ -84,7 +88,6 @@ func (e *HTTPEmitter) emit() {
 				ID: name, MType: metrics.MTypeCounter, Delta: &value,
 			},
 		)
-
 	}
 
 	e.post(batch)
@@ -129,6 +132,8 @@ func (e *HTTPEmitter) post(metrics metrics.MetricsBatchUpdate) {
 	start := time.Now()
 	res, err := doRequestWithRetries(e.client, request)
 	if err != nil {
+		e.rollbackPollCounter()
+		logger.Log.Info("Rollback poll counter", zap.Int64("current", e.prevPollCounter))
 		logger.Log.Info(
 			"Got response",
 			zap.String("URL", reqURL),
