@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"time"
 
 	"github.com/niksmo/runlytics/internal/agent/collector"
 	"github.com/niksmo/runlytics/internal/agent/config"
@@ -31,10 +30,10 @@ func main() {
 	)
 
 	stopCtx, _ := signal.NotifyContext(context.Background(), os.Interrupt)
-	HTTPClient := &http.Client{Timeout: config.Report() - 100*time.Millisecond}
+	HTTPClient := &http.Client{Timeout: config.HTTPClientTimeout()}
 	URL := config.Addr().JoinPath("updates").String()
-	jobCh := make(chan di.Job, 1024)
-	errCh := make(chan di.JobErr, 128)
+	jobCh := make(chan di.Job, config.JobsBuf())
+	errCh := make(chan di.JobErr, config.JobsErrBuf())
 	jobGenerator := generator.New(config.Report())
 
 	collectors := []di.MetricsCollector{

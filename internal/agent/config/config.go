@@ -7,6 +7,9 @@ import (
 	"time"
 )
 
+const jobsBuf = 1024
+const jobsErrBuf = 128
+
 type Config struct {
 	logLvl    string
 	addr      *url.URL
@@ -66,6 +69,18 @@ func (c *Config) Key() string {
 
 func (c *Config) RateLimit() int {
 	return c.rateLimit
+}
+
+func (c *Config) JobsBuf() int {
+	return jobsBuf
+}
+
+func (c *Config) JobsErrBuf() int {
+	return jobsErrBuf
+}
+
+func (c *Config) HTTPClientTimeout() time.Duration {
+	return c.Report() - 100*time.Millisecond
 }
 
 func verifyPollVsReport(poll, report time.Duration) error {

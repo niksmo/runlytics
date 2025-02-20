@@ -3,19 +3,11 @@ package di
 import (
 	"bytes"
 	"context"
-	"net/url"
-	"os"
 	"sync"
 	"time"
 
 	"github.com/niksmo/runlytics/pkg/metrics"
 )
-
-type AgentConfig interface {
-	Addr() *url.URL
-	Report() time.Duration
-	Key() string
-}
 
 type ValueStringer interface {
 	StrconvValue() string
@@ -51,7 +43,6 @@ type Logger interface {
 
 type ServerConfig interface {
 	IsDatabase() bool
-	File() *os.File
 	SaveInterval() time.Duration
 	Restore() bool
 }
