@@ -20,13 +20,16 @@ type collector struct {
 	poll    time.Duration
 	data    metricsData
 	counter *counter.Counter
-	mu      sync.Mutex
+	mu      sync.RWMutex
 }
 
 func New(interval time.Duration) *collector {
 	c := &collector{
-		poll:    interval,
-		data:    metricsData{make(map[string]int64), make(map[string]float64)},
+		poll: interval,
+		data: metricsData{
+			counter: make(map[string]int64),
+			gauge:   make(map[string]float64),
+		},
 		counter: counter.New(),
 	}
 
@@ -46,8 +49,8 @@ func (c *collector) Run() {
 
 func (c *collector) GetGaugeMetrics() map[string]float64 {
 	ret := make(map[string]float64, len(c.data.gauge))
-	c.mu.Lock()
-	defer c.mu.Unlock()
+	c.mu.RLock()
+	defer c.mu.RUnlock()
 
 	for k, v := range c.data.gauge {
 		ret[k] = v
@@ -58,8 +61,8 @@ func (c *collector) GetGaugeMetrics() map[string]float64 {
 
 func (c *collector) GetCounterMetrics() map[string]int64 {
 	ret := make(map[string]int64, len(c.data.counter))
-	c.mu.Lock()
-	defer c.mu.Unlock()
+	c.mu.RLock()
+	defer c.mu.RUnlock()
 
 	for k, v := range c.data.counter {
 		ret[k] = v

@@ -165,7 +165,7 @@ func TestReadByJSONHandler(t *testing.T) {
 		mockValidator.AssertNumberOfCalls(t, "VerifyScheme", 0)
 	})
 
-	t.Run("Error on verifyScheme", func(t *testing.T) {
+	t.Run("Error on verify scheme", func(t *testing.T) {
 		schemeReq := metrics.MetricsRead{
 			ID: "", MType: metrics.MTypeGauge,
 		}
@@ -312,6 +312,7 @@ func TestReadByJSONHandler(t *testing.T) {
 		res, err := s.Client().Do(req)
 		require.NoError(t, err)
 		require.Equal(t, http.StatusOK, res.StatusCode)
+		require.Equal(t, JSONMediaType, res.Header.Get(ContentType))
 
 		var gotScheme metrics.MetricsGauge
 		err = json.NewDecoder(res.Body).Decode(&gotScheme)
