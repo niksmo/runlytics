@@ -23,9 +23,9 @@ func debugLogRegister(endpoint string) {
 
 func decodeJSON(r *http.Request, scheme any) error {
 	if err := json.NewDecoder(r.Body).Decode(scheme); err != nil {
-		errText := "invalid JSON object"
+		errText := "Read body"
 		logger.Log.Debug(errText, zap.Error(err))
-		return fmt.Errorf("%s: %w", errText, err)
+		return fmt.Errorf("%s error: %w", errText, err)
 	}
 	return nil
 }

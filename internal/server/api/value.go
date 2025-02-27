@@ -18,7 +18,9 @@ type ValueHandler struct {
 }
 
 func SetValueHandler(
-	mux *chi.Mux, service di.ReadService, validator di.SchemeVerifier,
+	mux *chi.Mux,
+	service di.ReadService,
+	validator di.SchemeVerifier,
 ) {
 	path := "/value"
 	handler := &ValueHandler{service, validator}

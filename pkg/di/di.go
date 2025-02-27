@@ -3,7 +3,6 @@ package di
 import (
 	"bytes"
 	"context"
-	"os"
 	"sync"
 	"time"
 
@@ -26,7 +25,12 @@ type CounterMetricsGetter interface {
 	GetCounterMetrics() map[string]int64
 }
 
-type GaugeCounterMetricsGetter interface {
+type Runner interface {
+	Run()
+}
+
+type MetricsCollector interface {
+	Runner
 	GaugeMetricsGetter
 	CounterMetricsGetter
 }
@@ -37,9 +41,8 @@ type Logger interface {
 	Errorw(msg string, keysAndValues ...any)
 }
 
-type Config interface {
+type ServerConfig interface {
 	IsDatabase() bool
-	File() *os.File
 	SaveInterval() time.Duration
 	Restore() bool
 }
@@ -114,4 +117,14 @@ type UpdateService interface {
 
 type BatchUpdateService interface {
 	BatchUpdate(context.Context, metrics.MetricsBatchUpdate) error
+}
+
+type Job interface {
+	ID() int64
+	Payload() []metrics.MetricsUpdate
+}
+
+type JobErr interface {
+	ID() int64
+	Err() error
 }

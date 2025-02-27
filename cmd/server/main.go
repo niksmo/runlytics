@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"net/http"
 	"os"
 	"os/signal"
 	"sync"
@@ -33,12 +34,14 @@ func main() {
 		zap.String("FILE_STORAGE_PATH", config.FileName()),
 		zap.Bool("RESTORE", config.Restore()),
 		zap.String("DATABASE_DSN", config.DatabaseDSN()),
+		zap.String("KEY", config.Key()),
 	)
 
 	mux := chi.NewRouter()
 	mux.Use(middleware.Logger)
 	mux.Use(middleware.AllowContentEncoding("gzip"))
 	mux.Use(middleware.Gzip)
+	mux.Use(middleware.VerifyAndWriteSHA256(config.Key(), http.MethodPost))
 
 	pgDB := sqldb.New("pgx", config.DatabaseDSN(), logger.Log.Sugar())
 	fileOperator := fileoperator.New(config.File())
