@@ -3,6 +3,7 @@ package api
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 
 	"github.com/niksmo/runlytics/internal/logger"
@@ -22,11 +23,21 @@ func debugLogRegister(endpoint string) {
 }
 
 func decodeJSON(r *http.Request, scheme any) error {
-	if err := json.NewDecoder(r.Body).Decode(scheme); err != nil {
+	data, err := io.ReadAll(r.Body)
+	if err != nil {
 		errText := "Read body"
-		logger.Log.Debug(errText, zap.Error(err))
 		return fmt.Errorf("%s error: %w", errText, err)
 	}
+	err = json.Unmarshal(data, scheme)
+	if err != nil {
+		errText := "Unmarshal body"
+		return fmt.Errorf("%s error: %w", errText, err)
+	}
+	// if err := json.NewDecoder(r.Body).Decode(scheme); err != nil {
+	// 	errText := "Read body"
+	// 	logger.Log.Debug(errText, zap.Error(err))
+	// 	return fmt.Errorf("%s error: %w", errText, err)
+	// }
 	return nil
 }
 

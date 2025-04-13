@@ -118,15 +118,17 @@ func makeRequestBody(
 	gzipWriter, ok := gzipWriterPool.Get().(*gzip.Writer)
 	if !ok {
 		gzipWriter = gzip.NewWriter(buf)
-	} else {
-		gzipWriter.Reset(buf)
 	}
 	defer gzipWriterPool.Put(gzipWriter)
+	gzipWriter.Reset(buf)
 
 	if _, err = gzipWriter.Write(jsonData); err != nil {
 		logger.Log.Panic("Write gzip", zap.Error(err))
 	}
-	gzipWriter.Flush()
+	err = gzipWriter.Close()
+	if err != nil {
+		logger.Log.Panic("Close gzip", zap.Error(err))
+	}
 	return
 }
 
