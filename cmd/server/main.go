@@ -9,6 +9,8 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	_ "github.com/jackc/pgx/v5/stdlib"
+	"go.uber.org/zap"
+
 	"github.com/niksmo/runlytics/internal/logger"
 	"github.com/niksmo/runlytics/internal/server/api"
 	"github.com/niksmo/runlytics/internal/server/config"
@@ -19,7 +21,6 @@ import (
 	"github.com/niksmo/runlytics/pkg/fileoperator"
 	"github.com/niksmo/runlytics/pkg/httpserver"
 	"github.com/niksmo/runlytics/pkg/sqldb"
-	"go.uber.org/zap"
 )
 
 func main() {
