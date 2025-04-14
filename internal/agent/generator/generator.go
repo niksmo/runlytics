@@ -69,7 +69,7 @@ func (g *JobGenerator) getJobID() int64 {
 
 func (g *JobGenerator) makeJob(
 	id int64, collector di.MetricsCollector,
-) di.Job {
+) *Job {
 	var payload []metrics.MetricsUpdate
 	for name, value := range collector.GetGaugeMetrics() {
 		payload = append(
