@@ -5,10 +5,13 @@ import (
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/niksmo/runlytics/internal/logger"
 	"github.com/niksmo/runlytics/internal/server"
 	"github.com/niksmo/runlytics/internal/server/middleware"
 	"github.com/niksmo/runlytics/pkg/di"
+	"github.com/niksmo/runlytics/pkg/jsonhttp"
 	"github.com/niksmo/runlytics/pkg/metrics"
+	"go.uber.org/zap"
 )
 
 type UpdateHandler struct {
@@ -37,21 +40,26 @@ func SetUpdateHandler(
 func (handler *UpdateHandler) updateByJSON() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var scheme metrics.MetricsUpdate
-		if err := decodeJSON(r, &scheme); err != nil {
+		if err := jsonhttp.ReadRequest(r, &scheme); err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 
-		if err := handler.validator.VerifyScheme(&scheme); err != nil {
+		if err := handler.validator.VerifyScheme(scheme); err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
-		resScheme, err := handler.service.Update(r.Context(), &scheme)
+		err := handler.service.Update(r.Context(), &scheme.Metrics)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		writeJSONResponse(w, resScheme)
+
+		err = jsonhttp.WriteResponse(w, http.StatusOK, scheme)
+		if err != nil {
+			logger.Log.Error("error on write response", zap.Error(err))
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
 	}
 }
 
@@ -67,14 +75,14 @@ func (handler *UpdateHandler) updataByURLParams() http.HandlerFunc {
 			return
 		}
 
-		resScheme, err := handler.service.Update(r.Context(), scheme)
+		err = handler.service.Update(r.Context(), &scheme)
 		if err != nil {
 			http.Error(w, server.ErrInternal.Error(), http.StatusInternalServerError)
 			return
 		}
 
 		w.WriteHeader(http.StatusOK)
-		if _, err = io.WriteString(w, resScheme.StrconvValue()); err != nil {
+		if _, err = io.WriteString(w, scheme.GetValue()); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
 	}

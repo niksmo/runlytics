@@ -19,8 +19,10 @@ func (v *UpdateValidator) VerifyScheme(object di.Verifier) error {
 
 func (v *UpdateValidator) VerifyParams(
 	id, mType, value string,
-) (*metrics.MetricsUpdate, error) {
-	scheme := &metrics.MetricsUpdate{ID: id, MType: mType}
+) (metrics.Metrics, error) {
+	var scheme metrics.MetricsUpdate
+	scheme.ID = id
+	scheme.MType = mType
 	switch scheme.MType {
 	case metrics.MTypeCounter:
 		delta, err := strconv.ParseInt(value, 10, 64)
@@ -35,8 +37,8 @@ func (v *UpdateValidator) VerifyParams(
 	}
 
 	if err := scheme.Verify(); err != nil {
-		return nil, err
+		return scheme.Metrics, err
 	}
 
-	return scheme, nil
+	return scheme.Metrics, nil
 }

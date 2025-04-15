@@ -10,11 +10,7 @@ import (
 )
 
 type ValueStringer interface {
-	StrconvValue() string
-}
-
-type Metrics interface {
-	ValueStringer
+	GetValue() string
 }
 
 type GaugeMetricsGetter interface {
@@ -56,7 +52,7 @@ type SchemeVerifier interface {
 }
 
 type MetricsParamsVerifier interface {
-	VerifyParams(id, mType, value string) (*metrics.MetricsUpdate, error)
+	VerifyParams(id, mType, value string) (metrics.Metrics, error)
 }
 
 type MetricsParamsSchemeVerifier interface {
@@ -77,8 +73,8 @@ type UpdateRepository interface {
 }
 
 type UpdateListRepository interface {
-	UpdateCounterList(ctx context.Context, slice []metrics.MetricsCounter) error
-	UpdateGaugeList(ctx context.Context, slice []metrics.MetricsGauge) error
+	UpdateCounterList(ctx context.Context, slice []metrics.Metrics) error
+	UpdateGaugeList(ctx context.Context, slice []metrics.Metrics) error
 }
 
 type ReadByNameRepository interface {
@@ -108,11 +104,11 @@ type HTMLService interface {
 }
 
 type ReadService interface {
-	Read(ctx context.Context, mData *metrics.MetricsRead) (Metrics, error)
+	Read(context.Context, *metrics.Metrics) error
 }
 
 type UpdateService interface {
-	Update(context.Context, *metrics.MetricsUpdate) (Metrics, error)
+	Update(context.Context, *metrics.Metrics) error
 }
 
 type BatchUpdateService interface {
@@ -121,7 +117,7 @@ type BatchUpdateService interface {
 
 type Job interface {
 	ID() int64
-	Payload() []metrics.MetricsUpdate
+	Payload() []metrics.Metrics
 }
 
 type JobErr interface {

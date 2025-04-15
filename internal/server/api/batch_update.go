@@ -6,6 +6,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/niksmo/runlytics/internal/server/middleware"
 	"github.com/niksmo/runlytics/pkg/di"
+	"github.com/niksmo/runlytics/pkg/jsonhttp"
 	"github.com/niksmo/runlytics/pkg/metrics"
 )
 
@@ -31,12 +32,12 @@ func SetBatchUpdateHandler(
 func (handler *BatchUpdateHandler) batchUpdate() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var scheme metrics.MetricsBatchUpdate
-		if err := decodeJSON(r, &scheme); err != nil {
+		if err := jsonhttp.ReadRequest(r, scheme); err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 
-		if err := handler.validator.VerifyScheme(&scheme); err != nil {
+		if err := handler.validator.VerifyScheme(scheme); err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}

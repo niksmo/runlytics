@@ -6,17 +6,11 @@ import (
 	"strings"
 )
 
-// Mtype is 'gauge' or 'counter'.
-// Delta is not nil for 'counter',
-// otherwise Value is not nil for 'gauge'.
 type MetricsUpdate struct {
-	ID    string   `json:"id"`
-	MType string   `json:"type"`
-	Delta *int64   `json:"delta,omitempty"`
-	Value *float64 `json:"value,omitempty"`
+	Metrics
 }
 
-func (mu *MetricsUpdate) Verify() error {
+func (mu MetricsUpdate) Verify() error {
 	var errSlice VerifyErrors
 	var err error
 
@@ -49,9 +43,9 @@ func (mu *MetricsUpdate) Verify() error {
 
 type MetricsBatchUpdate []MetricsUpdate
 
-func (mbu *MetricsBatchUpdate) Verify() error {
+func (mbu MetricsBatchUpdate) Verify() error {
 	var stringSlice []string
-	for i, item := range *mbu {
+	for i, item := range mbu {
 		if err := item.Verify(); err != nil {
 			stringSlice = append(
 				stringSlice, fmt.Sprintf("%d: %s", i, err.Error()),
@@ -65,11 +59,10 @@ func (mbu *MetricsBatchUpdate) Verify() error {
 }
 
 type MetricsRead struct {
-	ID    string `json:"id"`
-	MType string `json:"type"`
+	Metrics
 }
 
-func (mr *MetricsRead) Verify() error {
+func (mr MetricsRead) Verify() error {
 	var errSlice VerifyErrors
 	var err error
 

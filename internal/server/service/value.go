@@ -18,28 +18,24 @@ func NewValueService(repository di.ReadByNameRepository) *ReadService {
 
 func (service *ReadService) Read(
 	ctx context.Context, scheme *metrics.MetricsRead,
-) (di.Metrics, error) {
+) (err error) {
 	switch scheme.MType {
 	case metrics.MTypeGauge:
 		value, err := service.repository.ReadGaugeByName(ctx, scheme.ID)
 		if err != nil {
-			return nil, err
+			return err
 		}
-		mGauge := metrics.MetricsGauge{
-			ID: scheme.ID, MType: scheme.MType, Value: value,
-		}
-		return mGauge, nil
+		scheme.Value = &value
+		return nil
 
 	case metrics.MTypeCounter:
 		delta, err := service.repository.ReadCounterByName(ctx, scheme.ID)
 		if err != nil {
-			return nil, err
+			return err
 		}
-		mCounter := metrics.MetricsCounter{
-			ID: scheme.ID, MType: scheme.MType, Delta: delta,
-		}
-		return mCounter, nil
+		scheme.Delta = &delta
+		return nil
+	default:
+		return server.ErrInternal
 	}
-
-	return nil, server.ErrInternal
 }

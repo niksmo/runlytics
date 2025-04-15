@@ -17,10 +17,10 @@ func NewUpdateService(repository di.UpdateRepository) *UpdateService {
 }
 
 func (s *UpdateService) Update(
-	ctx context.Context, scheme *metrics.MetricsUpdate,
-) (di.Metrics, error) {
+	ctx context.Context, scheme *metrics.Metrics,
+) (err error) {
 	if scheme == nil {
-		return nil, server.ErrInternal
+		return server.ErrInternal
 	}
 
 	switch scheme.MType {
@@ -28,38 +28,39 @@ func (s *UpdateService) Update(
 		return s.updateGauge(ctx, scheme)
 	case metrics.MTypeCounter:
 		return s.updateCounter(ctx, scheme)
+	default:
+		return server.ErrInternal
 	}
-	return nil, server.ErrInternal
 }
 
 func (s *UpdateService) updateGauge(
-	ctx context.Context, scheme *metrics.MetricsUpdate,
-) (metrics.MetricsGauge, error) {
+	ctx context.Context, scheme *metrics.Metrics,
+) error {
 	if scheme.Value == nil {
-		return metrics.MetricsGauge{}, server.ErrInternal
+		return server.ErrInternal
 	}
-	value, err := s.repository.UpdateGaugeByName(ctx, scheme.ID, *scheme.Value)
+	value, err := s.repository.UpdateGaugeByName(
+		ctx, scheme.ID, *scheme.Value,
+	)
 	if err != nil {
-		return metrics.MetricsGauge{}, err
+		return err
 	}
-	mGauge := metrics.MetricsGauge{
-		ID: scheme.ID, MType: scheme.MType, Value: value,
-	}
-	return mGauge, nil
+	scheme.Value = &value
+	return nil
 }
 
 func (s *UpdateService) updateCounter(
-	ctx context.Context, scheme *metrics.MetricsUpdate,
-) (metrics.MetricsCounter, error) {
+	ctx context.Context, scheme *metrics.Metrics,
+) error {
 	if scheme.Delta == nil {
-		return metrics.MetricsCounter{}, server.ErrInternal
+		return server.ErrInternal
 	}
-	delta, err := s.repository.UpdateCounterByName(ctx, scheme.ID, *scheme.Delta)
+	delta, err := s.repository.UpdateCounterByName(
+		ctx, scheme.ID, *scheme.Delta,
+	)
 	if err != nil {
-		return metrics.MetricsCounter{}, err
+		return err
 	}
-	mCounter := metrics.MetricsCounter{
-		ID: scheme.ID, MType: scheme.MType, Delta: delta,
-	}
-	return mCounter, nil
+	scheme.Delta = &delta
+	return nil
 }

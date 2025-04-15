@@ -6,6 +6,8 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/niksmo/runlytics/pkg/di"
+	"github.com/niksmo/runlytics/pkg/httpserver/header"
+	"github.com/niksmo/runlytics/pkg/httpserver/mime"
 )
 
 type HTMLHandler struct {
@@ -30,7 +32,7 @@ func (handler *HTMLHandler) get() http.HandlerFunc {
 			return
 		}
 
-		w.Header().Set(ContentType, "text/html; charset=utf-8")
+		w.Header().Set(header.ContentType, mime.HTML)
 		w.WriteHeader(http.StatusOK)
 		if _, err = buf.WriteTo(w); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)

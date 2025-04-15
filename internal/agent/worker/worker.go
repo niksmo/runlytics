@@ -104,7 +104,7 @@ func getHexHashSHA256(data []byte, key string) string {
 }
 
 func makeRequestBody(
-	metrics []metrics.MetricsUpdate, key string, buf *bytes.Buffer,
+	metrics []metrics.Metrics, key string, buf *bytes.Buffer,
 ) (hexSHA256 string) {
 	jsonData, err := json.Marshal(metrics)
 	if err != nil {

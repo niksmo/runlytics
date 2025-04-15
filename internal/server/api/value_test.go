@@ -17,6 +17,8 @@ import (
 	"github.com/niksmo/runlytics/internal/server"
 	"github.com/niksmo/runlytics/internal/server/middleware"
 	"github.com/niksmo/runlytics/pkg/di"
+	"github.com/niksmo/runlytics/pkg/httpserver/header"
+	"github.com/niksmo/runlytics/pkg/httpserver/mime"
 	"github.com/niksmo/runlytics/pkg/metrics"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -83,7 +85,7 @@ func TestReadByJSONHandler(t *testing.T) {
 				context.TODO(), method, makeURL(s.URL), reqBody,
 			)
 			require.NoError(t, err)
-			req.Header.Set(ContentType, JSONMediaType)
+			req.Header.Set(header.ContentType, mime.JSON)
 
 			res, err := s.Client().Do(req)
 			require.NoError(t, err)
@@ -119,7 +121,7 @@ func TestReadByJSONHandler(t *testing.T) {
 			context.TODO(), http.MethodPost, makeURL(s.URL), reqBody,
 		)
 		require.NoError(t, err)
-		req.Header.Set(ContentType, "text/plain")
+		req.Header.Set(header.ContentType, "text/plain")
 
 		res, err := s.Client().Do(req)
 		require.NoError(t, err)
@@ -154,7 +156,7 @@ func TestReadByJSONHandler(t *testing.T) {
 			context.TODO(), http.MethodPost, makeURL(s.URL), reqBody,
 		)
 		require.NoError(t, err)
-		req.Header.Set(ContentType, JSONMediaType)
+		req.Header.Set(header.ContentType, mime.JSON)
 
 		res, err := s.Client().Do(req)
 		require.NoError(t, err)
@@ -189,7 +191,7 @@ func TestReadByJSONHandler(t *testing.T) {
 			context.TODO(), http.MethodPost, makeURL(s.URL), &buf,
 		)
 		require.NoError(t, err)
-		req.Header.Set(ContentType, JSONMediaType)
+		req.Header.Set(header.ContentType, mime.JSON)
 
 		res, err := s.Client().Do(req)
 		require.NoError(t, err)
@@ -227,7 +229,7 @@ func TestReadByJSONHandler(t *testing.T) {
 			context.TODO(), http.MethodPost, makeURL(s.URL), &buf,
 		)
 		require.NoError(t, err)
-		req.Header.Set(ContentType, JSONMediaType)
+		req.Header.Set(header.ContentType, mime.JSON)
 
 		res, err := s.Client().Do(req)
 		require.NoError(t, err)
@@ -264,7 +266,7 @@ func TestReadByJSONHandler(t *testing.T) {
 			context.TODO(), http.MethodPost, makeURL(s.URL), &buf,
 		)
 		require.NoError(t, err)
-		req.Header.Set(ContentType, JSONMediaType)
+		req.Header.Set(header.ContentType, mime.JSON)
 
 		res, err := s.Client().Do(req)
 		require.NoError(t, err)
@@ -307,12 +309,12 @@ func TestReadByJSONHandler(t *testing.T) {
 			context.TODO(), http.MethodPost, makeURL(s.URL), &bufReq,
 		)
 		require.NoError(t, err)
-		req.Header.Set(ContentType, JSONMediaType)
+		req.Header.Set(header.ContentType, mime.JSON)
 
 		res, err := s.Client().Do(req)
 		require.NoError(t, err)
 		require.Equal(t, http.StatusOK, res.StatusCode)
-		require.Equal(t, JSONMediaType, res.Header.Get(ContentType))
+		require.Equal(t, mime.JSON, res.Header.Get(header.ContentType))
 
 		var gotScheme metrics.MetricsGauge
 		err = json.NewDecoder(res.Body).Decode(&gotScheme)
@@ -347,8 +349,8 @@ func TestReadByJSONHandler(t *testing.T) {
 				context.TODO(), http.MethodPost, makeURL(s.URL), reqBody,
 			)
 			require.NoError(t, err)
-			req.Header.Set(ContentType, JSONMediaType)
-			req.Header.Set(ContentEncoding, "br")
+			req.Header.Set(header.ContentType, mime.JSON)
+			req.Header.Set(header.ContentEncoding, "br")
 
 			res, err := s.Client().Do(req)
 			require.NoError(t, err)
@@ -400,13 +402,13 @@ func TestReadByJSONHandler(t *testing.T) {
 				context.TODO(), http.MethodPost, makeURL(s.URL), &buf,
 			)
 			require.NoError(t, err)
-			req.Header.Set(ContentType, JSONMediaType)
-			req.Header.Set(ContentEncoding, "gzip")
+			req.Header.Set(header.ContentType, mime.JSON)
+			req.Header.Set(header.ContentEncoding, "gzip")
 
 			res, err := s.Client().Do(req)
 			require.NoError(t, err)
 			require.Equal(t, http.StatusOK, res.StatusCode)
-			assert.Zero(t, res.Header.Get(ContentEncoding))
+			assert.Zero(t, res.Header.Get(header.ContentEncoding))
 
 			var schemeGot metrics.MetricsGauge
 			err = json.NewDecoder(res.Body).Decode(&schemeGot)
@@ -452,8 +454,8 @@ func TestReadByJSONHandler(t *testing.T) {
 				context.TODO(), http.MethodPost, makeURL(s.URL), &bufReq,
 			)
 			require.NoError(t, err)
-			req.Header.Set(ContentType, JSONMediaType)
-			req.Header.Set(AcceptEncoding, "gzip")
+			req.Header.Set(header.ContentType, mime.JSON)
+			req.Header.Set(header.AcceptEncoding, "gzip")
 
 			res, err := s.Client().Do(req)
 			require.NoError(t, err)

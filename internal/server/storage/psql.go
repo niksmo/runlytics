@@ -79,7 +79,7 @@ func (ps *psqlStorage) UpdateGaugeByName(
 }
 
 func (ps *psqlStorage) UpdateCounterList(
-	ctx context.Context, mSlice []metrics.MetricsCounter,
+	ctx context.Context, mSlice []metrics.Metrics,
 ) error {
 	logPrefix := "Update counter list"
 	tx, err := beginTxWithRetries(
@@ -103,7 +103,7 @@ func (ps *psqlStorage) UpdateCounterList(
 	defer stmt.Close()
 
 	for _, item := range mSlice {
-		_, err = stmt.ExecContext(ctx, item.ID, item.Delta)
+		_, err = stmt.ExecContext(ctx, item.ID, *item.Delta)
 		if err != nil {
 			err = rollbackWithRetries(ctx, tx, logPrefix+": rollback")
 			if err != nil {
@@ -121,7 +121,7 @@ func (ps *psqlStorage) UpdateCounterList(
 }
 
 func (ps *psqlStorage) UpdateGaugeList(
-	ctx context.Context, mSlice []metrics.MetricsGauge,
+	ctx context.Context, mSlice []metrics.Metrics,
 ) error {
 	logPrefix := "Update gauge list"
 	tx, err := beginTxWithRetries(
@@ -145,7 +145,7 @@ func (ps *psqlStorage) UpdateGaugeList(
 	defer stmt.Close()
 
 	for _, item := range mSlice {
-		_, err = stmt.ExecContext(ctx, item.ID, item.Value)
+		_, err = stmt.ExecContext(ctx, item.ID, *item.Value)
 		if err != nil {
 			err = rollbackWithRetries(ctx, tx, logPrefix+": rollback")
 			if err != nil {

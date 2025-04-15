@@ -12,34 +12,30 @@ type BatchUpdateService struct {
 	repository di.UpdateListRepository
 }
 
-func NewBatchUpdateService(repository di.UpdateListRepository) *BatchUpdateService {
+func NewBatchUpdateService(
+	repository di.UpdateListRepository,
+) *BatchUpdateService {
 	return &BatchUpdateService{repository}
 }
 
-func (service *BatchUpdateService) BatchUpdate(ctx context.Context, batch metrics.MetricsBatchUpdate) error {
-	var gaugeSlice []metrics.MetricsGauge
-	var counterSlice []metrics.MetricsCounter
+func (service *BatchUpdateService) BatchUpdate(
+	ctx context.Context, batch metrics.MetricsBatchUpdate,
+) error {
+	var gaugeSlice []metrics.Metrics
+	var counterSlice []metrics.Metrics
 
-	for _, item := range batch {
-		switch item.MType {
+	for _, metricsUpdate := range batch {
+		switch metricsUpdate.MType {
 		case metrics.MTypeGauge:
-			if item.Value == nil {
+			if metricsUpdate.Value == nil {
 				return server.ErrInternal
 			}
-			gaugeSlice = append(gaugeSlice, metrics.MetricsGauge{
-				ID:    item.ID,
-				MType: item.MType,
-				Value: *item.Value,
-			})
+			gaugeSlice = append(gaugeSlice, metricsUpdate.Metrics)
 		case metrics.MTypeCounter:
-			if item.Delta == nil {
+			if metricsUpdate.Delta == nil {
 				return server.ErrInternal
 			}
-			counterSlice = append(counterSlice, metrics.MetricsCounter{
-				ID:    item.ID,
-				MType: item.MType,
-				Delta: *item.Delta,
-			})
+			counterSlice = append(counterSlice, metricsUpdate.Metrics)
 		default:
 			return server.ErrInternal
 		}
