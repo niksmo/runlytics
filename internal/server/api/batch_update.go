@@ -11,17 +11,12 @@ import (
 )
 
 type BatchUpdateHandler struct {
-	service   di.BatchUpdateService
-	validator di.SchemeVerifier
+	service di.BatchUpdateService
 }
 
-func SetBatchUpdateHandler(
-	mux *chi.Mux,
-	service di.BatchUpdateService,
-	validator di.SchemeVerifier,
-) {
+func SetBatchUpdateHandler(mux *chi.Mux, service di.BatchUpdateService) {
 	path := "/updates"
-	handler := &BatchUpdateHandler{service, validator}
+	handler := &BatchUpdateHandler{service}
 	mux.Route(path, func(r chi.Router) {
 		batchUpdate := "/"
 		r.With(middleware.AllowJSON).Post(batchUpdate, handler.batchUpdate())
@@ -29,20 +24,26 @@ func SetBatchUpdateHandler(
 	})
 }
 
-func (handler *BatchUpdateHandler) batchUpdate() http.HandlerFunc {
+func (h *BatchUpdateHandler) batchUpdate() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		var scheme metrics.MetricsBatchUpdate
-		if err := jsonhttp.ReadRequest(r, scheme); err != nil {
+		var ml metrics.MetricsList
+		if err := jsonhttp.ReadRequest(r, ml); err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 
-		if err := handler.validator.VerifyScheme(scheme); err != nil {
+		err := ml.Verify(
+			metrics.VerifyID,
+			metrics.VerifyType,
+			metrics.VerifyDelta,
+			metrics.VerifyValue,
+		)
+		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 
-		err := handler.service.BatchUpdate(r.Context(), scheme)
+		err = h.service.BatchUpdate(r.Context(), ml)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return

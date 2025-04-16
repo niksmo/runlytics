@@ -17,13 +17,12 @@ import (
 	"github.com/niksmo/runlytics/internal/server/middleware"
 	"github.com/niksmo/runlytics/internal/server/service"
 	"github.com/niksmo/runlytics/internal/server/storage"
-	"github.com/niksmo/runlytics/internal/server/validator"
 	"github.com/niksmo/runlytics/pkg/fileoperator"
 	"github.com/niksmo/runlytics/pkg/httpserver"
 	"github.com/niksmo/runlytics/pkg/sqldb"
 )
 
-func main() {
+func mains() {
 	config := config.Load()
 	logger.Init(config.LogLvl())
 
@@ -53,18 +52,15 @@ func main() {
 	api.SetUpdateHandler(
 		mux,
 		service.NewUpdateService(repository),
-		validator.NewUpdateValidator(),
 	)
 
 	api.SetBatchUpdateHandler(mux,
 		service.NewBatchUpdateService(repository),
-		validator.NewBatchUpdateValidator(),
 	)
 
 	api.SetValueHandler(
 		mux,
 		service.NewValueService(repository),
-		validator.NewValueValidator(),
 	)
 
 	api.SetHealthCheckHandler(mux, service.NewHealthCheckService(pgDB))

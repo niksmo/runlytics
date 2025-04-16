@@ -3,64 +3,64 @@ package service
 import (
 	"context"
 
-	"github.com/niksmo/runlytics/internal/server"
+	"github.com/niksmo/runlytics/internal/server/errs"
 	"github.com/niksmo/runlytics/pkg/di"
 	"github.com/niksmo/runlytics/pkg/metrics"
 )
 
 type UpdateService struct {
-	repository di.UpdateRepository
+	repository di.UpdateByNameRepository
 }
 
-func NewUpdateService(repository di.UpdateRepository) *UpdateService {
+func NewUpdateService(repository di.UpdateByNameRepository) *UpdateService {
 	return &UpdateService{repository}
 }
 
 func (s *UpdateService) Update(
-	ctx context.Context, scheme *metrics.Metrics,
-) (err error) {
-	if scheme == nil {
-		return server.ErrInternal
+	ctx context.Context, m *metrics.Metrics,
+) error {
+	if m == nil {
+		return errs.ErrInternal
 	}
 
-	switch scheme.MType {
+	switch m.MType {
 	case metrics.MTypeGauge:
-		return s.updateGauge(ctx, scheme)
+		return s.updateGauge(ctx, m)
 	case metrics.MTypeCounter:
-		return s.updateCounter(ctx, scheme)
+		return s.updateCounter(ctx, m)
 	default:
-		return server.ErrInternal
+		return errs.ErrInternal
 	}
 }
 
 func (s *UpdateService) updateGauge(
-	ctx context.Context, scheme *metrics.Metrics,
+	ctx context.Context, m *metrics.Metrics,
 ) error {
-	if scheme.Value == nil {
-		return server.ErrInternal
+	if m.Value == nil {
+		return errs.ErrInternal
 	}
-	value, err := s.repository.UpdateGaugeByName(
-		ctx, scheme.ID, *scheme.Value,
+	v, err := s.repository.UpdateGaugeByName(
+		ctx, m.ID, *m.Value,
 	)
 	if err != nil {
 		return err
 	}
-	scheme.Value = &value
+	m.Value = &v
 	return nil
 }
 
 func (s *UpdateService) updateCounter(
-	ctx context.Context, scheme *metrics.Metrics,
+	ctx context.Context, m *metrics.Metrics,
 ) error {
-	if scheme.Delta == nil {
-		return server.ErrInternal
+	if m.Delta == nil {
+		return errs.ErrInternal
 	}
-	delta, err := s.repository.UpdateCounterByName(
-		ctx, scheme.ID, *scheme.Delta,
+	d, err := s.repository.UpdateCounterByName(
+		ctx, m.ID, *m.Delta,
 	)
 	if err != nil {
 		return err
 	}
-	scheme.Delta = &delta
+	m.Delta = &d
 	return nil
 }

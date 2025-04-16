@@ -9,10 +9,6 @@ import (
 	"github.com/niksmo/runlytics/pkg/metrics"
 )
 
-type ValueStringer interface {
-	GetValue() string
-}
-
 type GaugeMetricsGetter interface {
 	GetGaugeMetrics() map[string]float64
 }
@@ -43,23 +39,6 @@ type ServerConfig interface {
 	Restore() bool
 }
 
-type Verifier interface {
-	Verify() error
-}
-
-type SchemeVerifier interface {
-	VerifyScheme(Verifier) error
-}
-
-type MetricsParamsVerifier interface {
-	VerifyParams(id, mType, value string) (metrics.Metrics, error)
-}
-
-type MetricsParamsSchemeVerifier interface {
-	MetricsParamsVerifier
-	SchemeVerifier
-}
-
 type FileOperator interface {
 	Clear() (err error)
 	Load() ([]byte, error)
@@ -67,12 +46,12 @@ type FileOperator interface {
 	Close() error
 }
 
-type UpdateRepository interface {
+type UpdateByNameRepository interface {
 	UpdateCounterByName(ctx context.Context, name string, value int64) (int64, error)
 	UpdateGaugeByName(ctx context.Context, name string, value float64) (float64, error)
 }
 
-type UpdateListRepository interface {
+type BatchUpdate interface {
 	UpdateCounterList(ctx context.Context, slice []metrics.Metrics) error
 	UpdateGaugeList(ctx context.Context, slice []metrics.Metrics) error
 }
@@ -82,16 +61,16 @@ type ReadByNameRepository interface {
 	ReadGaugeByName(ctx context.Context, name string) (float64, error)
 }
 
-type ReadRepository interface {
+type ReadListRepository interface {
 	ReadGauge(context.Context) (map[string]float64, error)
 	ReadCounter(context.Context) (map[string]int64, error)
 }
 
 type Repository interface {
 	ReadByNameRepository
-	ReadRepository
-	UpdateRepository
-	UpdateListRepository
+	ReadListRepository
+	UpdateByNameRepository
+	BatchUpdate
 	Run(stopCtx context.Context, wg *sync.WaitGroup)
 }
 
@@ -112,7 +91,7 @@ type UpdateService interface {
 }
 
 type BatchUpdateService interface {
-	BatchUpdate(context.Context, metrics.MetricsBatchUpdate) error
+	BatchUpdate(context.Context, metrics.MetricsList) error
 }
 
 type Job interface {

@@ -1,4 +1,4 @@
-package api
+package api_test
 
 import (
 	"bytes"
@@ -14,9 +14,9 @@ import (
 	"testing"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/niksmo/runlytics/internal/server"
+	"github.com/niksmo/runlytics/internal/server/api"
+	"github.com/niksmo/runlytics/internal/server/errs"
 	"github.com/niksmo/runlytics/internal/server/middleware"
-	"github.com/niksmo/runlytics/pkg/di"
 	"github.com/niksmo/runlytics/pkg/httpserver/header"
 	"github.com/niksmo/runlytics/pkg/httpserver/mime"
 	"github.com/niksmo/runlytics/pkg/metrics"
@@ -30,24 +30,19 @@ type MockValueService struct {
 }
 
 func (service *MockValueService) Read(
-	ctx context.Context, scheme *metrics.MetricsRead,
-) (di.Metrics, error) {
-	retArgs := service.Called(nil, scheme)
-
-	if _, ok := retArgs.Get(0).(di.Metrics); !ok {
-		return nil, retArgs.Error(1)
-	}
-	return retArgs.Get(0).(di.Metrics), retArgs.Error(1)
-}
-
-type MockValueValidator struct {
-	mock.Mock
-}
-
-func (validator *MockValueValidator) VerifyScheme(
-	verifier di.Verifier,
+	ctx context.Context, m *metrics.Metrics,
 ) error {
-	retArgs := validator.Called(verifier)
+	retArgs := service.Called(context.Background(), m)
+	if m != nil {
+		switch m.MType {
+		case metrics.MTypeGauge:
+			v := 123.45
+			m.Value = &v
+		case metrics.MTypeCounter:
+			d := int64(12345)
+			m.Delta = &d
+		}
+	}
 	return retArgs.Error(0)
 }
 
@@ -65,24 +60,25 @@ func TestReadByJSONHandler(t *testing.T) {
 			http.MethodHead,
 			http.MethodOptions,
 		}
-		mockService := new(MockValueService)
-		mockService.On("Read", nil, nil).Return(nil, nil)
-		mockValidator := new(MockValueValidator)
-		mockValidator.On("VerifyScheme", nil).Return(nil)
-		mux := chi.NewRouter()
 
-		SetValueHandler(mux, mockService, mockValidator)
+		mockService := new(MockValueService)
+		mockService.On(
+			"Read", context.Background(), &metrics.Metrics{},
+		).Return(nil)
+
+		mux := chi.NewRouter()
+		api.SetValueHandler(mux, mockService)
 
 		for _, method := range methods {
 			s := httptest.NewServer(mux)
 			defer s.Close()
 
 			reqBody := strings.NewReader(
-				`{ID: "0", MType: "gauge"}`,
+				`{"id": "0", "type": "gauge"}`,
 			)
 
 			req, err := http.NewRequestWithContext(
-				context.TODO(), method, makeURL(s.URL), reqBody,
+				context.Background(), method, makeURL(s.URL), reqBody,
 			)
 			require.NoError(t, err)
 			req.Header.Set(header.ContentType, mime.JSON)
@@ -97,31 +93,30 @@ func TestReadByJSONHandler(t *testing.T) {
 			assert.Len(t, data, 0)
 
 			mockService.AssertNumberOfCalls(t, "Read", 0)
-			mockValidator.AssertNumberOfCalls(t, "VerifyScheme", 0)
 		}
 	})
 
 	t.Run("Not allowed Content-Type", func(t *testing.T) {
 		mockService := new(MockValueService)
-		mockService.On("Read", nil, nil).Return(nil, nil)
-		mockValidator := new(MockValueValidator)
-		mockValidator.On("VerifyScheme", nil).Return(nil)
-		mux := chi.NewRouter()
+		mockService.On(
+			"Read", context.Background(), &metrics.Metrics{},
+		).Return(nil)
 
-		SetValueHandler(mux, mockService, mockValidator)
+		mux := chi.NewRouter()
+		api.SetValueHandler(mux, mockService)
 
 		s := httptest.NewServer(mux)
 		defer s.Close()
 
 		reqBody := strings.NewReader(
-			`{ID: "0", MType: "gauge"}`,
+			`{"id": "0", "type": "gauge"}`,
 		)
 
 		req, err := http.NewRequestWithContext(
-			context.TODO(), http.MethodPost, makeURL(s.URL), reqBody,
+			context.Background(), http.MethodPost, makeURL(s.URL), reqBody,
 		)
 		require.NoError(t, err)
-		req.Header.Set(header.ContentType, "text/plain")
+		req.Header.Set(header.ContentType, mime.TEXT)
 
 		res, err := s.Client().Do(req)
 		require.NoError(t, err)
@@ -133,27 +128,26 @@ func TestReadByJSONHandler(t *testing.T) {
 		assert.Len(t, data, 0)
 
 		mockService.AssertNumberOfCalls(t, "Read", 0)
-		mockValidator.AssertNumberOfCalls(t, "VerifyScheme", 0)
 	})
 
 	t.Run("Bad JSON", func(t *testing.T) {
 		mockService := new(MockValueService)
-		mockService.On("Read", nil, nil).Return(nil, nil)
-		mockValidator := new(MockValueValidator)
-		mockValidator.On("VerifyScheme", nil).Return(nil)
-		mux := chi.NewRouter()
+		mockService.On(
+			"Read", context.Background(), &metrics.Metrics{},
+		).Return(nil)
 
-		SetValueHandler(mux, mockService, mockValidator)
+		mux := chi.NewRouter()
+		api.SetValueHandler(mux, mockService)
 
 		s := httptest.NewServer(mux)
 		defer s.Close()
 
 		reqBody := strings.NewReader(
-			`{ID: "0", MType: "gauge}`,
+			`{"id": "0", "type": "gauge,}`,
 		)
 
 		req, err := http.NewRequestWithContext(
-			context.TODO(), http.MethodPost, makeURL(s.URL), reqBody,
+			context.Background(), http.MethodPost, makeURL(s.URL), reqBody,
 		)
 		require.NoError(t, err)
 		req.Header.Set(header.ContentType, mime.JSON)
@@ -164,31 +158,26 @@ func TestReadByJSONHandler(t *testing.T) {
 		require.Equal(t, http.StatusBadRequest, res.StatusCode)
 
 		mockService.AssertNumberOfCalls(t, "Read", 0)
-		mockValidator.AssertNumberOfCalls(t, "VerifyScheme", 0)
 	})
 
-	t.Run("Error on verify scheme", func(t *testing.T) {
-		schemeReq := metrics.MetricsRead{
-			ID: "", MType: metrics.MTypeGauge,
-		}
-		expectedErr := errors.New("test error")
+	t.Run("Invalid metrics payload", func(t *testing.T) {
 		mockService := new(MockValueService)
-		mockService.On("Read", nil, nil).Return(nil, nil)
-		mockValidator := new(MockValueValidator)
-		mockValidator.On("VerifyScheme", &schemeReq).Return(expectedErr)
-		mux := chi.NewRouter()
+		mockService.On(
+			"Read", context.Background(), &metrics.Metrics{},
+		).Return(nil)
 
-		SetValueHandler(mux, mockService, mockValidator)
+		mux := chi.NewRouter()
+		api.SetValueHandler(mux, mockService)
 
 		s := httptest.NewServer(mux)
 		defer s.Close()
 
-		var buf bytes.Buffer
-		err := json.NewEncoder(&buf).Encode(schemeReq)
-		require.NoError(t, err)
+		reqBody := strings.NewReader(
+			`{ID: "", MType: ""}`,
+		)
 
 		req, err := http.NewRequestWithContext(
-			context.TODO(), http.MethodPost, makeURL(s.URL), &buf,
+			context.Background(), http.MethodPost, makeURL(s.URL), reqBody,
 		)
 		require.NoError(t, err)
 		req.Header.Set(header.ContentType, mime.JSON)
@@ -196,27 +185,22 @@ func TestReadByJSONHandler(t *testing.T) {
 		res, err := s.Client().Do(req)
 		require.NoError(t, err)
 		require.Equal(t, http.StatusBadRequest, res.StatusCode)
-		data, err := io.ReadAll(res.Body)
-		require.NoError(t, err)
 		res.Body.Close()
-		assert.Equal(t, expectedErr.Error(), strings.TrimSpace(string(data)))
-
 		mockService.AssertNumberOfCalls(t, "Read", 0)
-		mockValidator.AssertNumberOfCalls(t, "VerifyScheme", 1)
 	})
 
 	t.Run("Not exists error on Read", func(t *testing.T) {
-		schemeReq := metrics.MetricsRead{
-			ID: "0", MType: metrics.MTypeGauge,
-		}
-		expectedErr := server.ErrNotExists
-		mockService := new(MockValueService)
-		mockService.On("Read", nil, &schemeReq).Return(nil, expectedErr)
-		mockValidator := new(MockValueValidator)
-		mockValidator.On("VerifyScheme", &schemeReq).Return(nil)
-		mux := chi.NewRouter()
+		var schemeReq metrics.Metrics
+		schemeReq.ID = "0"
+		schemeReq.MType = metrics.MTypeGauge
 
-		SetValueHandler(mux, mockService, mockValidator)
+		mockService := new(MockValueService)
+		mockService.On(
+			"Read", context.Background(), &schemeReq,
+		).Return(errs.ErrNotExists)
+
+		mux := chi.NewRouter()
+		api.SetValueHandler(mux, mockService)
 
 		s := httptest.NewServer(mux)
 		defer s.Close()
@@ -226,7 +210,7 @@ func TestReadByJSONHandler(t *testing.T) {
 		require.NoError(t, err)
 
 		req, err := http.NewRequestWithContext(
-			context.TODO(), http.MethodPost, makeURL(s.URL), &buf,
+			context.Background(), http.MethodPost, makeURL(s.URL), &buf,
 		)
 		require.NoError(t, err)
 		req.Header.Set(header.ContentType, mime.JSON)
@@ -237,23 +221,24 @@ func TestReadByJSONHandler(t *testing.T) {
 		data, err := io.ReadAll(res.Body)
 		require.NoError(t, err)
 		res.Body.Close()
-		assert.Equal(t, expectedErr.Error(), strings.TrimSpace(string(data)))
+		assert.Equal(t, errs.ErrNotExists.Error(), strings.TrimSpace(string(data)))
 
 		mockService.AssertNumberOfCalls(t, "Read", 1)
-		mockValidator.AssertNumberOfCalls(t, "VerifyScheme", 1)
 	})
 
 	t.Run("Internal error on Read", func(t *testing.T) {
-		schemeReq := metrics.MetricsRead{
-			ID: "0", MType: metrics.MTypeGauge,
-		}
-		mockService := new(MockValueService)
-		mockService.On("Read", nil, &schemeReq).Return(nil, errors.New("test error"))
-		mockValidator := new(MockValueValidator)
-		mockValidator.On("VerifyScheme", &schemeReq).Return(nil)
-		mux := chi.NewRouter()
+		var schemeReq metrics.Metrics
+		schemeReq.ID = "0"
+		schemeReq.MType = metrics.MTypeGauge
+		readErr := errors.New("test error")
 
-		SetValueHandler(mux, mockService, mockValidator)
+		mockService := new(MockValueService)
+		mockService.On(
+			"Read", context.Background(), &schemeReq,
+		).Return(readErr)
+
+		mux := chi.NewRouter()
+		api.SetValueHandler(mux, mockService)
 
 		s := httptest.NewServer(mux)
 		defer s.Close()
@@ -263,7 +248,7 @@ func TestReadByJSONHandler(t *testing.T) {
 		require.NoError(t, err)
 
 		req, err := http.NewRequestWithContext(
-			context.TODO(), http.MethodPost, makeURL(s.URL), &buf,
+			context.Background(), http.MethodPost, makeURL(s.URL), &buf,
 		)
 		require.NoError(t, err)
 		req.Header.Set(header.ContentType, mime.JSON)
@@ -274,29 +259,21 @@ func TestReadByJSONHandler(t *testing.T) {
 		data, err := io.ReadAll(res.Body)
 		require.NoError(t, err)
 		res.Body.Close()
-		assert.Equal(t, server.ErrInternal.Error(), strings.TrimSpace(string(data)))
+		assert.Equal(t, errs.ErrInternal.Error(), strings.TrimSpace(string(data)))
 
 		mockService.AssertNumberOfCalls(t, "Read", 1)
-		mockValidator.AssertNumberOfCalls(t, "VerifyScheme", 1)
 	})
 
 	t.Run("Regular response", func(t *testing.T) {
-		id := "0"
-		mType := metrics.MTypeGauge
-		value := 123.45
-		schemeReq := metrics.MetricsRead{
-			ID: id, MType: mType,
-		}
-		schemeRes := metrics.MetricsGauge{
-			ID: id, MType: mType, Value: value,
-		}
-		mockService := new(MockValueService)
-		mockService.On("Read", nil, &schemeReq).Return(schemeRes, nil)
-		mockValidator := new(MockValueValidator)
-		mockValidator.On("VerifyScheme", &schemeReq).Return(nil)
-		mux := chi.NewRouter()
+		var schemeReq metrics.Metrics
+		schemeReq.ID = "0"
+		schemeReq.MType = metrics.MTypeGauge
 
-		SetValueHandler(mux, mockService, mockValidator)
+		mockService := new(MockValueService)
+		mockService.On("Read", context.Background(), &schemeReq).Return(nil)
+
+		mux := chi.NewRouter()
+		api.SetValueHandler(mux, mockService)
 
 		s := httptest.NewServer(mux)
 		defer s.Close()
@@ -306,7 +283,7 @@ func TestReadByJSONHandler(t *testing.T) {
 		require.NoError(t, err)
 
 		req, err := http.NewRequestWithContext(
-			context.TODO(), http.MethodPost, makeURL(s.URL), &bufReq,
+			context.Background(), http.MethodPost, makeURL(s.URL), &bufReq,
 		)
 		require.NoError(t, err)
 		req.Header.Set(header.ContentType, mime.JSON)
@@ -316,37 +293,39 @@ func TestReadByJSONHandler(t *testing.T) {
 		require.Equal(t, http.StatusOK, res.StatusCode)
 		require.Equal(t, mime.JSON, res.Header.Get(header.ContentType))
 
-		var gotScheme metrics.MetricsGauge
-		err = json.NewDecoder(res.Body).Decode(&gotScheme)
+		data, err := io.ReadAll(res.Body)
 		require.NoError(t, err)
+		assert.JSONEq(
+			t,
+			`{"id": "0", "type": "gauge", "value": 123.45}`,
+			string(data),
+		)
 		res.Body.Close()
-		assert.Equal(t, schemeRes, gotScheme)
 
 		mockService.AssertNumberOfCalls(t, "Read", 1)
-		mockValidator.AssertNumberOfCalls(t, "VerifyScheme", 1)
 	})
 
 	t.Run("Encoding", func(t *testing.T) {
 		t.Run("Allow only gzip", func(t *testing.T) {
 			mockService := new(MockValueService)
-			mockService.On("Read", nil, nil).Return(nil, nil)
-			mockValidator := new(MockValueValidator)
-			mockValidator.On("VerifyScheme", nil).Return(nil)
+			mockService.On(
+				"Read", context.Background(), &metrics.Metrics{},
+			).Return(nil)
+
 			mux := chi.NewRouter()
 			mux.Use(middleware.AllowContentEncoding("gzip"))
 			mux.Use(middleware.Gzip)
-
-			SetValueHandler(mux, mockService, mockValidator)
+			api.SetValueHandler(mux, mockService)
 
 			s := httptest.NewServer(mux)
 			defer s.Close()
 
 			reqBody := strings.NewReader(
-				`{ID: "0", MType: "gauge"}`,
+				`{id: "0", type: "gauge"}`,
 			)
 
 			req, err := http.NewRequestWithContext(
-				context.TODO(), http.MethodPost, makeURL(s.URL), reqBody,
+				context.Background(), http.MethodPost, makeURL(s.URL), reqBody,
 			)
 			require.NoError(t, err)
 			req.Header.Set(header.ContentType, mime.JSON)
@@ -362,31 +341,22 @@ func TestReadByJSONHandler(t *testing.T) {
 			assert.Len(t, data, 0)
 
 			mockService.AssertNumberOfCalls(t, "Read", 0)
-			mockValidator.AssertNumberOfCalls(t, "VerifyScheme", 0)
 		})
 
 		t.Run("Send gzip, accept non-compressed", func(t *testing.T) {
-			id := "0"
-			mType := metrics.MTypeGauge
-			value := 123.45
-			schemeReq := metrics.MetricsRead{
-				ID: id, MType: mType,
-			}
-			schemeRes := metrics.MetricsGauge{
-				ID: id, MType: mType, Value: value,
-			}
-
-			mockValidator := new(MockValueValidator)
-			mockValidator.On("VerifyScheme", &schemeReq).Return(nil)
+			var schemeReq metrics.Metrics
+			schemeReq.ID = "0"
+			schemeReq.MType = metrics.MTypeGauge
 
 			mockService := new(MockValueService)
-			mockService.On("Read", nil, &schemeReq).Return(schemeRes, nil)
+			mockService.On(
+				"Read", context.Background(), &schemeReq,
+			).Return(nil)
 
 			mux := chi.NewRouter()
 			mux.Use(middleware.AllowContentEncoding("gzip"))
 			mux.Use(middleware.Gzip)
-
-			SetValueHandler(mux, mockService, mockValidator)
+			api.SetValueHandler(mux, mockService)
 
 			s := httptest.NewServer(mux)
 			defer s.Close()
@@ -399,7 +369,7 @@ func TestReadByJSONHandler(t *testing.T) {
 			require.NoError(t, err)
 
 			req, err := http.NewRequestWithContext(
-				context.TODO(), http.MethodPost, makeURL(s.URL), &buf,
+				context.Background(), http.MethodPost, makeURL(s.URL), &buf,
 			)
 			require.NoError(t, err)
 			req.Header.Set(header.ContentType, mime.JSON)
@@ -410,38 +380,32 @@ func TestReadByJSONHandler(t *testing.T) {
 			require.Equal(t, http.StatusOK, res.StatusCode)
 			assert.Zero(t, res.Header.Get(header.ContentEncoding))
 
-			var schemeGot metrics.MetricsGauge
-			err = json.NewDecoder(res.Body).Decode(&schemeGot)
-			res.Body.Close()
+			data, err := io.ReadAll(res.Body)
 			require.NoError(t, err)
+			assert.JSONEq(
+				t,
+				`{"id": "0", "type": "gauge", "value": 123.45}`,
+				string(data),
+			)
+			res.Body.Close()
 
-			assert.Equal(t, schemeRes, schemeGot)
 			mockService.AssertNumberOfCalls(t, "Read", 1)
-			mockValidator.AssertNumberOfCalls(t, "VerifyScheme", 1)
 		})
 
-		t.Run("Send non-compressed, accept gzip", func(t *testing.T) {
-			id := "0"
-			mType := metrics.MTypeGauge
-			value := 123.45
-			schemeReq := metrics.MetricsRead{
-				ID: id, MType: mType,
-			}
-			schemeRes := metrics.MetricsGauge{
-				ID: id, MType: mType, Value: value,
-			}
-
-			mockValidator := new(MockValueValidator)
-			mockValidator.On("VerifyScheme", &schemeReq).Return(nil)
+		t.Run("Send non-compressed accept gzip", func(t *testing.T) {
+			var schemeReq metrics.Metrics
+			schemeReq.ID = "0"
+			schemeReq.MType = metrics.MTypeGauge
 
 			mockService := new(MockValueService)
-			mockService.On("Read", nil, &schemeReq).Return(schemeRes, nil)
+			mockService.On(
+				"Read", context.Background(), &schemeReq,
+			).Return(nil)
 
 			mux := chi.NewRouter()
 			mux.Use(middleware.AllowContentEncoding("gzip"))
 			mux.Use(middleware.Gzip)
-
-			SetValueHandler(mux, mockService, mockValidator)
+			api.SetValueHandler(mux, mockService)
 
 			s := httptest.NewServer(mux)
 			defer s.Close()
@@ -451,7 +415,7 @@ func TestReadByJSONHandler(t *testing.T) {
 			require.NoError(t, err)
 
 			req, err := http.NewRequestWithContext(
-				context.TODO(), http.MethodPost, makeURL(s.URL), &bufReq,
+				context.Background(), http.MethodPost, makeURL(s.URL), &bufReq,
 			)
 			require.NoError(t, err)
 			req.Header.Set(header.ContentType, mime.JSON)
@@ -461,16 +425,16 @@ func TestReadByJSONHandler(t *testing.T) {
 			require.NoError(t, err)
 			require.Equal(t, http.StatusOK, res.StatusCode)
 
-			var schemeGot metrics.MetricsGauge
 			gzipReader, err := gzip.NewReader(res.Body)
 			require.NoError(t, err)
-			err = json.NewDecoder(gzipReader).Decode(&schemeGot)
+			data, err := io.ReadAll(gzipReader)
+			gzipReader.Close()
 			res.Body.Close()
 			require.NoError(t, err)
+			expect := `{"id":"0","type":"gauge","value":123.45}`
+			assert.JSONEq(t, expect, string(data))
 
-			assert.Equal(t, schemeRes, schemeGot)
 			mockService.AssertNumberOfCalls(t, "Read", 1)
-			mockValidator.AssertNumberOfCalls(t, "VerifyScheme", 1)
 		})
 	})
 }
@@ -491,19 +455,19 @@ func TestReadByURLParamsHandler(t *testing.T) {
 			http.MethodOptions,
 		}
 		mockService := new(MockValueService)
-		mockService.On("Update", nil, nil).Return(nil, nil)
-		mockValidator := new(MockValueValidator)
-		mockValidator.On("VerifyScheme", nil).Return(nil)
-		mux := chi.NewRouter()
+		mockService.On(
+			"Read", context.Background(), &metrics.Metrics{},
+		).Return(nil)
 
-		SetValueHandler(mux, mockService, mockValidator)
+		mux := chi.NewRouter()
+		api.SetValueHandler(mux, mockService)
 
 		for _, method := range methods {
 			s := httptest.NewServer(mux)
 			defer s.Close()
 
 			req, err := http.NewRequestWithContext(
-				context.TODO(),
+				context.Background(),
 				method,
 				makeURL(s.URL, "gauge", "Alloc"),
 				http.NoBody,
@@ -519,33 +483,26 @@ func TestReadByURLParamsHandler(t *testing.T) {
 			require.NoError(t, err)
 			assert.Len(t, data, 0)
 
-			mockService.AssertNumberOfCalls(t, "Update", 0)
-			mockValidator.AssertNumberOfCalls(t, "VerifyParams", 0)
+			mockService.AssertNumberOfCalls(t, "Read", 0)
 		}
 	})
 
-	t.Run("Error on verify scheme", func(t *testing.T) {
-		id := "Alloc"
-		mType := metrics.MTypeGauge
-		schemeReq := metrics.MetricsRead{
-			ID: id, MType: mType,
-		}
-		expectedErr := errors.New("test error")
+	t.Run("Invalid metrics payload", func(t *testing.T) {
 		mockService := new(MockValueService)
-		mockService.On("Read", nil, nil).Return(nil, nil)
-		mockValidator := new(MockValueValidator)
-		mockValidator.On("VerifyScheme", &schemeReq).Return(expectedErr)
-		mux := chi.NewRouter()
+		mockService.On(
+			"Read", context.Background(), &metrics.Metrics{},
+		).Return(nil)
 
-		SetValueHandler(mux, mockService, mockValidator)
+		mux := chi.NewRouter()
+		api.SetValueHandler(mux, mockService)
 
 		s := httptest.NewServer(mux)
 		defer s.Close()
 
 		req, err := http.NewRequestWithContext(
-			context.TODO(),
+			context.Background(),
 			http.MethodGet,
-			makeURL(s.URL, mType, id),
+			makeURL(s.URL, "invalidType", "0"),
 			http.NoBody,
 		)
 		require.NoError(t, err)
@@ -553,35 +510,31 @@ func TestReadByURLParamsHandler(t *testing.T) {
 		res, err := s.Client().Do(req)
 		require.NoError(t, err)
 		require.Equal(t, http.StatusBadRequest, res.StatusCode)
-		data, err := io.ReadAll(res.Body)
-		require.NoError(t, err)
 		res.Body.Close()
-		assert.Equal(t, expectedErr.Error(), strings.TrimSpace(string(data)))
-
 		mockService.AssertNumberOfCalls(t, "Read", 0)
-		mockValidator.AssertNumberOfCalls(t, "VerifyScheme", 1)
 	})
 
 	t.Run("Not exists error on Read", func(t *testing.T) {
 		id := "Alloc"
 		mType := metrics.MTypeGauge
-		schemeReq := metrics.MetricsRead{
-			ID: id, MType: mType,
-		}
-		expectedErr := server.ErrNotExists
-		mockService := new(MockValueService)
-		mockService.On("Read", nil, &schemeReq).Return(nil, expectedErr)
-		mockValidator := new(MockValueValidator)
-		mockValidator.On("VerifyScheme", &schemeReq).Return(nil)
-		mux := chi.NewRouter()
 
-		SetValueHandler(mux, mockService, mockValidator)
+		var schemeReq metrics.Metrics
+		schemeReq.ID = id
+		schemeReq.MType = mType
+
+		mockService := new(MockValueService)
+		mockService.On(
+			"Read", context.Background(), &schemeReq,
+		).Return(errs.ErrNotExists)
+
+		mux := chi.NewRouter()
+		api.SetValueHandler(mux, mockService)
 
 		s := httptest.NewServer(mux)
 		defer s.Close()
 
 		req, err := http.NewRequestWithContext(
-			context.TODO(),
+			context.Background(),
 			http.MethodGet,
 			makeURL(s.URL, mType, id),
 			http.NoBody,
@@ -594,31 +547,33 @@ func TestReadByURLParamsHandler(t *testing.T) {
 		data, err := io.ReadAll(res.Body)
 		require.NoError(t, err)
 		res.Body.Close()
-		assert.Equal(t, expectedErr.Error(), strings.TrimSpace(string(data)))
+		assert.Equal(t, errs.ErrNotExists.Error(), strings.TrimSpace(string(data)))
 
 		mockService.AssertNumberOfCalls(t, "Read", 1)
-		mockValidator.AssertNumberOfCalls(t, "VerifyScheme", 1)
 	})
 
 	t.Run("Internal error on Read", func(t *testing.T) {
 		id := "Alloc"
 		mType := metrics.MTypeGauge
-		schemeReq := metrics.MetricsRead{
-			ID: id, MType: mType,
-		}
-		mockService := new(MockValueService)
-		mockService.On("Read", nil, &schemeReq).Return(nil, errors.New("test error"))
-		mockValidator := new(MockValueValidator)
-		mockValidator.On("VerifyScheme", &schemeReq).Return(nil)
-		mux := chi.NewRouter()
+		readErr := errors.New("test error")
 
-		SetValueHandler(mux, mockService, mockValidator)
+		var schemeReq metrics.Metrics
+		schemeReq.ID = id
+		schemeReq.MType = mType
+
+		mockService := new(MockValueService)
+		mockService.On(
+			"Read", context.Background(), &schemeReq,
+		).Return(readErr)
+
+		mux := chi.NewRouter()
+		api.SetValueHandler(mux, mockService)
 
 		s := httptest.NewServer(mux)
 		defer s.Close()
 
 		req, err := http.NewRequestWithContext(
-			context.TODO(),
+			context.Background(),
 			http.MethodGet,
 			makeURL(s.URL, mType, id),
 			http.NoBody,
@@ -631,29 +586,24 @@ func TestReadByURLParamsHandler(t *testing.T) {
 		data, err := io.ReadAll(res.Body)
 		require.NoError(t, err)
 		res.Body.Close()
-		assert.Equal(t, server.ErrInternal.Error(), strings.TrimSpace(string(data)))
+		assert.Equal(t, errs.ErrInternal.Error(), strings.TrimSpace(string(data)))
 
 		mockService.AssertNumberOfCalls(t, "Read", 1)
-		mockValidator.AssertNumberOfCalls(t, "VerifyScheme", 1)
 	})
 
 	t.Run("Regular response", func(t *testing.T) {
 		id := "0"
 		mType := metrics.MTypeGauge
-		value := 123.45
-		schemeReq := metrics.MetricsRead{
-			ID: id, MType: mType,
-		}
-		schemeRes := metrics.MetricsGauge{
-			ID: id, MType: mType, Value: value,
-		}
-		mockService := new(MockValueService)
-		mockService.On("Read", nil, &schemeReq).Return(schemeRes, nil)
-		mockValidator := new(MockValueValidator)
-		mockValidator.On("VerifyScheme", &schemeReq).Return(nil)
-		mux := chi.NewRouter()
 
-		SetValueHandler(mux, mockService, mockValidator)
+		var schemeReq metrics.Metrics
+		schemeReq.ID = id
+		schemeReq.MType = mType
+
+		mockService := new(MockValueService)
+		mockService.On("Read", context.Background(), &schemeReq).Return(nil)
+
+		mux := chi.NewRouter()
+		api.SetValueHandler(mux, mockService)
 
 		s := httptest.NewServer(mux)
 		defer s.Close()
@@ -673,10 +623,10 @@ func TestReadByURLParamsHandler(t *testing.T) {
 		data, err := io.ReadAll(res.Body)
 		require.NoError(t, err)
 		res.Body.Close()
-		assert.Equal(t, "123.45", string(data))
+		expect := `123.45`
+		assert.Equal(t, expect, string(data))
 
 		mockService.AssertNumberOfCalls(t, "Read", 1)
-		mockValidator.AssertNumberOfCalls(t, "VerifyScheme", 1)
 	})
 
 }

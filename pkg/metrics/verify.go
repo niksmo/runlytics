@@ -2,62 +2,82 @@ package metrics
 
 import (
 	"errors"
-	"fmt"
 	"strings"
 )
 
 var (
-	ErrRequired = errors.New("required")
+	allowedTypes = map[string]struct{}{
+		MTypeCounter: {},
+		MTypeGauge:   {},
+	}
+)
+
+var (
+	ErrIDRequired    = errors.New("'id': required")
+	ErrDeltaRequired = errors.New("'delta': expected int64")
+	ErrDeltaLessZero = errors.New("'delta': less then 0")
+	ErrValueRequired = errors.New("'value': expected float64")
+	ErrInvalidType   = errors.New("'type': ['gauge'|'counter']")
 )
 
 type VerifyErrors []error
 
-func (ev VerifyErrors) Unwrap() []error {
-	if len(ev) == 0 {
+func (ve VerifyErrors) Unwrap() []error {
+	if len(ve) == 0 {
 		return nil
 	}
-	return ev
+	return ve
 }
 
-func (ev VerifyErrors) Error() string {
-	errStrings := make([]string, 0, len(ev))
-	for _, err := range ev {
-		errStrings = append(errStrings, err.Error())
+func (ve VerifyErrors) Error() string {
+	errStrings := make([]string, 0, len(ve))
+	for _, err := range ve {
+		if err != nil {
+			errStrings = append(errStrings, err.Error())
+		}
 	}
 	return strings.Join(errStrings, "; ")
 }
 
-func verifyFieldID(id string) error {
-	if strings.TrimSpace(id) == "" {
-		return fmt.Errorf("'ID':%w", ErrRequired)
+func VerifyID(m Metrics) error {
+	if strings.TrimSpace(m.ID) == "" {
+		return ErrIDRequired
 	}
 	return nil
 }
 
-func verifyFiledMType(mType string) error {
-	allowed := map[string]struct{}{MTypeCounter: {}, MTypeGauge: {}}
-	if _, ok := allowed[mType]; !ok {
-		return fmt.Errorf("'MType':allowed 'gauge'|'counter'")
+func VerifyType(m Metrics) error {
+	if _, ok := allowedTypes[m.MType]; !ok {
+		return ErrInvalidType
 	}
 
 	return nil
 }
 
-func verifyFieldDelta(value *int64) error {
-	field := "'Delta'"
-	if value == nil {
-		return fmt.Errorf("%s:%w expect int64", field, ErrRequired)
+func VerifyDelta(m Metrics) error {
+	if m.MType != MTypeCounter {
+		return nil
 	}
 
-	if *value < 0 {
-		return fmt.Errorf("%s:less then 0", field)
+	if m.Delta == nil {
+		return ErrDeltaRequired
 	}
+
+	if *m.Delta < 0 {
+		return ErrDeltaLessZero
+	}
+
 	return nil
 }
 
-func verifyFieldValue(value *float64) error {
-	if value == nil {
-		return fmt.Errorf("'Value':%w expect float64", ErrRequired)
+func VerifyValue(m Metrics) error {
+	if m.MType != MTypeGauge {
+		return nil
 	}
+
+	if m.Value == nil {
+		return ErrValueRequired
+	}
+
 	return nil
 }

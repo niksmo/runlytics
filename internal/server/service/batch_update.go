@@ -3,53 +3,53 @@ package service
 import (
 	"context"
 
-	"github.com/niksmo/runlytics/internal/server"
+	"github.com/niksmo/runlytics/internal/server/errs"
 	"github.com/niksmo/runlytics/pkg/di"
 	"github.com/niksmo/runlytics/pkg/metrics"
 )
 
 type BatchUpdateService struct {
-	repository di.UpdateListRepository
+	repository di.BatchUpdate
 }
 
 func NewBatchUpdateService(
-	repository di.UpdateListRepository,
+	repository di.BatchUpdate,
 ) *BatchUpdateService {
 	return &BatchUpdateService{repository}
 }
 
-func (service *BatchUpdateService) BatchUpdate(
-	ctx context.Context, batch metrics.MetricsBatchUpdate,
+func (s *BatchUpdateService) BatchUpdate(
+	ctx context.Context, ml metrics.MetricsList,
 ) error {
-	var gaugeSlice []metrics.Metrics
-	var counterSlice []metrics.Metrics
+	var gl []metrics.Metrics
+	var cl []metrics.Metrics
 
-	for _, metricsUpdate := range batch {
-		switch metricsUpdate.MType {
+	for _, m := range ml {
+		switch m.MType {
 		case metrics.MTypeGauge:
-			if metricsUpdate.Value == nil {
-				return server.ErrInternal
+			if m.Value == nil {
+				return errs.ErrInternal
 			}
-			gaugeSlice = append(gaugeSlice, metricsUpdate.Metrics)
+			gl = append(gl, m)
 		case metrics.MTypeCounter:
-			if metricsUpdate.Delta == nil {
-				return server.ErrInternal
+			if m.Delta == nil {
+				return errs.ErrInternal
 			}
-			counterSlice = append(counterSlice, metricsUpdate.Metrics)
+			cl = append(cl, m)
 		default:
-			return server.ErrInternal
+			return errs.ErrInternal
 		}
 	}
 
-	if len(gaugeSlice) != 0 {
-		err := service.repository.UpdateGaugeList(ctx, gaugeSlice)
+	if len(gl) != 0 {
+		err := s.repository.UpdateGaugeList(ctx, gl)
 		if err != nil {
 			return err
 		}
 	}
 
-	if len(counterSlice) != 0 {
-		err := service.repository.UpdateCounterList(ctx, counterSlice)
+	if len(cl) != 0 {
+		err := s.repository.UpdateCounterList(ctx, cl)
 		if err != nil {
 			return err
 		}

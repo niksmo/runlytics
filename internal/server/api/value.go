@@ -7,7 +7,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/niksmo/runlytics/internal/logger"
-	"github.com/niksmo/runlytics/internal/server"
+	"github.com/niksmo/runlytics/internal/server/errs"
 	"github.com/niksmo/runlytics/internal/server/middleware"
 	"github.com/niksmo/runlytics/pkg/di"
 	"github.com/niksmo/runlytics/pkg/jsonhttp"
@@ -16,17 +16,12 @@ import (
 )
 
 type ValueHandler struct {
-	service   di.ReadService
-	validator di.MetricsParamsSchemeVerifier
+	service di.ReadService
 }
 
-func SetValueHandler(
-	mux *chi.Mux,
-	service di.ReadService,
-	validator di.MetricsParamsSchemeVerifier,
-) {
+func SetValueHandler(mux *chi.Mux, service di.ReadService) {
 	path := "/value"
-	handler := &ValueHandler{service, validator}
+	handler := &ValueHandler{service}
 	mux.Route(path, func(r chi.Router) {
 		byJSONPath := "/"
 		r.With(middleware.AllowJSON).Post(byJSONPath, handler.readByJSON())
@@ -38,70 +33,88 @@ func SetValueHandler(
 	})
 }
 
-func (handler *ValueHandler) readByJSON() http.HandlerFunc {
+func (h *ValueHandler) readByJSON() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		var scheme metrics.MetricsRead
-		if err := jsonhttp.ReadRequest(r, &scheme); err != nil {
+		var m metrics.Metrics
+		if err := jsonhttp.ReadRequest(r, &m); err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 
-		if err := handler.validator.VerifyScheme(scheme); err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
+		err := checkMetricsForRead(m)
 
-		err := handler.service.Read(r.Context(), &scheme.Metrics)
 		if err != nil {
-			if errors.Is(err, server.ErrNotExists) {
-				http.Error(w, err.Error(), http.StatusNotFound)
-				return
-			}
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
 
+		err = h.service.Read(r.Context(), &m)
+		if errors.Is(err, errs.ErrNotExists) {
+			http.Error(w, err.Error(), http.StatusNotFound)
+			return
+		}
+		if err != nil {
 			http.Error(
-				w, server.ErrInternal.Error(), http.StatusInternalServerError,
+				w,
+				errs.ErrInternal.Error(),
+				http.StatusInternalServerError,
 			)
 			return
 		}
 
-		err = jsonhttp.WriteResponse(w, http.StatusOK, scheme)
+		err = jsonhttp.WriteResponse(w, http.StatusOK, m)
 		if err != nil {
 			logger.Log.Error("error on write response", zap.Error(err))
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			http.Error(
+				w,
+				err.Error(),
+				http.StatusInternalServerError,
+			)
 		}
 	}
 }
 
-func (handler *ValueHandler) readByURLParams() http.HandlerFunc {
+func (h *ValueHandler) readByURLParams() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		scheme, err := handler.validator.VerifyParams(
+		m := metrics.NewFromStrArgs(
 			chi.URLParam(r, "name"),
 			chi.URLParam(r, "type"),
-			"skipped",
+			"",
 		)
+		err := checkMetricsForRead(m)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 
-		err = handler.service.Read(r.Context(), &scheme)
+		err = h.service.Read(r.Context(), &m)
+		if errors.Is(err, errs.ErrNotExists) {
+			http.Error(w, err.Error(), http.StatusNotFound)
+			return
+		}
 		if err != nil {
-			if errors.Is(err, server.ErrNotExists) {
-				http.Error(w, err.Error(), http.StatusNotFound)
-				return
-			}
-
 			http.Error(
-				w, server.ErrInternal.Error(), http.StatusInternalServerError,
+				w,
+				errs.ErrInternal.Error(),
+				http.StatusInternalServerError,
 			)
 			return
 		}
 
 		w.WriteHeader(http.StatusOK)
-		if _, err = io.WriteString(w, scheme.GetValue()); err != nil {
+		if _, err = io.WriteString(w, m.GetValue()); err != nil {
 			http.Error(
-				w, err.Error(), http.StatusInternalServerError,
+				w,
+				err.Error(),
+				http.StatusInternalServerError,
 			)
 		}
 	}
+}
+
+func checkMetricsForRead(m metrics.Metrics) error {
+	return m.Verify(
+		metrics.VerifyID,
+		metrics.VerifyType,
+	)
 }

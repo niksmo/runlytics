@@ -13,7 +13,7 @@ import (
 	"time"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
-	"github.com/niksmo/runlytics/internal/server"
+	"github.com/niksmo/runlytics/internal/server/errs"
 	"github.com/niksmo/runlytics/pkg/metrics"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -135,7 +135,7 @@ func TestPSQL(t *testing.T) {
 			storage := newPSQL(db)
 			storage.Run(stopCtx, &wg)
 
-			gaugeSlice := []metrics.MetricsGauge{
+			gaugeSlice := []metrics.Metrics{
 				{ID: "0", MType: metrics.MTypeGauge, Value: 5},
 				{ID: "1", MType: metrics.MTypeGauge, Value: 7},
 			}
@@ -176,7 +176,7 @@ func TestPSQL(t *testing.T) {
 			storage := newPSQL(db)
 			storage.Run(stopCtx, &wg)
 
-			gaugeSlice := []metrics.MetricsGauge{
+			gaugeSlice := []metrics.Metrics{
 				{ID: "0", MType: metrics.MTypeGauge, Value: 5},
 				{ID: "1", MType: metrics.MTypeGauge, Value: 7},
 				{ID: "0", MType: metrics.MTypeGauge, Value: 10},
@@ -200,7 +200,7 @@ func TestPSQL(t *testing.T) {
 			defer rows.Close()
 
 			var rowNumber int
-			expectedSlice := []metrics.MetricsGauge{
+			expectedSlice := []metrics.Metrics{
 				{ID: "0", MType: metrics.MTypeGauge, Value: gaugeSlice[2].Value},
 				{ID: "1", MType: metrics.MTypeGauge, Value: gaugeSlice[1].Value},
 			}
@@ -222,7 +222,7 @@ func TestPSQL(t *testing.T) {
 			storage := newPSQL(db)
 			storage.Run(stopCtx, &wg)
 
-			counterSlice := []metrics.MetricsCounter{
+			counterSlice := []metrics.Metrics{
 				{ID: "0", MType: metrics.MTypeCounter, Delta: 5},
 				{ID: "1", MType: metrics.MTypeCounter, Delta: 7},
 			}
@@ -263,7 +263,7 @@ func TestPSQL(t *testing.T) {
 			storage := newPSQL(db)
 			storage.Run(stopCtx, &wg)
 
-			counterSlice := []metrics.MetricsCounter{
+			counterSlice := []metrics.Metrics{
 				{ID: "0", MType: metrics.MTypeCounter, Delta: 5},
 				{ID: "1", MType: metrics.MTypeCounter, Delta: 7},
 				{ID: "0", MType: metrics.MTypeCounter, Delta: 10},
@@ -287,7 +287,7 @@ func TestPSQL(t *testing.T) {
 			defer rows.Close()
 
 			var rowNumber int
-			expectedSlice := []metrics.MetricsCounter{
+			expectedSlice := []metrics.Metrics{
 				{
 					ID:    "0",
 					MType: metrics.MTypeCounter,
@@ -328,7 +328,7 @@ func TestPSQL(t *testing.T) {
 			actualValue, err := storage.ReadCounterByName(
 				ctx, metricName,
 			)
-			require.ErrorIs(t, err, server.ErrNotExists)
+			require.ErrorIs(t, err, errs.ErrNotExists)
 			assert.Equal(t, expected, actualValue)
 		})
 
@@ -369,7 +369,7 @@ func TestPSQL(t *testing.T) {
 			actualValue, err := storage.ReadGaugeByName(
 				ctx, metricName,
 			)
-			require.ErrorIs(t, err, server.ErrNotExists)
+			require.ErrorIs(t, err, errs.ErrNotExists)
 			assert.Equal(t, expected, actualValue)
 		})
 

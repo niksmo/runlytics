@@ -10,17 +10,17 @@ import (
 	"sync"
 
 	"github.com/niksmo/runlytics/internal/logger"
-	"github.com/niksmo/runlytics/internal/server"
+	"github.com/niksmo/runlytics/internal/server/errs"
 	"github.com/niksmo/runlytics/pkg/di"
 	"go.uber.org/zap"
 )
 
 type HTMLService struct {
 	template   *template.Template
-	repository di.ReadRepository
+	repository di.ReadListRepository
 }
 
-func NewHTMLService(repository di.ReadRepository) *HTMLService {
+func NewHTMLService(repository di.ReadListRepository) *HTMLService {
 	text := `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -81,7 +81,7 @@ func (s *HTMLService) RenderMetricsList(ctx context.Context, buf *bytes.Buffer) 
 	wg.Wait()
 
 	if len(errSlice) != 0 {
-		return server.ErrInternal
+		return errs.ErrInternal
 	}
 
 	render := make([]string, 0, len(gauge)+len(counter))

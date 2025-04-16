@@ -1,8 +1,6 @@
-package server
+package errs
 
-import (
-	"errors"
-)
+import "errors"
 
 var (
 	ErrNotExists = errors.New("not exists")

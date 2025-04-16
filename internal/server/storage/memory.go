@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/niksmo/runlytics/internal/logger"
-	"github.com/niksmo/runlytics/internal/server"
+	"github.com/niksmo/runlytics/internal/server/errs"
 	"github.com/niksmo/runlytics/pkg/di"
 	"github.com/niksmo/runlytics/pkg/metrics"
 	"go.uber.org/zap"
@@ -104,7 +104,7 @@ func (ms *memoryStorage) ReadCounterByName(
 	value, ok := ms.data.Counter[name]
 
 	if !ok {
-		return 0, fmt.Errorf("metric '%s' is %w", name, server.ErrNotExists)
+		return 0, fmt.Errorf("metric '%s' is %w", name, errs.ErrNotExists)
 	}
 	return value, nil
 }
@@ -117,7 +117,7 @@ func (ms *memoryStorage) ReadGaugeByName(
 	value, ok := ms.data.Gauge[name]
 
 	if !ok {
-		return 0, fmt.Errorf("metric '%s' is %w", name, server.ErrNotExists)
+		return 0, fmt.Errorf("metric '%s' is %w", name, errs.ErrNotExists)
 	}
 	return value, nil
 }

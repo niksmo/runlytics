@@ -1,4 +1,4 @@
-package api
+package api_test
 
 import (
 	"bytes"
@@ -10,7 +10,8 @@ import (
 	"testing"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/niksmo/runlytics/internal/server"
+	"github.com/niksmo/runlytics/internal/server/api"
+	"github.com/niksmo/runlytics/internal/server/errs"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -44,7 +45,7 @@ func TestHTMLHandler(t *testing.T) {
 			http.MethodOptions,
 		}
 		mux := chi.NewRouter()
-		SetHTMLHandler(mux, nil)
+		api.SetHTMLHandler(mux, nil)
 
 		for _, method := range methods {
 			s := httptest.NewServer(mux)
@@ -67,7 +68,7 @@ func TestHTMLHandler(t *testing.T) {
 	t.Run("Should return data", func(t *testing.T) {
 		expectedData := "test"
 		mux := chi.NewRouter()
-		SetHTMLHandler(mux, &mockHTMLService{err: nil, data: expectedData})
+		api.SetHTMLHandler(mux, &mockHTMLService{err: nil, data: expectedData})
 		s := httptest.NewServer(mux)
 		defer s.Close()
 
@@ -86,7 +87,7 @@ func TestHTMLHandler(t *testing.T) {
 
 	t.Run("Should return internal error", func(t *testing.T) {
 		mux := chi.NewRouter()
-		SetHTMLHandler(mux, &mockHTMLService{err: server.ErrInternal, data: ""})
+		api.SetHTMLHandler(mux, &mockHTMLService{err: errs.ErrInternal, data: ""})
 		s := httptest.NewServer(mux)
 		defer s.Close()
 
@@ -101,6 +102,6 @@ func TestHTMLHandler(t *testing.T) {
 		require.NoError(t, err)
 		res.Body.Close()
 		data := strings.TrimSpace(string(rawData))
-		assert.Equal(t, server.ErrInternal.Error(), data)
+		assert.Equal(t, errs.ErrInternal.Error(), data)
 	})
 }
