@@ -79,7 +79,7 @@ func (ps *psqlStorage) UpdateGaugeByName(
 }
 
 func (ps *psqlStorage) UpdateCounterList(
-	ctx context.Context, mSlice []metrics.Metrics,
+	ctx context.Context, mSlice metrics.MetricsList,
 ) error {
 	logPrefix := "Update counter list"
 	tx, err := beginTxWithRetries(
@@ -121,7 +121,7 @@ func (ps *psqlStorage) UpdateCounterList(
 }
 
 func (ps *psqlStorage) UpdateGaugeList(
-	ctx context.Context, mSlice []metrics.Metrics,
+	ctx context.Context, mSlice metrics.MetricsList,
 ) error {
 	logPrefix := "Update gauge list"
 	tx, err := beginTxWithRetries(

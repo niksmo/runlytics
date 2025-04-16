@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/niksmo/runlytics/internal/server/errs"
 	"github.com/niksmo/runlytics/internal/server/middleware"
 	"github.com/niksmo/runlytics/pkg/di"
 	"github.com/niksmo/runlytics/pkg/jsonhttp"
@@ -45,7 +46,7 @@ func (h *BatchUpdateHandler) batchUpdate() http.HandlerFunc {
 
 		err = h.service.BatchUpdate(r.Context(), ml)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			http.Error(w, errs.ErrInternal.Error(), http.StatusInternalServerError)
 			return
 		}
 

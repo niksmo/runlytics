@@ -52,8 +52,8 @@ type UpdateByNameRepository interface {
 }
 
 type BatchUpdate interface {
-	UpdateCounterList(ctx context.Context, slice []metrics.Metrics) error
-	UpdateGaugeList(ctx context.Context, slice []metrics.Metrics) error
+	UpdateCounterList(ctx context.Context, slice metrics.MetricsList) error
+	UpdateGaugeList(ctx context.Context, slice metrics.MetricsList) error
 }
 
 type ReadByNameRepository interface {

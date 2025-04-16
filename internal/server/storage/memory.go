@@ -82,14 +82,18 @@ func (ms *memoryStorage) UpdateGaugeByName(
 	return value, nil
 }
 
-func (ms *memoryStorage) UpdateCounterList(ctx context.Context, mSlice []metrics.Metrics) error {
+func (ms *memoryStorage) UpdateCounterList(
+	ctx context.Context, mSlice metrics.MetricsList,
+) error {
 	for _, item := range mSlice {
 		ms.UpdateCounterByName(ctx, item.ID, *item.Delta)
 	}
 	return nil
 }
 
-func (ms *memoryStorage) UpdateGaugeList(ctx context.Context, mSlice []metrics.Metrics) error {
+func (ms *memoryStorage) UpdateGaugeList(
+	ctx context.Context, mSlice metrics.MetricsList,
+) error {
 	for _, item := range mSlice {
 		ms.UpdateGaugeByName(ctx, item.ID, *item.Value)
 	}
