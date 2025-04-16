@@ -30,9 +30,9 @@ type MockUpdateService struct {
 }
 
 func (service *MockUpdateService) Update(
-	ctx context.Context, scheme *metrics.Metrics,
+	ctx context.Context, m *metrics.Metrics,
 ) error {
-	retArgs := service.Called(nil, scheme)
+	retArgs := service.Called(context.Background(), m)
 	return retArgs.Error(0)
 }
 
@@ -55,7 +55,7 @@ func TestUpdateByJSONHandler(t *testing.T) {
 			http.MethodOptions,
 		}
 		mockService := new(MockUpdateService)
-		mockService.On("Update", nil, nil).Return(nil)
+		mockService.On("Update", context.Background(), nil).Return(nil)
 
 		mux := chi.NewRouter()
 		api.SetUpdateHandler(mux, mockService)
@@ -65,11 +65,11 @@ func TestUpdateByJSONHandler(t *testing.T) {
 			defer s.Close()
 
 			reqBody := strings.NewReader(
-				`{ID: "0", MType: "gauge", Value: 123.450}`,
+				`{"id": "0", "type": "gauge", "value": 123.45}`,
 			)
 
 			req, err := http.NewRequestWithContext(
-				context.TODO(), method, makeURL(s.URL), reqBody,
+				context.Background(), method, makeURL(s.URL), reqBody,
 			)
 			require.NoError(t, err)
 			req.Header.Set(header.ContentType, mime.JSON)
@@ -89,7 +89,7 @@ func TestUpdateByJSONHandler(t *testing.T) {
 
 	t.Run("Not allowed Content-Type", func(t *testing.T) {
 		mockService := new(MockUpdateService)
-		mockService.On("Update", nil, nil).Return(nil)
+		mockService.On("Update", context.Background(), nil).Return(nil)
 
 		mux := chi.NewRouter()
 		api.SetUpdateHandler(mux, mockService)
@@ -98,14 +98,14 @@ func TestUpdateByJSONHandler(t *testing.T) {
 		defer s.Close()
 
 		reqBody := strings.NewReader(
-			`{ID: "0", MType: "gauge", Value: 123.450}`,
+			`{"id": "0", "type": "gauge", "value": 123.45}`,
 		)
 
 		req, err := http.NewRequestWithContext(
-			context.TODO(), http.MethodPost, makeURL(s.URL), reqBody,
+			context.Background(), http.MethodPost, makeURL(s.URL), reqBody,
 		)
 		require.NoError(t, err)
-		req.Header.Set(header.ContentType, "text/plain")
+		req.Header.Set(header.ContentType, mime.TEXT)
 
 		res, err := s.Client().Do(req)
 		require.NoError(t, err)
@@ -121,7 +121,7 @@ func TestUpdateByJSONHandler(t *testing.T) {
 
 	t.Run("Bad JSON", func(t *testing.T) {
 		mockService := new(MockUpdateService)
-		mockService.On("Update", nil, nil).Return(nil)
+		mockService.On("Update", context.Background(), nil).Return(nil)
 
 		mux := chi.NewRouter()
 		api.SetUpdateHandler(mux, mockService)
@@ -130,11 +130,11 @@ func TestUpdateByJSONHandler(t *testing.T) {
 		defer s.Close()
 
 		reqBody := strings.NewReader(
-			`{ID: "0", MType: "gauge, Value: 123.450}`,
+			`{"id": "0", "type": "gauge, "value": 123.45,}`,
 		)
 
 		req, err := http.NewRequestWithContext(
-			context.TODO(), http.MethodPost, makeURL(s.URL), reqBody,
+			context.Background(), http.MethodPost, makeURL(s.URL), reqBody,
 		)
 		require.NoError(t, err)
 		req.Header.Set(header.ContentType, mime.JSON)
@@ -147,14 +147,13 @@ func TestUpdateByJSONHandler(t *testing.T) {
 		mockService.AssertNumberOfCalls(t, "Update", 0)
 	})
 
-	t.Run("Error on verifyScheme", func(t *testing.T) {
+	t.Run("Invalid metrics payload", func(t *testing.T) {
 		var schemeReq metrics.Metrics
 		schemeReq.ID = ""
 		schemeReq.MType = metrics.MTypeGauge
-		expectedErr := errors.New("test error")
 
 		mockService := new(MockUpdateService)
-		mockService.On("Update", nil, nil).Return(nil)
+		mockService.On("Update", context.Background(), &schemeReq).Return(nil)
 
 		mux := chi.NewRouter()
 		api.SetUpdateHandler(mux, mockService)
@@ -167,7 +166,7 @@ func TestUpdateByJSONHandler(t *testing.T) {
 		require.NoError(t, err)
 
 		req, err := http.NewRequestWithContext(
-			context.TODO(), http.MethodPost, makeURL(s.URL), &buf,
+			context.Background(), http.MethodPost, makeURL(s.URL), &buf,
 		)
 		require.NoError(t, err)
 		req.Header.Set(header.ContentType, mime.JSON)
@@ -175,24 +174,23 @@ func TestUpdateByJSONHandler(t *testing.T) {
 		res, err := s.Client().Do(req)
 		require.NoError(t, err)
 		require.Equal(t, http.StatusBadRequest, res.StatusCode)
-		data, err := io.ReadAll(res.Body)
-		require.NoError(t, err)
 		res.Body.Close()
-		assert.Equal(t, expectedErr.Error(), strings.TrimSpace(string(data)))
 
 		mockService.AssertNumberOfCalls(t, "Update", 0)
 	})
 
 	t.Run("Error on Update", func(t *testing.T) {
-		value := 123.45
 		var schemeReq metrics.Metrics
 		schemeReq.ID = "0"
 		schemeReq.MType = metrics.MTypeGauge
+		value := 123.45
 		schemeReq.Value = &value
-		expectedErr := errors.New("test error")
+		updateErr := errors.New("test error")
 
 		mockService := new(MockUpdateService)
-		mockService.On("Update", nil, &schemeReq).Return(expectedErr)
+		mockService.On(
+			"Update", context.Background(), &schemeReq,
+		).Return(updateErr)
 
 		mux := chi.NewRouter()
 		api.SetUpdateHandler(mux, mockService)
@@ -205,7 +203,7 @@ func TestUpdateByJSONHandler(t *testing.T) {
 		require.NoError(t, err)
 
 		req, err := http.NewRequestWithContext(
-			context.TODO(), http.MethodPost, makeURL(s.URL), &buf,
+			context.Background(), http.MethodPost, makeURL(s.URL), &buf,
 		)
 		require.NoError(t, err)
 		req.Header.Set(header.ContentType, mime.JSON)
@@ -216,28 +214,20 @@ func TestUpdateByJSONHandler(t *testing.T) {
 		data, err := io.ReadAll(res.Body)
 		require.NoError(t, err)
 		res.Body.Close()
-		assert.Equal(t, expectedErr.Error(), strings.TrimSpace(string(data)))
+		assert.Equal(t, errs.ErrInternal.Error(), strings.TrimSpace(string(data)))
 
 		mockService.AssertNumberOfCalls(t, "Update", 1)
 	})
 
 	t.Run("Regular response", func(t *testing.T) {
-		id := "0"
-		mType := metrics.MTypeGauge
-		value := 123.45
-
 		var schemeReq metrics.Metrics
-		schemeReq.ID = id
-		schemeReq.MType = mType
+		schemeReq.ID = "0"
+		schemeReq.MType = metrics.MTypeGauge
+		value := 123.45
 		schemeReq.Value = &value
 
-		var schemeRes metrics.Metrics
-		schemeRes.ID = id
-		schemeRes.MType = mType
-		schemeRes.Value = &value
-
 		mockService := new(MockUpdateService)
-		mockService.On("Update", nil, &schemeReq).Return(nil)
+		mockService.On("Update", context.Background(), &schemeReq).Return(nil)
 
 		mux := chi.NewRouter()
 		api.SetUpdateHandler(mux, mockService)
@@ -250,7 +240,7 @@ func TestUpdateByJSONHandler(t *testing.T) {
 		require.NoError(t, err)
 
 		req, err := http.NewRequestWithContext(
-			context.TODO(), http.MethodPost, makeURL(s.URL), &bufReq,
+			context.Background(), http.MethodPost, makeURL(s.URL), &bufReq,
 		)
 		require.NoError(t, err)
 		req.Header.Set(header.ContentType, mime.JSON)
@@ -259,11 +249,11 @@ func TestUpdateByJSONHandler(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, http.StatusOK, res.StatusCode)
 
-		var gotScheme metrics.Metrics
-		err = json.NewDecoder(res.Body).Decode(&gotScheme)
+		data, err := io.ReadAll(res.Body)
 		require.NoError(t, err)
 		res.Body.Close()
-		assert.Equal(t, schemeRes, gotScheme)
+		expect := `{"id":"0","type":"gauge","value":123.45}`
+		assert.JSONEq(t, expect, string(data))
 
 		mockService.AssertNumberOfCalls(t, "Update", 1)
 	})
@@ -271,7 +261,7 @@ func TestUpdateByJSONHandler(t *testing.T) {
 	t.Run("Encoding", func(t *testing.T) {
 		t.Run("Allow only gzip", func(t *testing.T) {
 			mockService := new(MockUpdateService)
-			mockService.On("Update", nil, nil).Return(nil)
+			mockService.On("Update", context.Background(), nil).Return(nil)
 
 			mux := chi.NewRouter()
 			mux.Use(middleware.AllowContentEncoding("gzip"))
@@ -282,11 +272,11 @@ func TestUpdateByJSONHandler(t *testing.T) {
 			defer s.Close()
 
 			reqBody := strings.NewReader(
-				`{ID: "0", MType: "gauge", Value: 123.450}`,
+				`{"id":"0","type":"gauge","value":123.45}`,
 			)
 
 			req, err := http.NewRequestWithContext(
-				context.TODO(), http.MethodPost, makeURL(s.URL), reqBody,
+				context.Background(), http.MethodPost, makeURL(s.URL), reqBody,
 			)
 			require.NoError(t, err)
 			req.Header.Set(header.ContentType, mime.JSON)
@@ -305,22 +295,16 @@ func TestUpdateByJSONHandler(t *testing.T) {
 		})
 
 		t.Run("Send gzip, accept non-compressed", func(t *testing.T) {
-			id := "0"
-			mType := metrics.MTypeGauge
-			value := 123.45
-
 			var schemeReq metrics.Metrics
-			schemeReq.ID = id
-			schemeReq.MType = mType
+			schemeReq.ID = "0"
+			schemeReq.MType = metrics.MTypeGauge
+			value := 123.45
 			schemeReq.Value = &value
 
-			var schemeRes metrics.Metrics
-			schemeRes.ID = id
-			schemeRes.MType = mType
-			schemeRes.Value = &value
-
 			mockService := new(MockUpdateService)
-			mockService.On("Update", nil, &schemeReq).Return(nil)
+			mockService.On(
+				"Update", context.Background(), &schemeReq,
+			).Return(nil)
 
 			mux := chi.NewRouter()
 			mux.Use(middleware.AllowContentEncoding("gzip"))
@@ -338,7 +322,7 @@ func TestUpdateByJSONHandler(t *testing.T) {
 			require.NoError(t, err)
 
 			req, err := http.NewRequestWithContext(
-				context.TODO(), http.MethodPost, makeURL(s.URL), &buf,
+				context.Background(), http.MethodPost, makeURL(s.URL), &buf,
 			)
 			require.NoError(t, err)
 			req.Header.Set(header.ContentType, mime.JSON)
@@ -349,32 +333,26 @@ func TestUpdateByJSONHandler(t *testing.T) {
 			require.Equal(t, http.StatusOK, res.StatusCode)
 			assert.Zero(t, res.Header.Get(header.ContentEncoding))
 
-			var schemeGot metrics.Metrics
-			err = json.NewDecoder(res.Body).Decode(&schemeGot)
-			res.Body.Close()
+			data, err := io.ReadAll(res.Body)
 			require.NoError(t, err)
+			res.Body.Close()
+			expect := `{"id":"0","type":"gauge","value":123.45}`
+			assert.JSONEq(t, expect, string(data))
 
-			assert.Equal(t, schemeRes, schemeGot)
 			mockService.AssertNumberOfCalls(t, "Update", 1)
 		})
 
 		t.Run("Send non-compressed, accept gzip", func(t *testing.T) {
-			id := "0"
-			mType := metrics.MTypeGauge
-			value := 123.45
-
 			var schemeReq metrics.Metrics
-			schemeReq.ID = id
-			schemeReq.MType = mType
+			schemeReq.ID = "0"
+			schemeReq.MType = metrics.MTypeGauge
+			value := 123.45
 			schemeReq.Value = &value
 
-			var schemeRes metrics.Metrics
-			schemeRes.ID = id
-			schemeRes.MType = mType
-			schemeRes.Value = &value
-
 			mockService := new(MockUpdateService)
-			mockService.On("Update", nil, &schemeReq).Return(nil)
+			mockService.On(
+				"Update", context.Background(), &schemeReq,
+			).Return(nil)
 
 			mux := chi.NewRouter()
 			mux.Use(middleware.AllowContentEncoding("gzip"))
@@ -389,7 +367,7 @@ func TestUpdateByJSONHandler(t *testing.T) {
 			require.NoError(t, err)
 
 			req, err := http.NewRequestWithContext(
-				context.TODO(), http.MethodPost, makeURL(s.URL), &bufReq,
+				context.Background(), http.MethodPost, makeURL(s.URL), &bufReq,
 			)
 			require.NoError(t, err)
 			req.Header.Set(header.ContentType, mime.JSON)
@@ -399,14 +377,15 @@ func TestUpdateByJSONHandler(t *testing.T) {
 			require.NoError(t, err)
 			require.Equal(t, http.StatusOK, res.StatusCode)
 
-			var schemeGot metrics.Metrics
 			gzipReader, err := gzip.NewReader(res.Body)
 			require.NoError(t, err)
-			err = json.NewDecoder(gzipReader).Decode(&schemeGot)
-			res.Body.Close()
+			data, err := io.ReadAll(gzipReader)
 			require.NoError(t, err)
+			gzipReader.Close()
+			res.Body.Close()
+			expect := `{"id":"0","type":"gauge","value":123.45}`
+			assert.JSONEq(t, expect, string(data))
 
-			assert.Equal(t, schemeRes, schemeGot)
 			mockService.AssertNumberOfCalls(t, "Update", 1)
 		})
 	})
@@ -427,7 +406,7 @@ func TestUpdateByURLParamsHandler(t *testing.T) {
 			http.MethodOptions,
 		}
 		mockService := new(MockUpdateService)
-		mockService.On("Update", nil, nil).Return(nil)
+		mockService.On("Update", context.Background(), nil).Return(nil)
 
 		mux := chi.NewRouter()
 		api.SetUpdateHandler(mux, mockService)
@@ -437,9 +416,9 @@ func TestUpdateByURLParamsHandler(t *testing.T) {
 			defer s.Close()
 
 			req, err := http.NewRequestWithContext(
-				context.TODO(),
+				context.Background(),
 				method,
-				makeURL(s.URL, "gauge", "Alloc", "123.450"),
+				makeURL(s.URL, "gauge", "Alloc", "123.45"),
 				http.NoBody,
 			)
 			require.NoError(t, err)
@@ -457,14 +436,15 @@ func TestUpdateByURLParamsHandler(t *testing.T) {
 		}
 	})
 
-	t.Run("Error on verify params", func(t *testing.T) {
+	t.Run("Invalid metrics payload", func(t *testing.T) {
 		id := "0"
 		mType := "bgauge"
-		value := "123.450"
-		expectedErr := errors.New("test error")
+		value := "123.45"
 
 		mockService := new(MockUpdateService)
-		mockService.On("Update", nil, nil).Return(nil)
+		mockService.On(
+			"Update", context.Background(), nil,
+		).Return(nil)
 
 		mux := chi.NewRouter()
 		api.SetUpdateHandler(mux, mockService)
@@ -473,7 +453,7 @@ func TestUpdateByURLParamsHandler(t *testing.T) {
 		defer s.Close()
 
 		req, err := http.NewRequestWithContext(
-			context.TODO(),
+			context.Background(),
 			http.MethodPost,
 			makeURL(s.URL, mType, id, value),
 			http.NoBody,
@@ -481,31 +461,30 @@ func TestUpdateByURLParamsHandler(t *testing.T) {
 		require.NoError(t, err)
 
 		res, err := s.Client().Do(req)
-		require.NoError(t, err)
-		require.Equal(t, http.StatusBadRequest, res.StatusCode)
-
-		data, err := io.ReadAll(res.Body)
 		res.Body.Close()
 		require.NoError(t, err)
-		assert.Equal(t, expectedErr.Error(), strings.TrimSpace(string(data)))
+		require.Equal(t, http.StatusBadRequest, res.StatusCode)
 
 		mockService.AssertNumberOfCalls(t, "Update", 0)
 	})
 
 	t.Run("Error on update", func(t *testing.T) {
 		id := "0"
-		mType := "gauge"
-		value := "123.450"
-		valueFloat := 123.450
-		errOnUpdate := errors.New("test error")
+		mType := metrics.MTypeGauge
+		valueStr := "123.45"
 
-		var schemeUpdate metrics.Metrics
-		schemeUpdate.ID = id
-		schemeUpdate.MType = mType
-		schemeUpdate.Value = &valueFloat
+		var scheme metrics.Metrics
+		scheme.ID = id
+		scheme.MType = mType
+		schemeValue := 123.45
+		scheme.Value = &schemeValue
+
+		updateErr := errors.New("test error")
 
 		mockService := new(MockUpdateService)
-		mockService.On("Update", nil, &schemeUpdate).Return(errOnUpdate)
+		mockService.On(
+			"Update", context.Background(), &scheme,
+		).Return(updateErr)
 
 		mux := chi.NewRouter()
 
@@ -514,9 +493,9 @@ func TestUpdateByURLParamsHandler(t *testing.T) {
 		defer s.Close()
 
 		req, err := http.NewRequestWithContext(
-			context.TODO(),
+			context.Background(),
 			http.MethodPost,
-			makeURL(s.URL, mType, id, value),
+			makeURL(s.URL, mType, id, valueStr),
 			http.NoBody,
 		)
 		require.NoError(t, err)
@@ -535,17 +514,19 @@ func TestUpdateByURLParamsHandler(t *testing.T) {
 
 	t.Run("Regular response", func(t *testing.T) {
 		id := "0"
-		mType := "gauge"
-		value := "123.45"
-		schemeValue := 123.45
+		mType := metrics.MTypeGauge
+		expectedValue := "123.45"
 
 		var schemeReq metrics.Metrics
 		schemeReq.ID = id
 		schemeReq.MType = mType
+		schemeValue := 123.45
 		schemeReq.Value = &schemeValue
 
 		mockService := new(MockUpdateService)
-		mockService.On("Update", nil, &schemeReq).Return(nil)
+		mockService.On(
+			"Update", context.Background(), &schemeReq,
+		).Return(nil)
 
 		mux := chi.NewRouter()
 		api.SetUpdateHandler(mux, mockService)
@@ -554,9 +535,9 @@ func TestUpdateByURLParamsHandler(t *testing.T) {
 		defer s.Close()
 
 		req, err := http.NewRequestWithContext(
-			context.TODO(),
+			context.Background(),
 			http.MethodPost,
-			makeURL(s.URL, mType, id, value),
+			makeURL(s.URL, mType, id, expectedValue),
 			http.NoBody,
 		)
 		require.NoError(t, err)
@@ -567,7 +548,7 @@ func TestUpdateByURLParamsHandler(t *testing.T) {
 		data, err := io.ReadAll(res.Body)
 		require.NoError(t, err)
 		res.Body.Close()
-		assert.Equal(t, value, string(data))
+		assert.Equal(t, expectedValue, string(data))
 
 		mockService.AssertNumberOfCalls(t, "Update", 1)
 	})

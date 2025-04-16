@@ -48,7 +48,9 @@ func (h *UpdateHandler) updateByJSON() http.HandlerFunc {
 
 		err = h.service.Update(r.Context(), &m)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			http.Error(
+				w, errs.ErrInternal.Error(), http.StatusInternalServerError,
+			)
 			return
 		}
 
