@@ -22,7 +22,7 @@ import (
 	"github.com/niksmo/runlytics/pkg/sqldb"
 )
 
-func mains() {
+func main() {
 	config := config.Load()
 	logger.Init(config.LogLvl())
 
