@@ -1,6 +1,6 @@
+// Package header provides HTTP headers fields constants.
 package header
 
-// HTTP headers fields.
 const (
 	ContentType     = "Content-Type"
 	ContentEncoding = "Content-Encoding"
