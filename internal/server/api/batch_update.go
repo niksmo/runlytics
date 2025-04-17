@@ -11,25 +11,32 @@ import (
 	"github.com/niksmo/runlytics/pkg/metrics"
 )
 
-// BatchUpdateHandler working with service and provides batchUpdate method.
+// BatchUpdateHandler working with service and provides BatchUpdate method.
 type BatchUpdateHandler struct {
 	service di.BatchUpdateService
 }
 
-// SetBatchUpdateHandler sets batchUpdate handler to "/updates" path.
+// SetBatchUpdateHandler sets BatchUpdate handler to "/updates" path.
 //
-// Handler allows only JSON media type.
+// Allows only JSON media type.
 func SetBatchUpdateHandler(mux *chi.Mux, service di.BatchUpdateService) {
 	path := "/updates"
 	handler := &BatchUpdateHandler{service}
 	mux.Route(path, func(r chi.Router) {
 		batchUpdate := "/"
-		r.With(middleware.AllowJSON).Post(batchUpdate, handler.batchUpdate())
+		r.With(middleware.AllowJSON).Post(batchUpdate, handler.BatchUpdate())
 		debugLogRegister(path + batchUpdate)
 	})
 }
 
-func (h *BatchUpdateHandler) batchUpdate() http.HandlerFunc {
+// BatchUpdate reads metrics list from request for update.
+//
+// Possible responses:
+//
+//   - 200 metrics updated
+//   - 400 broken JSON or invalid metrics
+//   - 500 internal error
+func (h *BatchUpdateHandler) BatchUpdate() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var ml metrics.MetricsList
 		if err := jsonhttp.ReadRequest(r, ml); err != nil {
