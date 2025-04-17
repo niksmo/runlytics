@@ -39,7 +39,7 @@ func SetBatchUpdateHandler(mux *chi.Mux, service di.BatchUpdateService) {
 func (h *BatchUpdateHandler) BatchUpdate() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var ml metrics.MetricsList
-		if err := jsonhttp.ReadRequest(r, ml); err != nil {
+		if err := jsonhttp.ReadRequest(r, &ml); err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
