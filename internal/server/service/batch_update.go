@@ -20,7 +20,7 @@ func NewBatchUpdateService(
 	return &BatchUpdateService{repository}
 }
 
-// BatchUpdate accept slice of metrics and returns error, if occur.
+// BatchUpdate accept slice of metrics and returns error if occured.
 //
 // Update metrics steps:
 //  1. split metrics on two different slices: counter and gauge

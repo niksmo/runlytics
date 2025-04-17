@@ -8,14 +8,17 @@ import (
 	"github.com/niksmo/runlytics/pkg/metrics"
 )
 
+// ReadService works with repository and provides Read method.
 type ReadService struct {
 	repository di.ReadByNameRepository
 }
 
+// NewValueService returns ReadService pointer.
 func NewValueService(repository di.ReadByNameRepository) *ReadService {
 	return &ReadService{repository}
 }
 
+// Reap defines metrics type and reads value. Returns error if occured.
 func (s *ReadService) Read(
 	ctx context.Context, m *metrics.Metrics,
 ) error {

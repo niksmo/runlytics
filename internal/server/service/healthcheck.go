@@ -21,7 +21,7 @@ func NewHealthCheckService(db *sql.DB) *HealthCheckService {
 	return &HealthCheckService{db}
 }
 
-// Check sends test to database and returns [ErrDB], if occur.
+// Check sends test to database and returns [ErrDB] if occured.
 func (s *HealthCheckService) Check(ctx context.Context) error {
 	var errs errS
 	if err := s.pingDB(ctx); err != nil {

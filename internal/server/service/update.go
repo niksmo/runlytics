@@ -18,7 +18,7 @@ func NewUpdateService(repository di.UpdateByNameRepository) *UpdateService {
 	return &UpdateService{repository}
 }
 
-// Update defines metrics type and updates value. Returns error if occur.
+// Update defines metrics type and updates value. Returns error if occured.
 func (s *UpdateService) Update(
 	ctx context.Context, m *metrics.Metrics,
 ) error {
