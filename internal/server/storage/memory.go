@@ -7,6 +7,8 @@ import (
 	"sync"
 	"time"
 
+	"maps"
+
 	"github.com/niksmo/runlytics/internal/logger"
 	"github.com/niksmo/runlytics/internal/server/errs"
 	"github.com/niksmo/runlytics/pkg/di"
@@ -19,7 +21,8 @@ type storageData struct {
 	Gauge   map[string]float64 `json:"gauge"`
 }
 
-type memoryStorage struct {
+// MemoryStorage store metrics in underlyin map and implements [di.Repository] interface.
+type MemoryStorage struct {
 	mu       sync.RWMutex
 	data     storageData
 	interval time.Duration
@@ -27,10 +30,11 @@ type memoryStorage struct {
 	restore  bool
 }
 
-func newMemory(
+// NewMemory returns MemoryStorage pointer.
+func NewMemory(
 	fo di.FileOperator, interval time.Duration, restore bool,
-) *memoryStorage {
-	ms := memoryStorage{
+) *MemoryStorage {
+	ms := MemoryStorage{
 		data: storageData{
 			Counter: make(map[string]int64),
 			Gauge:   make(map[string]float64),
@@ -42,8 +46,10 @@ func newMemory(
 	return &ms
 }
 
-// Restoring file, starting save interval and waiting graceful shutdown
-func (ms *memoryStorage) Run(stopCtx context.Context, wg *sync.WaitGroup) {
+// Run starts [MemoryStorage] and then waiting graceful shutdown.
+//
+// If MemoryStorage.restore is true, restores metrics data from file.
+func (ms *MemoryStorage) Run(stopCtx context.Context, wg *sync.WaitGroup) {
 	ms.restoreData()
 
 	if !ms.isSync() {
@@ -54,7 +60,8 @@ func (ms *memoryStorage) Run(stopCtx context.Context, wg *sync.WaitGroup) {
 	go ms.waitStop(stopCtx, wg)
 }
 
-func (ms *memoryStorage) UpdateCounterByName(
+// UpdateCounterByName returns updated counter value and nil error.
+func (ms *MemoryStorage) UpdateCounterByName(
 	_ context.Context, name string, value int64,
 ) (int64, error) {
 	ms.mu.Lock()
@@ -69,7 +76,8 @@ func (ms *memoryStorage) UpdateCounterByName(
 	return current, nil
 }
 
-func (ms *memoryStorage) UpdateGaugeByName(
+// UpdateGaugeByName returns updated gauge value and nil error.
+func (ms *MemoryStorage) UpdateGaugeByName(
 	_ context.Context, name string, value float64,
 ) (float64, error) {
 	ms.mu.Lock()
@@ -82,7 +90,8 @@ func (ms *memoryStorage) UpdateGaugeByName(
 	return value, nil
 }
 
-func (ms *memoryStorage) UpdateCounterList(
+// UpdateCounterList returns nil error.
+func (ms *MemoryStorage) UpdateCounterList(
 	ctx context.Context, mSlice metrics.MetricsList,
 ) error {
 	for _, item := range mSlice {
@@ -91,7 +100,8 @@ func (ms *memoryStorage) UpdateCounterList(
 	return nil
 }
 
-func (ms *memoryStorage) UpdateGaugeList(
+// UpdateGaugeList returns nil error.
+func (ms *MemoryStorage) UpdateGaugeList(
 	ctx context.Context, mSlice metrics.MetricsList,
 ) error {
 	for _, item := range mSlice {
@@ -100,7 +110,8 @@ func (ms *memoryStorage) UpdateGaugeList(
 	return nil
 }
 
-func (ms *memoryStorage) ReadCounterByName(
+// ReadCounterByName returns counter value and nil error.
+func (ms *MemoryStorage) ReadCounterByName(
 	_ context.Context, name string,
 ) (int64, error) {
 	ms.mu.RLock()
@@ -113,7 +124,8 @@ func (ms *memoryStorage) ReadCounterByName(
 	return value, nil
 }
 
-func (ms *memoryStorage) ReadGaugeByName(
+// ReadGaugeByName returns gauge value and nil error
+func (ms *MemoryStorage) ReadGaugeByName(
 	_ context.Context, name string,
 ) (float64, error) {
 	ms.mu.RLock()
@@ -126,35 +138,33 @@ func (ms *memoryStorage) ReadGaugeByName(
 	return value, nil
 }
 
-func (ms *memoryStorage) ReadGauge(
+// ReadGauge returns gauge metrics copy.
+func (ms *MemoryStorage) ReadGauge(
 	_ context.Context,
 ) (map[string]float64, error) {
 	gauge := make(map[string]float64, len(ms.data.Gauge))
 
 	ms.mu.RLock()
 	defer ms.mu.RUnlock()
-	for k, v := range ms.data.Gauge {
-		gauge[k] = v
-	}
+	maps.Copy(gauge, ms.data.Gauge)
 
 	return gauge, nil
 }
 
-func (ms *memoryStorage) ReadCounter(
+// ReadCounter returns counter metrics copy.
+func (ms *MemoryStorage) ReadCounter(
 	_ context.Context,
 ) (map[string]int64, error) {
 	counter := make(map[string]int64, len(ms.data.Counter))
 
 	ms.mu.RLock()
 	defer ms.mu.RUnlock()
-	for k, v := range ms.data.Counter {
-		counter[k] = v
-	}
+	maps.Copy(counter, ms.data.Counter)
 
 	return counter, nil
 }
 
-func (ms *memoryStorage) restoreData() {
+func (ms *MemoryStorage) restoreData() {
 
 	if !ms.restore {
 		ms.fo.Clear()
@@ -185,11 +195,11 @@ func (ms *memoryStorage) restoreData() {
 	logger.Log.Info("Restore metrics", zap.Int("count", nMetrics))
 }
 
-func (ms *memoryStorage) isSync() bool {
+func (ms *MemoryStorage) isSync() bool {
 	return ms.interval == 0
 }
 
-func (ms *memoryStorage) save() {
+func (ms *MemoryStorage) save() {
 	ms.mu.RLock()
 	rawData, err := json.Marshal(ms.data)
 	if err != nil {
@@ -202,14 +212,14 @@ func (ms *memoryStorage) save() {
 	logger.Log.Debug("Save metrics to file")
 }
 
-func (ms *memoryStorage) intervalSave() {
+func (ms *MemoryStorage) intervalSave() {
 	for {
 		time.Sleep(ms.interval)
 		ms.save()
 	}
 }
 
-func (ms *memoryStorage) close() {
+func (ms *MemoryStorage) close() {
 	ms.save()
 	if err := ms.fo.Close(); err != nil {
 		logger.Log.Error("FileOperator close", zap.Error(err))
@@ -218,7 +228,7 @@ func (ms *memoryStorage) close() {
 	}
 }
 
-func (ms *memoryStorage) waitStop(
+func (ms *MemoryStorage) waitStop(
 	stopCtx context.Context, wg *sync.WaitGroup,
 ) {
 	defer wg.Done()

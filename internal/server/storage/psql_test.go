@@ -80,7 +80,7 @@ func TestPSQL(t *testing.T) {
 		require.NoError(t, row.Scan(&count))
 		assert.Zero(t, count)
 
-		storage := newPSQL(db)
+		storage := NewPSQL(db)
 		storage.Run(stopCtx, &wg)
 
 		ctx, cancel = context.WithTimeout(ctxBase, time.Second)
@@ -93,7 +93,7 @@ func TestPSQL(t *testing.T) {
 
 	t.Run("Sequence update gauge by name", func(t *testing.T) {
 		clearTables(t)
-		storage := newPSQL(db)
+		storage := NewPSQL(db)
 		storage.Run(stopCtx, &wg)
 		ctxBase := context.Background()
 		metricName := "Alloc"
@@ -111,7 +111,7 @@ func TestPSQL(t *testing.T) {
 
 	t.Run("Sequence update counter by name", func(t *testing.T) {
 		clearTables(t)
-		storage := newPSQL(db)
+		storage := NewPSQL(db)
 		storage.Run(stopCtx, &wg)
 		ctxBase := context.Background()
 		metricName := "Counter"
@@ -132,7 +132,7 @@ func TestPSQL(t *testing.T) {
 	t.Run("Batch update", func(t *testing.T) {
 		t.Run("Gauge (no doubles)", func(t *testing.T) {
 			clearTables(t)
-			storage := newPSQL(db)
+			storage := NewPSQL(db)
 			storage.Run(stopCtx, &wg)
 
 			var m0 metrics.Metrics
@@ -182,7 +182,7 @@ func TestPSQL(t *testing.T) {
 
 		t.Run("Gauge (with doubles)", func(t *testing.T) {
 			clearTables(t)
-			storage := newPSQL(db)
+			storage := NewPSQL(db)
 			storage.Run(stopCtx, &wg)
 
 			var m0 metrics.Metrics
@@ -243,7 +243,7 @@ func TestPSQL(t *testing.T) {
 
 		t.Run("Counter (no doubles)", func(t *testing.T) {
 			clearTables(t)
-			storage := newPSQL(db)
+			storage := NewPSQL(db)
 			storage.Run(stopCtx, &wg)
 
 			var m0 metrics.Metrics
@@ -293,7 +293,7 @@ func TestPSQL(t *testing.T) {
 
 		t.Run("Counter (with doubles)", func(t *testing.T) {
 			clearTables(t)
-			storage := newPSQL(db)
+			storage := NewPSQL(db)
 			storage.Run(stopCtx, &wg)
 
 			var m0 metrics.Metrics
@@ -364,7 +364,7 @@ func TestPSQL(t *testing.T) {
 	})
 
 	t.Run("Read counter by name", func(t *testing.T) {
-		storage := newPSQL(db)
+		storage := NewPSQL(db)
 		storage.Run(stopCtx, &wg)
 		ctxBase := context.Background()
 		metricName := "Counter"
@@ -405,7 +405,7 @@ func TestPSQL(t *testing.T) {
 	})
 
 	t.Run("Read gauge by name", func(t *testing.T) {
-		storage := newPSQL(db)
+		storage := NewPSQL(db)
 		storage.Run(stopCtx, &wg)
 		ctxBase := context.Background()
 		metricName := "Alloc"
@@ -446,7 +446,7 @@ func TestPSQL(t *testing.T) {
 	})
 
 	t.Run("Read counter", func(t *testing.T) {
-		storage := newPSQL(db)
+		storage := NewPSQL(db)
 		storage.Run(stopCtx, &wg)
 		ctxBase := context.Background()
 
@@ -499,7 +499,7 @@ func TestPSQL(t *testing.T) {
 	})
 
 	t.Run("Read gauge", func(t *testing.T) {
-		storage := newPSQL(db)
+		storage := NewPSQL(db)
 		storage.Run(stopCtx, &wg)
 		ctxBase := context.Background()
 
