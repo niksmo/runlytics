@@ -8,14 +8,17 @@ import (
 	"github.com/niksmo/runlytics/pkg/metrics"
 )
 
+// UpdateService works with repository and provides Update method.
 type UpdateService struct {
 	repository di.UpdateByNameRepository
 }
 
+// NewUpdateService returns UpdateService pointer.
 func NewUpdateService(repository di.UpdateByNameRepository) *UpdateService {
 	return &UpdateService{repository}
 }
 
+// Update defines metrics type and updates value. Returns error if occur.
 func (s *UpdateService) Update(
 	ctx context.Context, m *metrics.Metrics,
 ) error {
