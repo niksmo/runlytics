@@ -1,4 +1,4 @@
-// Package api provides REST API handlers for server.
+// Package api provides REST API server handlers.
 package api
 
 import (

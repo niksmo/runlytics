@@ -11,10 +11,14 @@ import (
 	"github.com/niksmo/runlytics/pkg/metrics"
 )
 
+// BatchUpdateHandler working with service and provides batchUpdate method.
 type BatchUpdateHandler struct {
 	service di.BatchUpdateService
 }
 
+// SetBatchUpdateHandler sets batchUpdate handler to "/updates" path.
+//
+// Handler allows only JSON media type.
 func SetBatchUpdateHandler(mux *chi.Mux, service di.BatchUpdateService) {
 	path := "/updates"
 	handler := &BatchUpdateHandler{service}
