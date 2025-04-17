@@ -1,3 +1,4 @@
+// Package metrics provides general type of metrics object.
 package metrics
 
 import (
@@ -7,23 +8,28 @@ import (
 	"strings"
 )
 
+// Metrics type constants.
 const (
 	MTypeGauge   = "gauge"
 	MTypeCounter = "counter"
 )
 
+// The VerifyOp type is validation check function signature.
 type VerifyOp func(m Metrics) error
 
-// Mtype is 'gauge' or 'counter'.
-// Delta is not nil for 'counter',
-// otherwise Value is not nil for 'gauge'.
+// A Metrics describes metrics object.
 type Metrics struct {
 	ID    string   `json:"id"`
-	MType string   `json:"type"`
-	Delta *int64   `json:"delta,omitempty"`
-	Value *float64 `json:"value,omitempty"`
+	MType string   `json:"type"`            // use gauge or counter constants
+	Delta *int64   `json:"delta,omitempty"` // for counter
+	Value *float64 `json:"value,omitempty"` // for gauge
 }
 
+// NewFromStrArgs constructor returns a new metrics.
+//
+// If the value is not an empty string,
+// constructor try to parse string according by MType
+// and then define Delta or Value field.
 func NewFromStrArgs(id, mType, value string) Metrics {
 	var m Metrics
 
@@ -49,6 +55,8 @@ func NewFromStrArgs(id, mType, value string) Metrics {
 	return m
 }
 
+// Verify returns metrics object validation result.
+// Verify operations order may be important.
 func (m Metrics) Verify(ops ...VerifyOp) error {
 	var errs VerifyErrors
 	for _, op := range ops {
@@ -63,6 +71,11 @@ func (m Metrics) Verify(ops ...VerifyOp) error {
 	return nil
 }
 
+// GetValue returns a converted Delta or Value to string.
+//
+// Zero string returns, if:
+//   - metrics type not counter of gauge
+//   - delta or value (according by metrics type) is nil
 func (m Metrics) GetValue() string {
 	switch m.MType {
 	case MTypeGauge:
@@ -74,8 +87,10 @@ func (m Metrics) GetValue() string {
 	}
 }
 
+// MetricsList represents slice of metrics objects.
 type MetricsList []Metrics
 
+// Verify behaves as Metrics.Verify method, but errors joins in one.
 func (ml MetricsList) Verify(ops ...VerifyOp) error {
 	var s []string
 	for i, item := range ml {
@@ -91,6 +106,8 @@ func (ml MetricsList) Verify(ops ...VerifyOp) error {
 	return nil
 }
 
+// GetValue build all converted values in one string.
+// Values are separated by a newline charecter.
 func (ml MetricsList) GetValue() string {
 	var b strings.Builder
 	for _, m := range ml {
