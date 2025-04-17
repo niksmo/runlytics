@@ -10,16 +10,17 @@ import (
 	"sync"
 
 	"github.com/niksmo/runlytics/internal/logger"
-	"github.com/niksmo/runlytics/internal/server/errs"
 	"github.com/niksmo/runlytics/pkg/di"
 	"go.uber.org/zap"
 )
 
+// HTMLService working with prepared html template and [di.ReadListRepository]
 type HTMLService struct {
 	template   *template.Template
 	repository di.ReadListRepository
 }
 
+// NewHTMLService returns HTMLService pointer
 func NewHTMLService(repository di.ReadListRepository) *HTMLService {
 	text := `<!DOCTYPE html>
 <html lang="en">
@@ -48,42 +49,55 @@ func NewHTMLService(repository di.ReadListRepository) *HTMLService {
 	}
 }
 
+// RenderMetricsList writes HTML page to buffer or returns error if occur.
 func (s *HTMLService) RenderMetricsList(ctx context.Context, buf *bytes.Buffer) error {
-	var (
-		wg       sync.WaitGroup
-		gauge    map[string]float64
-		counter  map[string]int64
-		errSlice []error
-	)
-
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		var err error
-		gauge, err = s.repository.ReadGauge(ctx)
-		if err != nil {
-			errSlice = append(errSlice, err)
-			logger.Log.Error("Read all gauge metrics", zap.Error(err))
-		}
-	}()
-
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		var err error
-		counter, err = s.repository.ReadCounter(ctx)
-		if err != nil {
-			errSlice = append(errSlice, err)
-			logger.Log.Error("Read all counter metrics", zap.Error(err))
-		}
-	}()
-
-	wg.Wait()
-
-	if len(errSlice) != 0 {
-		return errs.ErrInternal
+	counter, gauge, err := s.readMetrics(ctx)
+	if err != nil {
+		return err
 	}
+	renderList := s.makeRenderList(counter, gauge)
+	return s.renderTemplate(renderList, buf)
+}
 
+func (s *HTMLService) readMetrics(
+	ctx context.Context,
+) (
+	counter map[string]int64,
+	gauge map[string]float64,
+	readErr error,
+) {
+	var wg sync.WaitGroup
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		g, err := s.repository.ReadGauge(ctx)
+		if err != nil {
+			readErr = err
+			logger.Log.Error("Read all gauge metrics", zap.Error(err))
+			return
+		}
+		gauge = g
+	}()
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		c, err := s.repository.ReadCounter(ctx)
+		if err != nil {
+			readErr = err
+			logger.Log.Error("Read all counter metrics", zap.Error(err))
+			return
+		}
+		counter = c
+	}()
+	wg.Wait()
+	return
+}
+
+func (s *HTMLService) makeRenderList(
+	counter map[string]int64, gauge map[string]float64,
+) []string {
 	render := make([]string, 0, len(gauge)+len(counter))
 
 	for k, v := range gauge {
@@ -97,9 +111,16 @@ func (s *HTMLService) RenderMetricsList(ctx context.Context, buf *bytes.Buffer) 
 	}
 
 	slices.Sort(render)
+	return render
+}
 
-	if err := s.template.Execute(buf, render); err != nil {
-		logger.Log.Error("Error metrics list template executing", zap.Error(err))
+func (s *HTMLService) renderTemplate(
+	renderList []string, buf *bytes.Buffer,
+) error {
+	if err := s.template.Execute(buf, renderList); err != nil {
+		logger.Log.Error(
+			"Error metrics list template executing", zap.Error(err),
+		)
 		return err
 	}
 	return nil
