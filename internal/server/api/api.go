@@ -1,4 +1,4 @@
-// Package api provides REST API handlers for runlytics server.
+// Package api provides REST API handlers for server.
 package api
 
 import (
