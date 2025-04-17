@@ -14,25 +14,37 @@ import (
 	"go.uber.org/zap"
 )
 
+// UpdateHandler work with service and provides
+// UpdateByJSON, UpdateByURLParams methods.
 type UpdateHandler struct {
 	service di.UpdateService
 }
 
+// SetUpdateHandler sets UpdateHandler to "/update" path.
+//
+//   - "/update/" to UpdateByJSON method, only JSON media type is allowed
+//   - "/update/{type}/{name}/{value}" to UpdateByURLParams method
 func SetUpdateHandler(mux *chi.Mux, service di.UpdateService) {
 	path := "/update"
 	handler := &UpdateHandler{service}
 	mux.Route(path, func(r chi.Router) {
 		byJSONPath := "/"
-		r.With(middleware.AllowJSON).Post(byJSONPath, handler.updateByJSON())
+		r.With(middleware.AllowJSON).Post(byJSONPath, handler.UpdateByJSON())
 		debugLogRegister(path + byJSONPath)
 
 		byURLParamsPath := "/{type}/{name}/{value}"
-		r.Post(byURLParamsPath, handler.updataByURLParams())
+		r.Post(byURLParamsPath, handler.UpdataByURLParams())
 		debugLogRegister(path + byURLParamsPath)
 	})
 }
 
-func (h *UpdateHandler) updateByJSON() http.HandlerFunc {
+// UpdateByJSON reads JSON data from request body.
+//
+// Possible responses:
+//   - 200 response metrics data in JSON format
+//   - 400 broken JSON data, or invalid metrics
+//   - 500 internal error
+func (h *UpdateHandler) UpdateByJSON() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var m metrics.Metrics
 		if err := jsonhttp.ReadRequest(r, &m); err != nil {
@@ -62,7 +74,13 @@ func (h *UpdateHandler) updateByJSON() http.HandlerFunc {
 	}
 }
 
-func (h *UpdateHandler) updataByURLParams() http.HandlerFunc {
+// UpdataByURLParams reads data from URL params.
+//
+// Possible responses:
+//   - 200 return metrics value in text format
+//   - 400 invalid data
+//   - 500 internal error
+func (h *UpdateHandler) UpdataByURLParams() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		m := metrics.NewFromStrArgs(
 			chi.URLParam(r, "name"),

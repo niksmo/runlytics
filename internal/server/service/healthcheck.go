@@ -8,7 +8,7 @@ import (
 )
 
 var (
-	ErrDB = errors.New("database: down")
+	ErrHealthDB = errors.New("database: down")
 )
 
 // HealthCheckService works with database and provides Check method.
@@ -21,7 +21,7 @@ func NewHealthCheckService(db *sql.DB) *HealthCheckService {
 	return &HealthCheckService{db}
 }
 
-// Check sends test to database and returns [ErrDB] if occured.
+// Check sends test to database and returns [ErrHealthDB] if occured.
 func (s *HealthCheckService) Check(ctx context.Context) error {
 	var errs errS
 	if err := s.pingDB(ctx); err != nil {
@@ -35,7 +35,7 @@ func (s *HealthCheckService) Check(ctx context.Context) error {
 
 func (s *HealthCheckService) pingDB(ctx context.Context) error {
 	if err := s.db.PingContext(ctx); err != nil {
-		return ErrDB
+		return ErrHealthDB
 	}
 	return nil
 }
@@ -52,7 +52,7 @@ func (errs errS) Error() string {
 	return strings.Join(s, "; ")
 }
 
-// Unwrap implements base error interface.
+// Unwrap implements base error interface method.
 func (errs errS) Unwrap() []error {
 	if len(errs) == 0 {
 		return nil

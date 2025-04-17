@@ -14,7 +14,7 @@ import (
 	"go.uber.org/zap"
 )
 
-// HTMLService working with prepared html template and [di.ReadListRepository]
+// HTMLService working with prepared html template and repository
 type HTMLService struct {
 	template   *template.Template
 	repository di.ReadListRepository
@@ -49,7 +49,7 @@ func NewHTMLService(repository di.ReadListRepository) *HTMLService {
 	}
 }
 
-// RenderMetricsList writes HTML page to buffer or returns error if occur.
+// RenderMetricsList writes HTML page to buffer or returns error if occured.
 func (s *HTMLService) RenderMetricsList(ctx context.Context, buf *bytes.Buffer) error {
 	counter, gauge, err := s.readMetrics(ctx)
 	if err != nil {
