@@ -8,16 +8,27 @@ import (
 	"github.com/niksmo/runlytics/pkg/metrics"
 )
 
+// BatchUpdateService works with repository and provides BatchUpdate method.
 type BatchUpdateService struct {
 	repository di.BatchUpdate
 }
 
+// NewBatchUpdateService returns BatchUpdateService pointer.
 func NewBatchUpdateService(
 	repository di.BatchUpdate,
 ) *BatchUpdateService {
 	return &BatchUpdateService{repository}
 }
 
+// BatchUpdate accept slice of metrics and returns error, if occur.
+//
+// Update metrics steps:
+//  1. split metrics on two different slices: counter and gauge
+//  2. update two slices in order: gauge -> counter
+//
+// If error occur on gauge update step, returns that error immediately.
+//
+// TODO(niksmo): update gauge and counter slices in separate goroutines.
 func (s *BatchUpdateService) BatchUpdate(
 	ctx context.Context, ml metrics.MetricsList,
 ) error {

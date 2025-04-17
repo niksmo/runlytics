@@ -7,7 +7,7 @@ import (
 	"github.com/niksmo/runlytics/pkg/di"
 )
 
-// New is a fabric method, returns Repository.
+// New is a fabric method that returns storage with [di.Repository] interface.
 func New(db *sql.DB, fo di.FileOperator, config di.ServerConfig) di.Repository {
 	if config.IsDatabase() {
 		return NewPSQL(db)
