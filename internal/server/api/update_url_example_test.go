@@ -71,6 +71,7 @@ func ExampleSetUpdateHandler_updateByURLParams() {
 		fmt.Println(err)
 		return
 	}
+	defer res.Body.Close()
 
 	fmt.Println(res.StatusCode)
 	io.Copy(os.Stdout, res.Body)
