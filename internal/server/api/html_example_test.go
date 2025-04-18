@@ -14,7 +14,7 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
-// ExampleHTMLService represents mocked UpdateService project component.
+// ExampleHTMLService represents mocked HTMLService project component.
 type ExampleHTMLService struct {
 	mock.Mock
 }

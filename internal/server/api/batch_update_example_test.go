@@ -5,10 +5,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"net/http/httptest"
-	"os"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/niksmo/runlytics/internal/server/api"
@@ -18,61 +16,61 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
-// ValueByJSONService represents mocked ValueService project component.
-type ValueByJSONService struct {
+// ExampleBatchUpdateService represents mocked BatchUpdateService project component.
+type ExampleBatchUpdateService struct {
 	mock.Mock
 }
 
-// Read assumes write "123.45" to metrics value.
-func (service *ValueByJSONService) Read(
-	ctx context.Context, m *metrics.Metrics,
+func (s *ExampleBatchUpdateService) BatchUpdate(
+	ctx context.Context, ml metrics.MetricsList,
 ) error {
-	retArgs := service.Called(context.Background(), m)
-	if m != nil {
-		v := 123.45
-		m.Value = &v
-	}
+	retArgs := s.Called(context.Background(), ml)
 	return retArgs.Error(0)
 }
 
-func ExampleSetValueHandler_readByJSON() {
-	var scheme metrics.Metrics
-	scheme.ID = "0"
-	scheme.MType = metrics.MTypeGauge
+func ExampleSetBatchUpdateHandler() {
+	m0value := 123.45
+	m1delta := int64(12345)
 
-	valueService := new(ValueByJSONService)
-	valueService.On("Read", context.Background(), &scheme).Return(nil)
+	metricsList := metrics.MetricsList{
+		{ID: "0", MType: metrics.MTypeGauge, Value: &m0value},
+		{ID: "1", MType: metrics.MTypeCounter, Delta: &m1delta},
+	}
+
+	batchUpdateService := new(ExampleBatchUpdateService)
+	batchUpdateService.On(
+		"BatchUpdate", context.Background(), metricsList,
+	).Return(nil)
 
 	mux := chi.NewRouter()
-	api.SetValueHandler(mux, valueService)
+	api.SetBatchUpdateHandler(mux, batchUpdateService)
 
 	s := httptest.NewServer(mux)
 	defer s.Close()
 
 	var reqData bytes.Buffer
-	if err := json.NewEncoder(&reqData).Encode(scheme); err != nil {
+	if err := json.NewEncoder(&reqData).Encode(metricsList); err != nil {
 		fmt.Println(err)
 		return
 	}
 
 	req, err := http.NewRequestWithContext(
-		context.Background(), http.MethodPost, s.URL+"/value/", &reqData,
+		context.Background(), http.MethodPost, s.URL+"/updates/", &reqData,
 	)
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
-
 	req.Header.Set(header.ContentType, mime.JSON)
+
 	res, err := s.Client().Do(req)
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
 	defer res.Body.Close()
+
 	fmt.Println(res.StatusCode)
-	io.Copy(os.Stdout, res.Body)
 	// Output:
 	// 200
-	// {"id":"0","type":"gauge","value":123.45}
 }

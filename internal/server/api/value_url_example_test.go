@@ -15,7 +15,7 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
-// ValueByJSONService represents mocked UpdateService project component.
+// ValueByJSONService represents mocked ValueService project component.
 type ValueByURLService struct {
 	mock.Mock
 }

@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
+// ExampleHealthCheckService represents mocked HealthCheckService project component.
 type ExampleHealthCheckService struct {
 	mock.Mock
 }
