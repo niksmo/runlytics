@@ -609,7 +609,7 @@ func TestReadByURLParamsHandler(t *testing.T) {
 		defer s.Close()
 
 		req, err := http.NewRequestWithContext(
-			context.TODO(),
+			context.Background(),
 			http.MethodGet,
 			makeURL(s.URL, mType, id),
 			http.NoBody,

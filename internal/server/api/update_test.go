@@ -36,10 +36,6 @@ func (service *MockUpdateService) Update(
 	return retArgs.Error(0)
 }
 
-type MockUpdateValidator struct {
-	mock.Mock
-}
-
 func TestUpdateByJSONHandler(t *testing.T) {
 	makeURL := func(serverURL string) string {
 		return serverURL + "/update/"
