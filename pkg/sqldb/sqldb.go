@@ -1,3 +1,4 @@
+// Package sqldb provides [*sql.DB] constructor.
 package sqldb
 
 import (
@@ -6,6 +7,7 @@ import (
 	"github.com/niksmo/runlytics/pkg/di"
 )
 
+// New returns sql.DB pointer.
 func New(driver, dsn string, logger di.Logger) *sql.DB {
 	db, err := sql.Open(driver, dsn)
 	if err != nil {

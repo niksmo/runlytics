@@ -3,6 +3,8 @@ package middleware
 import (
 	"net/http"
 	"strings"
+
+	"github.com/niksmo/runlytics/pkg/httpserver/header"
 )
 
 func AllowContentEncoding(
@@ -21,7 +23,7 @@ func AllowContentEncoding(
 				return
 			}
 
-			reqEncodings := r.Header.Values(ContentEncoding)
+			reqEncodings := r.Header.Values(header.ContentEncoding)
 
 			for _, reqEncoding := range reqEncodings {
 				reqEncoding = strings.ToLower(strings.TrimSpace(reqEncoding))

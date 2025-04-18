@@ -7,8 +7,10 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"hash"
 	"io"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/niksmo/runlytics/internal/logger"
@@ -18,6 +20,17 @@ import (
 )
 
 const headerHashKey = "HashSHA256"
+
+var (
+	bufferPool = sync.Pool{
+		New: func() any {
+			return new(bytes.Buffer)
+		}}
+
+	gzipWriterPool = sync.Pool{}
+
+	hashPool = sync.Pool{}
+)
 
 type JobErr struct {
 	jobID int64
@@ -41,9 +54,14 @@ func Run(
 ) {
 	for job := range jobCh {
 		logger.Log.Info("Start job", zap.Int64("jobID", job.ID()))
-		body, sha256 := makeRequestBody(job.Payload(), key)
+
+		buf := bufferPool.Get().(*bytes.Buffer)
+		buf.Reset()
+
+		sha256 := makeRequestBody(job.Payload(), key, buf)
 		start := time.Now()
-		res, err := HTTPClient.Do(createRequest(URL, body, sha256))
+		res, err := HTTPClient.Do(createRequest(URL, buf, sha256))
+		bufferPool.Put(buf)
 		if err != nil {
 			errCh <- &JobErr{jobID: job.ID(), err: err}
 			logger.Log.Info(
@@ -72,7 +90,12 @@ func Run(
 }
 
 func getHexHashSHA256(data []byte, key string) string {
-	h := hmac.New(sha256.New, []byte(key))
+	h, ok := hashPool.Get().(hash.Hash)
+	if !ok {
+		h = hmac.New(sha256.New, []byte(key))
+	}
+	defer hashPool.Put(h)
+	h.Reset()
 	_, err := h.Write(data)
 	if err != nil {
 		logger.Log.Panic("Write to Hash", zap.Error(err))
@@ -81,8 +104,8 @@ func getHexHashSHA256(data []byte, key string) string {
 }
 
 func makeRequestBody(
-	metrics []metrics.MetricsUpdate, key string,
-) (body io.Reader, hexSHA256 string) {
+	metrics []metrics.Metrics, key string, buf *bytes.Buffer,
+) (hexSHA256 string) {
 	jsonData, err := json.Marshal(metrics)
 	if err != nil {
 		logger.Log.Panic("Encode to JSON error", zap.Error(err))
@@ -92,18 +115,24 @@ func makeRequestBody(
 		hexSHA256 = getHexHashSHA256(jsonData, key)
 	}
 
-	var buf bytes.Buffer
-	gzipWriter := gzip.NewWriter(&buf)
+	gzipWriter, ok := gzipWriterPool.Get().(*gzip.Writer)
+	if !ok {
+		gzipWriter = gzip.NewWriter(buf)
+	}
+	defer gzipWriterPool.Put(gzipWriter)
+	gzipWriter.Reset(buf)
+
 	if _, err = gzipWriter.Write(jsonData); err != nil {
 		logger.Log.Panic("Write gzip", zap.Error(err))
 	}
-	gzipWriter.Close()
-
-	body = &buf
+	err = gzipWriter.Close()
+	if err != nil {
+		logger.Log.Panic("Close gzip", zap.Error(err))
+	}
 	return
 }
 
-func createRequest(URL string, body io.Reader, sha256 string) *http.Request {
+func createRequest(URL string, body *bytes.Buffer, sha256 string) *http.Request {
 	request, err := http.NewRequest("POST", URL, body)
 	if err != nil {
 		logger.Log.Panic("Error while creating http request", zap.Error(err))

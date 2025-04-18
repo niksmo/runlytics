@@ -1,3 +1,4 @@
+// Package storage provides memory and SQL database storage objects.
 package storage
 
 import (
@@ -6,11 +7,12 @@ import (
 	"github.com/niksmo/runlytics/pkg/di"
 )
 
+// New is a fabric method that returns storage with [di.Repository] interface.
 func New(db *sql.DB, fo di.FileOperator, config di.ServerConfig) di.Repository {
 	if config.IsDatabase() {
-		return newPSQL(db)
+		return NewPSQL(db)
 	}
-	return newMemory(
+	return NewMemory(
 		fo,
 		config.SaveInterval(),
 		config.Restore(),

@@ -8,6 +8,7 @@ import (
 	"time"
 )
 
+// Config describes server configurations parameters.
 type Config struct {
 	logLvl      string
 	addr        *net.TCPAddr
@@ -17,6 +18,7 @@ type Config struct {
 	key         string
 }
 
+// Loag initializes flags and enviroments parameters then returns Config pointer.
 func Load() *Config {
 	rawLogLvlFlag := flag.String("l", logLvlDefault, logLvlUsage)
 	rawAddrFlag := flag.String("a", addrDefault, addrUsage)
@@ -54,14 +56,17 @@ func Load() *Config {
 	return &config
 }
 
+// LogLvl returns logging level.
 func (c *Config) LogLvl() string {
 	return c.logLvl
 }
 
+// Addr returns server listening address.
 func (c *Config) Addr() string {
 	return c.addr.String()
 }
 
+// File returns memory storage underlying file.
 func (c *Config) File() *os.File {
 	if c.fileStorage.file != nil {
 		file := *c.fileStorage.file
@@ -69,6 +74,8 @@ func (c *Config) File() *os.File {
 	}
 	return nil
 }
+
+// FileName returns filename of memory storage underlying file.
 func (c *Config) FileName() string {
 	if c.fileStorage.file != nil {
 		return c.fileStorage.file.Name()
@@ -76,22 +83,27 @@ func (c *Config) FileName() string {
 	return ""
 }
 
+// SaveInterval returns memory storage save duration.
 func (c *Config) SaveInterval() time.Duration {
 	return c.fileStorage.saveInterval
 }
 
+// Restore returns memery storage restore flag.
 func (c *Config) Restore() bool {
 	return c.fileStorage.restore
 }
 
+// IsDatabase returns database usage flag.
 func (c *Config) IsDatabase() bool {
 	return c.isDatabase
 }
 
+// DatabaseDNS returns database data source name
 func (c *Config) DatabaseDSN() string {
 	return c.database.dsn
 }
 
+// Key returns hash checking key.
 func (c *Config) Key() string {
 	return c.key
 }

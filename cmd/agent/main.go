@@ -16,6 +16,7 @@ import (
 )
 
 func main() {
+
 	config := config.Load()
 
 	logger.Init(config.LogLvl())
@@ -29,7 +30,9 @@ func main() {
 		zap.Int("RATE_LIMIT", config.RateLimit()),
 	)
 
-	stopCtx, _ := signal.NotifyContext(context.Background(), os.Interrupt)
+	stopCtx, stopFn := signal.NotifyContext(context.Background(), os.Interrupt)
+	defer stopFn()
+
 	HTTPClient := &http.Client{Timeout: config.HTTPClientTimeout()}
 	URL := config.Addr().JoinPath("updates").String()
 	jobCh := make(chan di.Job, config.JobsBuf())
@@ -41,6 +44,7 @@ func main() {
 		collector.NewManualStat(config.Poll()),
 		collector.NewPsUtilStat(config.Poll()),
 	}
+
 	for _, collector := range collectors {
 		go collector.Run()
 	}
@@ -51,5 +55,7 @@ func main() {
 		go worker.Run(jobCh, errCh, URL, config.Key(), HTTPClient)
 		logger.Log.Info("Worker is running", zap.Int("workerIdx", idx))
 	}
+
 	<-stopCtx.Done()
+	logger.Log.Info("garecefully shutdown")
 }
