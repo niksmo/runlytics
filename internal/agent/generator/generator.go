@@ -12,10 +12,10 @@ import (
 
 type Job struct {
 	id      int64
-	payload []metrics.MetricsUpdate
+	payload []metrics.Metrics
 }
 
-func (job *Job) Payload() []metrics.MetricsUpdate {
+func (job *Job) Payload() []metrics.Metrics {
 	return job.payload
 }
 func (job *Job) ID() int64 {
@@ -69,12 +69,12 @@ func (g *JobGenerator) getJobID() int64 {
 
 func (g *JobGenerator) makeJob(
 	id int64, collector di.MetricsCollector,
-) di.Job {
-	var payload []metrics.MetricsUpdate
+) *Job {
+	var payload []metrics.Metrics
 	for name, value := range collector.GetGaugeMetrics() {
 		payload = append(
 			payload,
-			metrics.MetricsUpdate{
+			metrics.Metrics{
 				ID: name, MType: metrics.MTypeGauge, Value: &value,
 			},
 		)
@@ -93,7 +93,7 @@ func (g *JobGenerator) makeJob(
 		}
 		payload = append(
 			payload,
-			metrics.MetricsUpdate{
+			metrics.Metrics{
 				ID: name, MType: metrics.MTypeCounter, Delta: &value,
 			},
 		)

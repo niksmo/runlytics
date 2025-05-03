@@ -9,17 +9,17 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	_ "github.com/jackc/pgx/v5/stdlib"
+	"go.uber.org/zap"
+
 	"github.com/niksmo/runlytics/internal/logger"
 	"github.com/niksmo/runlytics/internal/server/api"
 	"github.com/niksmo/runlytics/internal/server/config"
 	"github.com/niksmo/runlytics/internal/server/middleware"
 	"github.com/niksmo/runlytics/internal/server/service"
 	"github.com/niksmo/runlytics/internal/server/storage"
-	"github.com/niksmo/runlytics/internal/server/validator"
 	"github.com/niksmo/runlytics/pkg/fileoperator"
 	"github.com/niksmo/runlytics/pkg/httpserver"
 	"github.com/niksmo/runlytics/pkg/sqldb"
-	"go.uber.org/zap"
 )
 
 func main() {
@@ -52,18 +52,15 @@ func main() {
 	api.SetUpdateHandler(
 		mux,
 		service.NewUpdateService(repository),
-		validator.NewUpdateValidator(),
 	)
 
 	api.SetBatchUpdateHandler(mux,
 		service.NewBatchUpdateService(repository),
-		validator.NewBatchUpdateValidator(),
 	)
 
 	api.SetValueHandler(
 		mux,
 		service.NewValueService(repository),
-		validator.NewValueValidator(),
 	)
 
 	api.SetHealthCheckHandler(mux, service.NewHealthCheckService(pgDB))

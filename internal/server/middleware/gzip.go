@@ -5,6 +5,9 @@ import (
 	"io"
 	"net/http"
 	"strings"
+
+	"github.com/niksmo/runlytics/pkg/httpserver/header"
+	"github.com/niksmo/runlytics/pkg/httpserver/mime"
 )
 
 const gzipFormat = "gzip"
@@ -68,14 +71,14 @@ type gzipWriter struct {
 func newGzipWriter(w http.ResponseWriter) *gzipWriter {
 	gzip, _ := gzip.NewWriterLevel(w, gzip.BestSpeed)
 	contentTypes := map[string]struct{}{
-		JSONMediaType:     {},
-		TextHTMLMediaType: {},
+		mime.JSON: {},
+		mime.HTML: {},
 	}
 	return &gzipWriter{ResponseWriter: w, gzip: gzip, contentTypes: contentTypes}
 }
 
 func (w *gzipWriter) isCompressable() bool {
-	contentType := strings.Split(w.Header().Get(ContentType), ";")[0]
+	contentType := strings.Split(w.Header().Get(header.ContentType), ";")[0]
 	_, ok := w.contentTypes[contentType]
 	return ok
 }
@@ -90,7 +93,7 @@ func (w *gzipWriter) Write(p []byte) (int, error) {
 func (w *gzipWriter) WriteHeader(statusCode int) {
 	if statusCode < 300 && w.isCompressable() {
 		w.compressable = true
-		w.Header().Set(ContentEncoding, gzipFormat)
+		w.Header().Set(header.ContentEncoding, gzipFormat)
 	}
 	w.ResponseWriter.WriteHeader(statusCode)
 }
@@ -103,7 +106,7 @@ func (w *gzipWriter) Close() error {
 }
 
 func receiveGzip(reqHeader *http.Header) bool {
-	for _, reqEncoding := range reqHeader.Values(ContentEncoding) {
+	for _, reqEncoding := range reqHeader.Values(header.ContentEncoding) {
 		reqEncoding = strings.ToLower(strings.TrimSpace(reqEncoding))
 		if reqEncoding == gzipFormat {
 			return true
@@ -114,7 +117,7 @@ func receiveGzip(reqHeader *http.Header) bool {
 }
 
 func acceptGzip(reqHeader *http.Header) bool {
-	acceptEncodings := reqHeader.Values(AcceptEncoding)
+	acceptEncodings := reqHeader.Values(header.AcceptEncoding)
 	for _, acceptEncoding := range acceptEncodings {
 		if strings.HasPrefix(acceptEncoding, "*") {
 			return true

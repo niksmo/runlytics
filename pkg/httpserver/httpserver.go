@@ -1,3 +1,4 @@
+// Package httpserver provides http.Server wrapper object and usefull constants.
 package httpserver
 
 import (
@@ -10,11 +11,13 @@ import (
 	"github.com/niksmo/runlytics/pkg/di"
 )
 
+// HTTPServer wrap the [http.Server] and provide Run method.
 type HTTPServer struct {
 	http.Server
 	logger di.Logger
 }
 
+// New construncts the http.Server with passed parameters and returns HTTPServer pointer.
 func New(addr string, handler http.Handler, logger di.Logger) *HTTPServer {
 	return &HTTPServer{
 		http.Server{Addr: addr, Handler: handler},
@@ -22,6 +25,7 @@ func New(addr string, handler http.Handler, logger di.Logger) *HTTPServer {
 	}
 }
 
+// Run start the http.Server and then waiting Done signal from context for gracefully shutdown.
 func (server *HTTPServer) Run(stopCtx context.Context, wg *sync.WaitGroup) {
 	server.logger.Infow("Listen", "host", server.Addr)
 	wg.Add(1)

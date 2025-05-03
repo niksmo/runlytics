@@ -9,12 +9,15 @@ import (
 	"hash"
 	"io"
 	"net/http"
+	"sync"
 
 	"github.com/niksmo/runlytics/internal/logger"
 	"go.uber.org/zap"
 )
 
 const headerHashKey = "HashSHA256"
+
+var hashPool = sync.Pool{}
 
 var (
 	ErrNotEqualHash = errors.New("invalid sha256 hash sum")
@@ -64,7 +67,7 @@ func VerifyAndWriteSHA256(key string, method ...string) func(http.Handler) http.
 
 type hashReader struct {
 	io.ReadCloser
-	hash    hash.Hash
+	key     []byte
 	compare []byte
 	buf     bytes.Buffer
 }
@@ -74,7 +77,7 @@ func newHashReader(
 ) *hashReader {
 	return &hashReader{
 		ReadCloser: wrapped,
-		hash:       hmac.New(sha256.New, []byte(key)),
+		key:        []byte(key),
 		compare:    comparedHash,
 	}
 }
@@ -88,11 +91,18 @@ func (hashReader *hashReader) Read(p []byte) (int, error) {
 	if errors.Is(err, io.EOF) {
 		hashReader.buf.Write(p[:n])
 
-		if _, err = hashReader.hash.Write(hashReader.buf.Bytes()); err != nil {
-			return 0, err
+		h, ok := hashPool.Get().(hash.Hash)
+		if !ok {
+			h = hmac.New(sha256.New, hashReader.key)
+		}
+		defer hashPool.Put(h)
+		h.Reset()
+
+		if _, hErr := h.Write(hashReader.buf.Bytes()); hErr != nil {
+			return 0, hErr
 		}
 
-		if !hmac.Equal(hashReader.hash.Sum(nil), hashReader.compare) {
+		if !hmac.Equal(h.Sum(nil), hashReader.compare) {
 			logger.Log.Debug("Hash is not equal")
 			return 0, ErrNotEqualHash
 		}

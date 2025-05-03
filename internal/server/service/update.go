@@ -8,58 +8,62 @@ import (
 	"github.com/niksmo/runlytics/pkg/metrics"
 )
 
+// UpdateService works with repository and provides Update method.
 type UpdateService struct {
-	repository di.UpdateRepository
+	repository di.UpdateByNameRepository
 }
 
-func NewUpdateService(repository di.UpdateRepository) *UpdateService {
+// NewUpdateService returns UpdateService pointer.
+func NewUpdateService(repository di.UpdateByNameRepository) *UpdateService {
 	return &UpdateService{repository}
 }
 
+// Update defines metrics type and updates value. Returns error if occured.
 func (s *UpdateService) Update(
-	ctx context.Context, scheme *metrics.MetricsUpdate,
-) (di.Metrics, error) {
-	if scheme == nil {
-		return nil, server.ErrInternal
+	ctx context.Context, m *metrics.Metrics,
+) error {
+	if m == nil {
+		return server.ErrInternal
 	}
 
-	switch scheme.MType {
+	switch m.MType {
 	case metrics.MTypeGauge:
-		return s.updateGauge(ctx, scheme)
+		return s.updateGauge(ctx, m)
 	case metrics.MTypeCounter:
-		return s.updateCounter(ctx, scheme)
+		return s.updateCounter(ctx, m)
+	default:
+		return server.ErrInternal
 	}
-	return nil, server.ErrInternal
 }
 
 func (s *UpdateService) updateGauge(
-	ctx context.Context, scheme *metrics.MetricsUpdate,
-) (metrics.MetricsGauge, error) {
-	if scheme.Value == nil {
-		return metrics.MetricsGauge{}, server.ErrInternal
+	ctx context.Context, m *metrics.Metrics,
+) error {
+	if m.Value == nil {
+		return server.ErrInternal
 	}
-	value, err := s.repository.UpdateGaugeByName(ctx, scheme.ID, *scheme.Value)
+	v, err := s.repository.UpdateGaugeByName(
+		ctx, m.ID, *m.Value,
+	)
 	if err != nil {
-		return metrics.MetricsGauge{}, err
+		return err
 	}
-	mGauge := metrics.MetricsGauge{
-		ID: scheme.ID, MType: scheme.MType, Value: value,
-	}
-	return mGauge, nil
+	m.Value = &v
+	return nil
 }
 
 func (s *UpdateService) updateCounter(
-	ctx context.Context, scheme *metrics.MetricsUpdate,
-) (metrics.MetricsCounter, error) {
-	if scheme.Delta == nil {
-		return metrics.MetricsCounter{}, server.ErrInternal
+	ctx context.Context, m *metrics.Metrics,
+) error {
+	if m.Delta == nil {
+		return server.ErrInternal
 	}
-	delta, err := s.repository.UpdateCounterByName(ctx, scheme.ID, *scheme.Delta)
+	d, err := s.repository.UpdateCounterByName(
+		ctx, m.ID, *m.Delta,
+	)
 	if err != nil {
-		return metrics.MetricsCounter{}, err
+		return err
 	}
-	mCounter := metrics.MetricsCounter{
-		ID: scheme.ID, MType: scheme.MType, Delta: delta,
-	}
-	return mCounter, nil
+	m.Delta = &d
+	return nil
 }

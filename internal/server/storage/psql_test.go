@@ -80,7 +80,7 @@ func TestPSQL(t *testing.T) {
 		require.NoError(t, row.Scan(&count))
 		assert.Zero(t, count)
 
-		storage := newPSQL(db)
+		storage := NewPSQL(db)
 		storage.Run(stopCtx, &wg)
 
 		ctx, cancel = context.WithTimeout(ctxBase, time.Second)
@@ -93,7 +93,7 @@ func TestPSQL(t *testing.T) {
 
 	t.Run("Sequence update gauge by name", func(t *testing.T) {
 		clearTables(t)
-		storage := newPSQL(db)
+		storage := NewPSQL(db)
 		storage.Run(stopCtx, &wg)
 		ctxBase := context.Background()
 		metricName := "Alloc"
@@ -111,7 +111,7 @@ func TestPSQL(t *testing.T) {
 
 	t.Run("Sequence update counter by name", func(t *testing.T) {
 		clearTables(t)
-		storage := newPSQL(db)
+		storage := NewPSQL(db)
 		storage.Run(stopCtx, &wg)
 		ctxBase := context.Background()
 		metricName := "Counter"
@@ -132,13 +132,22 @@ func TestPSQL(t *testing.T) {
 	t.Run("Batch update", func(t *testing.T) {
 		t.Run("Gauge (no doubles)", func(t *testing.T) {
 			clearTables(t)
-			storage := newPSQL(db)
+			storage := NewPSQL(db)
 			storage.Run(stopCtx, &wg)
 
-			gaugeSlice := []metrics.MetricsGauge{
-				{ID: "0", MType: metrics.MTypeGauge, Value: 5},
-				{ID: "1", MType: metrics.MTypeGauge, Value: 7},
-			}
+			var m0 metrics.Metrics
+			m0.ID = "0"
+			m0.MType = metrics.MTypeGauge
+			m0v := 5.0
+			m0.Value = &m0v
+
+			var m1 metrics.Metrics
+			m1.ID = "1"
+			m1.MType = metrics.MTypeGauge
+			m1v := 7.0
+			m1.Value = &m1v
+
+			gaugeSlice := metrics.MetricsList{m0, m1}
 
 			ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 			defer cancel()
@@ -165,7 +174,7 @@ func TestPSQL(t *testing.T) {
 				)
 				require.NoError(t, rows.Scan(&name, &value))
 				assert.Equal(t, gaugeSlice[rowNumber].ID, name)
-				assert.Equal(t, gaugeSlice[rowNumber].Value, value)
+				assert.Equal(t, *gaugeSlice[rowNumber].Value, value)
 				rowNumber++
 			}
 			assert.NoError(t, rows.Err())
@@ -173,14 +182,28 @@ func TestPSQL(t *testing.T) {
 
 		t.Run("Gauge (with doubles)", func(t *testing.T) {
 			clearTables(t)
-			storage := newPSQL(db)
+			storage := NewPSQL(db)
 			storage.Run(stopCtx, &wg)
 
-			gaugeSlice := []metrics.MetricsGauge{
-				{ID: "0", MType: metrics.MTypeGauge, Value: 5},
-				{ID: "1", MType: metrics.MTypeGauge, Value: 7},
-				{ID: "0", MType: metrics.MTypeGauge, Value: 10},
-			}
+			var m0 metrics.Metrics
+			m0.ID = "0"
+			m0.MType = metrics.MTypeGauge
+			m0v := 5.0
+			m0.Value = &m0v
+
+			var m1 metrics.Metrics
+			m1.ID = "1"
+			m1.MType = metrics.MTypeGauge
+			m1v := 7.0
+			m1.Value = &m1v
+
+			var m2 metrics.Metrics
+			m2.ID = "0"
+			m2.MType = metrics.MTypeGauge
+			m2v := 5.0
+			m2.Value = &m2v
+
+			gaugeSlice := metrics.MetricsList{m0, m1, m2}
 
 			ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 			defer cancel()
@@ -199,11 +222,12 @@ func TestPSQL(t *testing.T) {
 			require.NoError(t, err)
 			defer rows.Close()
 
-			var rowNumber int
-			expectedSlice := []metrics.MetricsGauge{
+			expectedSlice := []metrics.Metrics{
 				{ID: "0", MType: metrics.MTypeGauge, Value: gaugeSlice[2].Value},
 				{ID: "1", MType: metrics.MTypeGauge, Value: gaugeSlice[1].Value},
 			}
+
+			var rowNumber int
 			for rows.Next() {
 				var (
 					name  string
@@ -211,7 +235,7 @@ func TestPSQL(t *testing.T) {
 				)
 				require.NoError(t, rows.Scan(&name, &value))
 				assert.Equal(t, expectedSlice[rowNumber].ID, name)
-				assert.Equal(t, expectedSlice[rowNumber].Value, value)
+				assert.Equal(t, *expectedSlice[rowNumber].Value, value)
 				rowNumber++
 			}
 			assert.NoError(t, rows.Err())
@@ -219,13 +243,22 @@ func TestPSQL(t *testing.T) {
 
 		t.Run("Counter (no doubles)", func(t *testing.T) {
 			clearTables(t)
-			storage := newPSQL(db)
+			storage := NewPSQL(db)
 			storage.Run(stopCtx, &wg)
 
-			counterSlice := []metrics.MetricsCounter{
-				{ID: "0", MType: metrics.MTypeCounter, Delta: 5},
-				{ID: "1", MType: metrics.MTypeCounter, Delta: 7},
-			}
+			var m0 metrics.Metrics
+			m0.ID = "0"
+			m0.MType = metrics.MTypeCounter
+			m0v := int64(5)
+			m0.Delta = &m0v
+
+			var m1 metrics.Metrics
+			m1.ID = "1"
+			m1.MType = metrics.MTypeCounter
+			m1v := int64(7)
+			m1.Delta = &m1v
+
+			counterSlice := metrics.MetricsList{m0, m1}
 
 			ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 			defer cancel()
@@ -248,11 +281,11 @@ func TestPSQL(t *testing.T) {
 			for rows.Next() {
 				var (
 					name  string
-					value int64
+					delta int64
 				)
-				require.NoError(t, rows.Scan(&name, &value))
+				require.NoError(t, rows.Scan(&name, &delta))
 				assert.Equal(t, counterSlice[rowNumber].ID, name)
-				assert.Equal(t, counterSlice[rowNumber].Delta, value)
+				assert.Equal(t, *counterSlice[rowNumber].Delta, delta)
 				rowNumber++
 			}
 			assert.NoError(t, rows.Err())
@@ -260,14 +293,28 @@ func TestPSQL(t *testing.T) {
 
 		t.Run("Counter (with doubles)", func(t *testing.T) {
 			clearTables(t)
-			storage := newPSQL(db)
+			storage := NewPSQL(db)
 			storage.Run(stopCtx, &wg)
 
-			counterSlice := []metrics.MetricsCounter{
-				{ID: "0", MType: metrics.MTypeCounter, Delta: 5},
-				{ID: "1", MType: metrics.MTypeCounter, Delta: 7},
-				{ID: "0", MType: metrics.MTypeCounter, Delta: 10},
-			}
+			var m0 metrics.Metrics
+			m0.ID = "0"
+			m0.MType = metrics.MTypeCounter
+			m0v := int64(5)
+			m0.Delta = &m0v
+
+			var m1 metrics.Metrics
+			m1.ID = "1"
+			m1.MType = metrics.MTypeCounter
+			m1v := int64(7)
+			m1.Delta = &m1v
+
+			var m2 metrics.Metrics
+			m2.ID = "0"
+			m2.MType = metrics.MTypeCounter
+			m2v := int64(10)
+			m2.Delta = &m2v
+
+			counterSlice := metrics.MetricsList{m0, m1, m2}
 
 			ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 			defer cancel()
@@ -286,27 +333,29 @@ func TestPSQL(t *testing.T) {
 			require.NoError(t, err)
 			defer rows.Close()
 
+			var expectM0 metrics.Metrics
+			expectM0.ID = "0"
+			expectM0.MType = metrics.MTypeCounter
+			expectM0Delta := (*counterSlice[0].Delta) + (*counterSlice[2].Delta)
+			expectM0.Delta = &expectM0Delta
+
+			var expectM1 metrics.Metrics
+			expectM1.ID = "1"
+			expectM1.MType = metrics.MTypeCounter
+			expectM1Delta := *counterSlice[1].Delta
+			expectM1.Delta = &expectM1Delta
+
+			expectedSlice := []metrics.Metrics{expectM0, expectM1}
+
 			var rowNumber int
-			expectedSlice := []metrics.MetricsCounter{
-				{
-					ID:    "0",
-					MType: metrics.MTypeCounter,
-					Delta: counterSlice[0].Delta + counterSlice[2].Delta,
-				},
-				{
-					ID:    "1",
-					MType: metrics.MTypeCounter,
-					Delta: 7,
-				},
-			}
 			for rows.Next() {
 				var (
 					name  string
-					value int64
+					delta int64
 				)
-				require.NoError(t, rows.Scan(&name, &value))
+				require.NoError(t, rows.Scan(&name, &delta))
 				assert.Equal(t, expectedSlice[rowNumber].ID, name)
-				assert.Equal(t, expectedSlice[rowNumber].Delta, value)
+				assert.Equal(t, *expectedSlice[rowNumber].Delta, delta)
 				rowNumber++
 			}
 			assert.NoError(t, rows.Err())
@@ -315,7 +364,7 @@ func TestPSQL(t *testing.T) {
 	})
 
 	t.Run("Read counter by name", func(t *testing.T) {
-		storage := newPSQL(db)
+		storage := NewPSQL(db)
 		storage.Run(stopCtx, &wg)
 		ctxBase := context.Background()
 		metricName := "Counter"
@@ -356,7 +405,7 @@ func TestPSQL(t *testing.T) {
 	})
 
 	t.Run("Read gauge by name", func(t *testing.T) {
-		storage := newPSQL(db)
+		storage := NewPSQL(db)
 		storage.Run(stopCtx, &wg)
 		ctxBase := context.Background()
 		metricName := "Alloc"
@@ -397,7 +446,7 @@ func TestPSQL(t *testing.T) {
 	})
 
 	t.Run("Read counter", func(t *testing.T) {
-		storage := newPSQL(db)
+		storage := NewPSQL(db)
 		storage.Run(stopCtx, &wg)
 		ctxBase := context.Background()
 
@@ -450,7 +499,7 @@ func TestPSQL(t *testing.T) {
 	})
 
 	t.Run("Read gauge", func(t *testing.T) {
-		storage := newPSQL(db)
+		storage := NewPSQL(db)
 		storage.Run(stopCtx, &wg)
 		ctxBase := context.Background()
 

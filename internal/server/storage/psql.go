@@ -16,27 +16,30 @@ import (
 
 var waitIntervals = []time.Duration{time.Second, 3 * time.Second}
 
-type psqlStorage struct {
+// PSQLStorage wrap [*sql.DB] and implements [di.Repository] interface.
+type PSQLStorage struct {
 	db *sql.DB
 }
 
-func newPSQL(db *sql.DB) *psqlStorage {
-	return &psqlStorage{db}
+// NewPSQL returns PSQLStorage pointer.
+func NewPSQL(db *sql.DB) *PSQLStorage {
+	return &PSQLStorage{db}
 }
 
 // Creating database tables and waiting graceful shutdown
-func (ps *psqlStorage) Run(stopCtx context.Context, wg *sync.WaitGroup) {
+func (ps *PSQLStorage) Run(stopCtx context.Context, wg *sync.WaitGroup) {
 	ps.createTables(stopCtx)
 
 	wg.Add(1)
 	go ps.waitStop(stopCtx, wg)
 }
 
-func (ps *psqlStorage) Close() error {
+func (ps *PSQLStorage) close() error {
 	return ps.db.Close()
 }
 
-func (ps *psqlStorage) UpdateCounterByName(
+// UpdateCounterByName returns updated counter value and sql driver error, if occur.
+func (ps *PSQLStorage) UpdateCounterByName(
 	ctx context.Context, name string, value int64,
 ) (int64, error) {
 	logPrefix := "Update counter by name"
@@ -57,7 +60,8 @@ func (ps *psqlStorage) UpdateCounterByName(
 	return retValue, nil
 }
 
-func (ps *psqlStorage) UpdateGaugeByName(
+// UpdateGaugeByName returns updated gauge value and sql driver error, if occur.
+func (ps *PSQLStorage) UpdateGaugeByName(
 	ctx context.Context, name string, value float64,
 ) (float64, error) {
 	logPrefix := "Update gauge by name"
@@ -78,8 +82,9 @@ func (ps *psqlStorage) UpdateGaugeByName(
 	return retValue, nil
 }
 
-func (ps *psqlStorage) UpdateCounterList(
-	ctx context.Context, mSlice []metrics.MetricsCounter,
+// UpdateCounterList returns sql driver error, if occur.
+func (ps *PSQLStorage) UpdateCounterList(
+	ctx context.Context, mSlice metrics.MetricsList,
 ) error {
 	logPrefix := "Update counter list"
 	tx, err := beginTxWithRetries(
@@ -103,7 +108,7 @@ func (ps *psqlStorage) UpdateCounterList(
 	defer stmt.Close()
 
 	for _, item := range mSlice {
-		_, err = stmt.ExecContext(ctx, item.ID, item.Delta)
+		_, err = stmt.ExecContext(ctx, item.ID, *item.Delta)
 		if err != nil {
 			err = rollbackWithRetries(ctx, tx, logPrefix+": rollback")
 			if err != nil {
@@ -120,8 +125,9 @@ func (ps *psqlStorage) UpdateCounterList(
 	return nil
 }
 
-func (ps *psqlStorage) UpdateGaugeList(
-	ctx context.Context, mSlice []metrics.MetricsGauge,
+// UpdateGaugeList returns sql driver error, if occur.
+func (ps *PSQLStorage) UpdateGaugeList(
+	ctx context.Context, mSlice metrics.MetricsList,
 ) error {
 	logPrefix := "Update gauge list"
 	tx, err := beginTxWithRetries(
@@ -145,7 +151,7 @@ func (ps *psqlStorage) UpdateGaugeList(
 	defer stmt.Close()
 
 	for _, item := range mSlice {
-		_, err = stmt.ExecContext(ctx, item.ID, item.Value)
+		_, err = stmt.ExecContext(ctx, item.ID, *item.Value)
 		if err != nil {
 			err = rollbackWithRetries(ctx, tx, logPrefix+": rollback")
 			if err != nil {
@@ -162,7 +168,8 @@ func (ps *psqlStorage) UpdateGaugeList(
 	return nil
 }
 
-func (ps *psqlStorage) ReadCounterByName(
+// ReadCounterByName returns counter value and sql driver error, if occur.
+func (ps *PSQLStorage) ReadCounterByName(
 	ctx context.Context, name string,
 ) (int64, error) {
 	logPrefix := "Read counter by name"
@@ -182,7 +189,8 @@ func (ps *psqlStorage) ReadCounterByName(
 	return value, nil
 }
 
-func (ps *psqlStorage) ReadGaugeByName(
+// ReadGaugeByName returns gauge value and sql driver error, if occur.
+func (ps *PSQLStorage) ReadGaugeByName(
 	ctx context.Context, name string,
 ) (float64, error) {
 	logPrefix := "Read gauge by name"
@@ -202,7 +210,8 @@ func (ps *psqlStorage) ReadGaugeByName(
 	return value, nil
 }
 
-func (ps *psqlStorage) ReadGauge(
+// ReadGauge returns gauge metrics and sql driver error, if occur.
+func (ps *PSQLStorage) ReadGauge(
 	ctx context.Context,
 ) (map[string]float64, error) {
 	logPrefix := "Read gauge"
@@ -234,7 +243,8 @@ func (ps *psqlStorage) ReadGauge(
 	return gaugeMap, nil
 }
 
-func (ps *psqlStorage) ReadCounter(
+// ReadCounter returns counter metrics and sql driver error, if occur.
+func (ps *PSQLStorage) ReadCounter(
 	ctx context.Context,
 ) (map[string]int64, error) {
 	logPrefix := "Read counter"
@@ -266,7 +276,7 @@ func (ps *psqlStorage) ReadCounter(
 	return counterMap, nil
 }
 
-func (ps *psqlStorage) createTables(ctx context.Context) {
+func (ps *PSQLStorage) createTables(ctx context.Context) {
 	logPrefix := "Create tables"
 	stmt := `
 	CREATE TABLE IF NOT EXISTS gauge (
@@ -284,10 +294,10 @@ func (ps *psqlStorage) createTables(ctx context.Context) {
 	}
 }
 
-func (ps *psqlStorage) waitStop(stopCtx context.Context, wg *sync.WaitGroup) {
+func (ps *PSQLStorage) waitStop(stopCtx context.Context, wg *sync.WaitGroup) {
 	defer wg.Done()
 	<-stopCtx.Done()
-	if err := ps.Close(); err != nil {
+	if err := ps.close(); err != nil {
 		logger.Log.Error("Database close connection", zap.Error(err))
 		return
 	}

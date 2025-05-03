@@ -1,3 +1,4 @@
+// Package fileoperator provides abstraction over [os.File].
 package fileoperator
 
 import (
@@ -6,12 +7,15 @@ import (
 	"os"
 )
 
+// FileOperator provides simple file usage.
+// Read and Write is buffered.
 type FileOperator struct {
 	r *bufio.Reader
 	w *bufio.Writer
 	f *os.File
 }
 
+// New returns FileOperator pointer.
 func New(file *os.File) *FileOperator {
 	return &FileOperator{
 		r: bufio.NewReader(file),
@@ -20,6 +24,7 @@ func New(file *os.File) *FileOperator {
 	}
 }
 
+// Clear erase underlying file and move cursor to zero position.
 func (fo *FileOperator) Clear() (err error) {
 	if err = fo.f.Truncate(0); err != nil {
 		return err
@@ -28,10 +33,12 @@ func (fo *FileOperator) Clear() (err error) {
 	return err
 }
 
+// Load full reads underlying file.
 func (fo *FileOperator) Load() ([]byte, error) {
 	return io.ReadAll(fo.r)
 }
 
+// Save clear file and then write all passed data.
 func (fo *FileOperator) Save(data []byte) (err error) {
 	if err = fo.Clear(); err != nil {
 		return
@@ -42,6 +49,7 @@ func (fo *FileOperator) Save(data []byte) (err error) {
 	return fo.w.Flush()
 }
 
+// Close close underlying file.
 func (fo *FileOperator) Close() error {
 	return fo.f.Close()
 }

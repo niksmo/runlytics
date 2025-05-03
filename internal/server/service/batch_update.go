@@ -8,52 +8,59 @@ import (
 	"github.com/niksmo/runlytics/pkg/metrics"
 )
 
+// BatchUpdateService works with repository and provides BatchUpdate method.
 type BatchUpdateService struct {
-	repository di.UpdateListRepository
+	repository di.BatchUpdate
 }
 
-func NewBatchUpdateService(repository di.UpdateListRepository) *BatchUpdateService {
+// NewBatchUpdateService returns BatchUpdateService pointer.
+func NewBatchUpdateService(
+	repository di.BatchUpdate,
+) *BatchUpdateService {
 	return &BatchUpdateService{repository}
 }
 
-func (service *BatchUpdateService) BatchUpdate(ctx context.Context, batch metrics.MetricsBatchUpdate) error {
-	var gaugeSlice []metrics.MetricsGauge
-	var counterSlice []metrics.MetricsCounter
+// BatchUpdate accept slice of metrics and returns error if occured.
+//
+// Update metrics steps:
+//  1. split metrics on two different slices: counter and gauge
+//  2. update two slices in order: gauge -> counter
+//
+// If error occur on gauge update step, returns that error immediately.
+//
+// TODO(niksmo): update gauge and counter slices in separate goroutines.
+func (s *BatchUpdateService) BatchUpdate(
+	ctx context.Context, ml metrics.MetricsList,
+) error {
+	var gl []metrics.Metrics
+	var cl []metrics.Metrics
 
-	for _, item := range batch {
-		switch item.MType {
+	for _, m := range ml {
+		switch m.MType {
 		case metrics.MTypeGauge:
-			if item.Value == nil {
+			if m.Value == nil {
 				return server.ErrInternal
 			}
-			gaugeSlice = append(gaugeSlice, metrics.MetricsGauge{
-				ID:    item.ID,
-				MType: item.MType,
-				Value: *item.Value,
-			})
+			gl = append(gl, m)
 		case metrics.MTypeCounter:
-			if item.Delta == nil {
+			if m.Delta == nil {
 				return server.ErrInternal
 			}
-			counterSlice = append(counterSlice, metrics.MetricsCounter{
-				ID:    item.ID,
-				MType: item.MType,
-				Delta: *item.Delta,
-			})
+			cl = append(cl, m)
 		default:
 			return server.ErrInternal
 		}
 	}
 
-	if len(gaugeSlice) != 0 {
-		err := service.repository.UpdateGaugeList(ctx, gaugeSlice)
+	if len(gl) != 0 {
+		err := s.repository.UpdateGaugeList(ctx, gl)
 		if err != nil {
 			return err
 		}
 	}
 
-	if len(counterSlice) != 0 {
-		err := service.repository.UpdateCounterList(ctx, counterSlice)
+	if len(cl) != 0 {
+		err := s.repository.UpdateCounterList(ctx, cl)
 		if err != nil {
 			return err
 		}

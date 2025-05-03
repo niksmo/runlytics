@@ -1,3 +1,4 @@
+// Package metrics provides general type of metrics object.
 package metrics
 
 import (
@@ -7,91 +8,124 @@ import (
 	"strings"
 )
 
+// Metrics type constants.
 const (
 	MTypeGauge   = "gauge"
 	MTypeCounter = "counter"
 )
 
-var (
-	ErrRequired = errors.New("required")
-)
+// The VerifyOp type is validation check function signature.
+type VerifyOp func(m Metrics) error
 
-type VerifyErrors []error
-
-func (ev VerifyErrors) Unwrap() []error {
-	if len(ev) == 0 {
-		return nil
-	}
-	return ev
+// A Metrics describes metrics object.
+type Metrics struct {
+	ID    string   `json:"id"`
+	MType string   `json:"type"`            // use gauge or counter constants
+	Delta *int64   `json:"delta,omitempty"` // for counter
+	Value *float64 `json:"value,omitempty"` // for gauge
 }
 
-func (ev VerifyErrors) Error() string {
-	errStrings := make([]string, 0, len(ev))
-	for _, err := range ev {
-		errStrings = append(errStrings, err.Error())
-	}
-	return strings.Join(errStrings, "; ")
-}
+// NewFromStrArgs constructor returns a new metrics.
+//
+// If the value is not an empty string,
+// constructor try to parse string according by MType
+// and then define Delta or Value field.
+func NewFromStrArgs(id, mType, value string) Metrics {
+	var m Metrics
 
-type MetricsCounter struct {
-	ID    string `json:"id"`
-	MType string `json:"type"`
-	Delta int64  `json:"delta"`
-}
+	m.ID = id
+	m.MType = mType
 
-func (mc MetricsCounter) StrconvValue() string {
-	return strconvDelta(mc.Delta)
-}
-
-type MetricsGauge struct {
-	ID    string  `json:"id"`
-	MType string  `json:"type"`
-	Value float64 `json:"value"`
-}
-
-func (mg MetricsGauge) StrconvValue() string {
-	return strconvValue(mg.Value)
-}
-
-func strconvValue(v float64) string {
-	return strconv.FormatFloat(v, 'f', -1, 64)
-}
-
-func strconvDelta(d int64) string {
-	return strconv.FormatInt(d, 10)
-}
-
-func verifyFieldID(id string) error {
-	if strings.TrimSpace(id) == "" {
-		return fmt.Errorf("'ID':%w", ErrRequired)
-	}
-	return nil
-}
-
-func verifyFiledMType(mType string) error {
-	allowed := map[string]struct{}{MTypeCounter: {}, MTypeGauge: {}}
-	if _, ok := allowed[mType]; !ok {
-		return fmt.Errorf("'MType':allowed 'gauge'|'counter'")
+	if value == "" {
+		return m
 	}
 
-	return nil
+	switch m.MType {
+	case MTypeGauge:
+		v, err := strconv.ParseFloat(value, 64)
+		if err == nil {
+			m.Value = &v
+		}
+	case MTypeCounter:
+		v, err := strconv.ParseInt(value, 10, 64)
+		if err == nil {
+			m.Delta = &v
+		}
+	}
+	return m
 }
 
-func verifyFieldDelta(value *int64) error {
-	field := "'Delta'"
-	if value == nil {
-		return fmt.Errorf("%s:%w expect int64", field, ErrRequired)
+// Verify returns metrics object validation result.
+// Verify operations order may be important.
+func (m Metrics) Verify(ops ...VerifyOp) error {
+	var errs VerifyErrors
+	for _, op := range ops {
+		if err := op(m); err != nil {
+			errs = append(errs, op(m))
+		}
 	}
 
-	if *value < 0 {
-		return fmt.Errorf("%s:less then 0", field)
+	if len(errs) != 0 {
+		return errs
 	}
 	return nil
 }
 
-func verifyFieldValue(value *float64) error {
-	if value == nil {
-		return fmt.Errorf("'Value':%w expect float64", ErrRequired)
+// GetValue returns a converted Delta or Value to string.
+//
+// Zero string returns, if:
+//   - metrics type not counter of gauge
+//   - delta or value (according by metrics type) is nil
+func (m Metrics) GetValue() string {
+	switch m.MType {
+	case MTypeGauge:
+		return valueToStr(m.Value)
+	case MTypeCounter:
+		return deltaToStr(m.Delta)
+	default:
+		return ""
 	}
+}
+
+// MetricsList represents slice of metrics objects.
+type MetricsList []Metrics
+
+// Verify behaves as Metrics.Verify method, but errors joins in one.
+func (ml MetricsList) Verify(ops ...VerifyOp) error {
+	var s []string
+	for i, item := range ml {
+		if err := item.Verify(ops...); err != nil {
+			s = append(s, fmt.Sprintf("%d: %s", i, err.Error()))
+		}
+	}
+
+	if len(s) != 0 {
+		return errors.New("[" + strings.Join(s, ", ") + "]")
+	}
+
 	return nil
+}
+
+// GetValue build all converted values in one string.
+// Values are separated by a newline charecter.
+func (ml MetricsList) GetValue() string {
+	var b strings.Builder
+	for _, m := range ml {
+		b.WriteString(m.GetValue())
+	}
+	return b.String()
+}
+
+func valueToStr(v *float64) string {
+	if v == nil {
+		return ""
+	}
+	return strconv.FormatFloat(*v, 'f', -1, 64)
+}
+
+func deltaToStr(d *int64) string {
+	if d == nil {
+		return ""
+	}
+	return strconv.FormatInt(*d, 10)
 }

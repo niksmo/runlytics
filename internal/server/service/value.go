@@ -8,38 +8,52 @@ import (
 	"github.com/niksmo/runlytics/pkg/metrics"
 )
 
+// ReadService works with repository and provides Read method.
 type ReadService struct {
 	repository di.ReadByNameRepository
 }
 
+// NewValueService returns ReadService pointer.
 func NewValueService(repository di.ReadByNameRepository) *ReadService {
 	return &ReadService{repository}
 }
 
-func (service *ReadService) Read(
-	ctx context.Context, scheme *metrics.MetricsRead,
-) (di.Metrics, error) {
-	switch scheme.MType {
-	case metrics.MTypeGauge:
-		value, err := service.repository.ReadGaugeByName(ctx, scheme.ID)
-		if err != nil {
-			return nil, err
-		}
-		mGauge := metrics.MetricsGauge{
-			ID: scheme.ID, MType: scheme.MType, Value: value,
-		}
-		return mGauge, nil
-
-	case metrics.MTypeCounter:
-		delta, err := service.repository.ReadCounterByName(ctx, scheme.ID)
-		if err != nil {
-			return nil, err
-		}
-		mCounter := metrics.MetricsCounter{
-			ID: scheme.ID, MType: scheme.MType, Delta: delta,
-		}
-		return mCounter, nil
+// Reap defines metrics type and reads value. Returns error if occured.
+func (s *ReadService) Read(
+	ctx context.Context, m *metrics.Metrics,
+) error {
+	if m == nil {
+		return server.ErrInternal
 	}
 
-	return nil, server.ErrInternal
+	switch m.MType {
+	case metrics.MTypeGauge:
+		return s.readGauge(ctx, m)
+	case metrics.MTypeCounter:
+		return s.readCounter(ctx, m)
+	default:
+		return server.ErrInternal
+	}
+}
+
+func (s *ReadService) readGauge(
+	ctx context.Context, m *metrics.Metrics,
+) error {
+	v, err := s.repository.ReadGaugeByName(ctx, m.ID)
+	if err != nil {
+		return err
+	}
+	m.Value = &v
+	return nil
+}
+
+func (s *ReadService) readCounter(
+	ctx context.Context, m *metrics.Metrics,
+) error {
+	d, err := s.repository.ReadCounterByName(ctx, m.ID)
+	if err != nil {
+		return err
+	}
+	m.Delta = &d
+	return nil
 }
