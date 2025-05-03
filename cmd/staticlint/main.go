@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/timakin/bodyclose/passes/bodyclose"
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/multichecker"
 	"golang.org/x/tools/go/analysis/passes/appends"
@@ -34,6 +35,18 @@ import (
 	"honnef.co/go/tools/stylecheck"
 )
 
+var includedSimpleChecks = map[string]struct{}{
+	"S1034": {}, // Use result of type assertion to simplify cases
+}
+
+var includedStyleChecks = map[string]struct{}{
+	"ST1005": {}, // Incorrectly formatted error string
+}
+
+var includedQuickFixChecks = map[string]struct{}{
+	"QF1011": {}, // Omit redundant type from variable declaration
+}
+
 func main() {
 	checks := []*analysis.Analyzer{
 		appends.Analyzer,
@@ -61,29 +74,30 @@ func main() {
 		unusedwrite.Analyzer,
 		usesgenerics.Analyzer,
 		waitgroup.Analyzer,
+		bodyclose.Analyzer,
 	}
 
-	for _, sa := range staticcheck.Analyzers {
-		checks = append(checks, sa.Analyzer)
+	for _, v := range staticcheck.Analyzers {
+		checks = append(checks, v.Analyzer)
 	}
 
-	for _, s := range simple.Analyzers {
-		if s.Analyzer.Name == "S1034" {
-			checks = append(checks, s.Analyzer)
+	for _, v := range simple.Analyzers {
+		if _, ok := includedSimpleChecks[v.Analyzer.Name]; ok {
+			checks = append(checks, v.Analyzer)
 			break
 		}
 	}
 
-	for _, st := range stylecheck.Analyzers {
-		if st.Analyzer.Name == "ST1005" {
-			checks = append(checks, st.Analyzer)
+	for _, v := range stylecheck.Analyzers {
+		if _, ok := includedStyleChecks[v.Analyzer.Name]; ok {
+			checks = append(checks, v.Analyzer)
 			break
 		}
 	}
 
-	for _, qf := range quickfix.Analyzers {
-		if qf.Analyzer.Name == "QF1011" {
-			checks = append(checks, qf.Analyzer)
+	for _, v := range quickfix.Analyzers {
+		if _, ok := includedQuickFixChecks[v.Analyzer.Name]; ok {
+			checks = append(checks, v.Analyzer)
 			break
 		}
 	}
