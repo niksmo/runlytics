@@ -11,9 +11,9 @@ import (
 )
 
 type ManualStat struct {
-	poll    time.Duration
-	data    metricsData
 	counter *counter.Counter
+	data    metricsData
+	poll    time.Duration
 	mu      sync.RWMutex
 }
 

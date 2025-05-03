@@ -10,8 +10,8 @@ import (
 )
 
 type RuntimeMemStat struct {
-	poll time.Duration
 	data metricsData
+	poll time.Duration
 	mu   sync.RWMutex
 }
 

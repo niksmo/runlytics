@@ -10,6 +10,8 @@ require (
 	go.uber.org/zap v1.27.0
 )
 
+require golang.org/x/mod v0.24.0 // indirect
+
 require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/ebitengine/purego v0.8.2 // indirect
@@ -27,8 +29,9 @@ require (
 	github.com/yusufpapurcu/wmi v1.2.4 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	golang.org/x/crypto v0.32.0 // indirect
-	golang.org/x/sync v0.11.0 // indirect
-	golang.org/x/sys v0.29.0 // indirect
+	golang.org/x/sync v0.13.0 // indirect
+	golang.org/x/sys v0.32.0 // indirect
 	golang.org/x/text v0.22.0 // indirect
+	golang.org/x/tools v0.32.0
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )

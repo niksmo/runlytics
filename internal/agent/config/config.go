@@ -11,12 +11,12 @@ const jobsBuf = 1024
 const jobsErrBuf = 128
 
 type Config struct {
-	logLvl    string
 	addr      *url.URL
-	poll      time.Duration
-	report    time.Duration
 	key       string
+	logLvl    string
+	poll      time.Duration
 	rateLimit int
+	report    time.Duration
 }
 
 func Load() *Config {

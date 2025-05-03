@@ -10,12 +10,12 @@ import (
 
 // Config describes server configurations parameters.
 type Config struct {
-	logLvl      string
 	addr        *net.TCPAddr
 	fileStorage *fileStorage
-	database    database
-	isDatabase  bool
+	database    db
 	key         string
+	logLvl      string
+	isDatabase  bool
 }
 
 // Loag initializes flags and enviroments parameters then returns Config pointer.
