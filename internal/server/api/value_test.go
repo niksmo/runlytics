@@ -90,7 +90,7 @@ func TestReadByJSONHandler(t *testing.T) {
 			data, err := io.ReadAll(res.Body)
 			res.Body.Close()
 			require.NoError(t, err)
-			assert.Len(t, data, 0)
+			assert.Empty(t, data)
 
 			mockService.AssertNumberOfCalls(t, "Read", 0)
 		}
@@ -125,7 +125,7 @@ func TestReadByJSONHandler(t *testing.T) {
 		data, err := io.ReadAll(res.Body)
 		res.Body.Close()
 		require.NoError(t, err)
-		assert.Len(t, data, 0)
+		assert.Empty(t, data)
 
 		mockService.AssertNumberOfCalls(t, "Read", 0)
 	})
@@ -338,7 +338,7 @@ func TestReadByJSONHandler(t *testing.T) {
 			data, err := io.ReadAll(res.Body)
 			res.Body.Close()
 			require.NoError(t, err)
-			assert.Len(t, data, 0)
+			assert.Empty(t, data)
 
 			mockService.AssertNumberOfCalls(t, "Read", 0)
 		})
@@ -378,7 +378,7 @@ func TestReadByJSONHandler(t *testing.T) {
 			res, err := s.Client().Do(req)
 			require.NoError(t, err)
 			require.Equal(t, http.StatusOK, res.StatusCode)
-			assert.Zero(t, res.Header.Get(header.ContentEncoding))
+			assert.Empty(t, res.Header.Get(header.ContentEncoding))
 
 			data, err := io.ReadAll(res.Body)
 			require.NoError(t, err)
@@ -481,7 +481,7 @@ func TestReadByURLParamsHandler(t *testing.T) {
 			data, err := io.ReadAll(res.Body)
 			res.Body.Close()
 			require.NoError(t, err)
-			assert.Len(t, data, 0)
+			assert.Empty(t, data)
 
 			mockService.AssertNumberOfCalls(t, "Read", 0)
 		}

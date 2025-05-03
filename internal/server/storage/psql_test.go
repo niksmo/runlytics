@@ -105,7 +105,7 @@ func TestPSQL(t *testing.T) {
 				ctx, metricName, v,
 			)
 			require.NoError(t, err)
-			assert.Equal(t, v, actualValue)
+			assert.InDelta(t, v, actualValue, 0)
 		}
 	})
 
@@ -174,7 +174,7 @@ func TestPSQL(t *testing.T) {
 				)
 				require.NoError(t, rows.Scan(&name, &value))
 				assert.Equal(t, gaugeSlice[rowNumber].ID, name)
-				assert.Equal(t, *gaugeSlice[rowNumber].Value, value)
+				assert.InDelta(t, *gaugeSlice[rowNumber].Value, value, 0)
 				rowNumber++
 			}
 			assert.NoError(t, rows.Err())
@@ -235,7 +235,7 @@ func TestPSQL(t *testing.T) {
 				)
 				require.NoError(t, rows.Scan(&name, &value))
 				assert.Equal(t, expectedSlice[rowNumber].ID, name)
-				assert.Equal(t, *expectedSlice[rowNumber].Value, value)
+				assert.InDelta(t, *expectedSlice[rowNumber].Value, value, 0)
 				rowNumber++
 			}
 			assert.NoError(t, rows.Err())
@@ -419,7 +419,7 @@ func TestPSQL(t *testing.T) {
 				ctx, metricName,
 			)
 			require.ErrorIs(t, err, server.ErrNotExists)
-			assert.Equal(t, expected, actualValue)
+			assert.InDelta(t, expected, actualValue, 0)
 		})
 
 		t.Run("Should return entry value", func(t *testing.T) {
@@ -441,7 +441,7 @@ func TestPSQL(t *testing.T) {
 				ctx, metricName,
 			)
 			require.NoError(t, err)
-			assert.Equal(t, expected, actualValue)
+			assert.InDelta(t, expected, actualValue, 0)
 		})
 	})
 
@@ -546,7 +546,7 @@ func TestPSQL(t *testing.T) {
 			require.NoError(t, err)
 			assert.Len(t, gaugeData, expectedDataLen)
 			for _, gauge := range testList {
-				assert.Equal(t, gauge.value, gaugeData[gauge.name])
+				assert.InDelta(t, gauge.value, gaugeData[gauge.name], 0)
 			}
 		})
 	})

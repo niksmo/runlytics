@@ -61,7 +61,7 @@ func TestHTMLHandler(t *testing.T) {
 			data, err := io.ReadAll(res.Body)
 			defer res.Body.Close()
 			require.NoError(t, err)
-			assert.Len(t, data, 0)
+			assert.Empty(t, data)
 		}
 	})
 

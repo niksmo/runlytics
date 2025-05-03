@@ -19,6 +19,7 @@ require (
 )
 
 require (
+	github.com/Antonboom/testifylint v1.6.1
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/ebitengine/purego v0.8.2 // indirect
 	github.com/go-ole/go-ole v1.2.6 // indirect
