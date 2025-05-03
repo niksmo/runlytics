@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/niksmo/runlytics/internal/logger"
-	"github.com/niksmo/runlytics/internal/server/errs"
+	"github.com/niksmo/runlytics/internal/server"
 	"github.com/niksmo/runlytics/pkg/metrics"
 	"go.uber.org/zap"
 )
@@ -180,7 +180,7 @@ func (ps *PSQLStorage) ReadCounterByName(
 	err := scanRowWithRetries(ctx, row, logPrefix, &value)
 	switch {
 	case errors.Is(err, sql.ErrNoRows):
-		return 0, fmt.Errorf("metric '%s' is %w", name, errs.ErrNotExists)
+		return 0, fmt.Errorf("metric '%s' is %w", name, server.ErrNotExists)
 	case err != nil:
 		logger.Log.Error(logPrefix+": scan row", zap.Error(err))
 		return 0, err
@@ -201,7 +201,7 @@ func (ps *PSQLStorage) ReadGaugeByName(
 	err := scanRowWithRetries(ctx, row, logPrefix, &value)
 	switch {
 	case errors.Is(err, sql.ErrNoRows):
-		return 0, fmt.Errorf("metric '%s' is %w", name, errs.ErrNotExists)
+		return 0, fmt.Errorf("metric '%s' is %w", name, server.ErrNotExists)
 	case err != nil:
 		logger.Log.Error(logPrefix+": scan row", zap.Error(err))
 		return 0, err

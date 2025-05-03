@@ -26,11 +26,6 @@ func SetHTMLHandler(mux *chi.Mux, service di.HTMLService) {
 }
 
 // MetricsHTML renders metrics list.
-//
-// Possible responses:
-//
-//   - 200 metrics data as HTML page
-//   - 500 internal error
 func (handler *HTMLHandler) MetricsHTML() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var buf bytes.Buffer

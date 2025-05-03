@@ -3,7 +3,7 @@ package service
 import (
 	"context"
 
-	"github.com/niksmo/runlytics/internal/server/errs"
+	"github.com/niksmo/runlytics/internal/server"
 	"github.com/niksmo/runlytics/pkg/di"
 	"github.com/niksmo/runlytics/pkg/metrics"
 )
@@ -23,7 +23,7 @@ func (s *ReadService) Read(
 	ctx context.Context, m *metrics.Metrics,
 ) error {
 	if m == nil {
-		return errs.ErrInternal
+		return server.ErrInternal
 	}
 
 	switch m.MType {
@@ -32,7 +32,7 @@ func (s *ReadService) Read(
 	case metrics.MTypeCounter:
 		return s.readCounter(ctx, m)
 	default:
-		return errs.ErrInternal
+		return server.ErrInternal
 	}
 }
 

@@ -14,8 +14,8 @@ import (
 	"testing"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/niksmo/runlytics/internal/server"
 	"github.com/niksmo/runlytics/internal/server/api"
-	"github.com/niksmo/runlytics/internal/server/errs"
 	"github.com/niksmo/runlytics/internal/server/middleware"
 	"github.com/niksmo/runlytics/pkg/httpserver/header"
 	"github.com/niksmo/runlytics/pkg/httpserver/mime"
@@ -197,7 +197,7 @@ func TestReadByJSONHandler(t *testing.T) {
 		mockService := new(MockValueService)
 		mockService.On(
 			"Read", context.Background(), &schemeReq,
-		).Return(errs.ErrNotExists)
+		).Return(server.ErrNotExists)
 
 		mux := chi.NewRouter()
 		api.SetValueHandler(mux, mockService)
@@ -221,7 +221,7 @@ func TestReadByJSONHandler(t *testing.T) {
 		data, err := io.ReadAll(res.Body)
 		require.NoError(t, err)
 		res.Body.Close()
-		assert.Equal(t, errs.ErrNotExists.Error(), strings.TrimSpace(string(data)))
+		assert.Equal(t, server.ErrNotExists.Error(), strings.TrimSpace(string(data)))
 
 		mockService.AssertNumberOfCalls(t, "Read", 1)
 	})
@@ -259,7 +259,7 @@ func TestReadByJSONHandler(t *testing.T) {
 		data, err := io.ReadAll(res.Body)
 		require.NoError(t, err)
 		res.Body.Close()
-		assert.Equal(t, errs.ErrInternal.Error(), strings.TrimSpace(string(data)))
+		assert.Equal(t, server.ErrInternal.Error(), strings.TrimSpace(string(data)))
 
 		mockService.AssertNumberOfCalls(t, "Read", 1)
 	})
@@ -525,7 +525,7 @@ func TestReadByURLParamsHandler(t *testing.T) {
 		mockService := new(MockValueService)
 		mockService.On(
 			"Read", context.Background(), &schemeReq,
-		).Return(errs.ErrNotExists)
+		).Return(server.ErrNotExists)
 
 		mux := chi.NewRouter()
 		api.SetValueHandler(mux, mockService)
@@ -547,7 +547,7 @@ func TestReadByURLParamsHandler(t *testing.T) {
 		data, err := io.ReadAll(res.Body)
 		require.NoError(t, err)
 		res.Body.Close()
-		assert.Equal(t, errs.ErrNotExists.Error(), strings.TrimSpace(string(data)))
+		assert.Equal(t, server.ErrNotExists.Error(), strings.TrimSpace(string(data)))
 
 		mockService.AssertNumberOfCalls(t, "Read", 1)
 	})
@@ -586,7 +586,7 @@ func TestReadByURLParamsHandler(t *testing.T) {
 		data, err := io.ReadAll(res.Body)
 		require.NoError(t, err)
 		res.Body.Close()
-		assert.Equal(t, errs.ErrInternal.Error(), strings.TrimSpace(string(data)))
+		assert.Equal(t, server.ErrInternal.Error(), strings.TrimSpace(string(data)))
 
 		mockService.AssertNumberOfCalls(t, "Read", 1)
 	})

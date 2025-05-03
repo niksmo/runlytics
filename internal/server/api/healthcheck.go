@@ -21,11 +21,6 @@ func SetHealthCheckHandler(mux *chi.Mux, service di.HealthCheckService) {
 }
 
 // Ping check internal server components.
-//
-// Possible responses:
-//
-//   - 200 all components is up
-//   - 500 internal error
 func (handler *HealthCheckHandler) Ping() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		err := handler.service.Check(r.Context())

@@ -13,7 +13,7 @@ import (
 	"time"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
-	"github.com/niksmo/runlytics/internal/server/errs"
+	"github.com/niksmo/runlytics/internal/server"
 	"github.com/niksmo/runlytics/pkg/metrics"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -377,7 +377,7 @@ func TestPSQL(t *testing.T) {
 			actualValue, err := storage.ReadCounterByName(
 				ctx, metricName,
 			)
-			require.ErrorIs(t, err, errs.ErrNotExists)
+			require.ErrorIs(t, err, server.ErrNotExists)
 			assert.Equal(t, expected, actualValue)
 		})
 
@@ -418,7 +418,7 @@ func TestPSQL(t *testing.T) {
 			actualValue, err := storage.ReadGaugeByName(
 				ctx, metricName,
 			)
-			require.ErrorIs(t, err, errs.ErrNotExists)
+			require.ErrorIs(t, err, server.ErrNotExists)
 			assert.Equal(t, expected, actualValue)
 		})
 

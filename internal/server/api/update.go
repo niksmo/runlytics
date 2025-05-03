@@ -6,7 +6,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/niksmo/runlytics/internal/logger"
-	"github.com/niksmo/runlytics/internal/server/errs"
+	"github.com/niksmo/runlytics/internal/server"
 	"github.com/niksmo/runlytics/internal/server/middleware"
 	"github.com/niksmo/runlytics/pkg/di"
 	"github.com/niksmo/runlytics/pkg/jsonhttp"
@@ -39,11 +39,6 @@ func SetUpdateHandler(mux *chi.Mux, service di.UpdateService) {
 }
 
 // UpdateByJSON reads JSON data from request body.
-//
-// Possible responses:
-//   - 200 response metrics data in JSON format
-//   - 400 broken JSON data, or invalid metrics
-//   - 500 internal error
 func (h *UpdateHandler) UpdateByJSON() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var m metrics.Metrics
@@ -61,7 +56,7 @@ func (h *UpdateHandler) UpdateByJSON() http.HandlerFunc {
 		err = h.service.Update(r.Context(), &m)
 		if err != nil {
 			http.Error(
-				w, errs.ErrInternal.Error(), http.StatusInternalServerError,
+				w, server.ErrInternal.Error(), http.StatusInternalServerError,
 			)
 			return
 		}
@@ -75,11 +70,6 @@ func (h *UpdateHandler) UpdateByJSON() http.HandlerFunc {
 }
 
 // UpdataByURLParams reads data from URL params.
-//
-// Possible responses:
-//   - 200 return metrics value in text format
-//   - 400 invalid data
-//   - 500 internal error
 func (h *UpdateHandler) UpdataByURLParams() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		m := metrics.NewFromStrArgs(
@@ -97,7 +87,7 @@ func (h *UpdateHandler) UpdataByURLParams() http.HandlerFunc {
 		err = h.service.Update(r.Context(), &m)
 		if err != nil {
 			http.Error(
-				w, errs.ErrInternal.Error(), http.StatusInternalServerError,
+				w, server.ErrInternal.Error(), http.StatusInternalServerError,
 			)
 			return
 		}

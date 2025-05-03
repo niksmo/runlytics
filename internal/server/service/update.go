@@ -3,7 +3,7 @@ package service
 import (
 	"context"
 
-	"github.com/niksmo/runlytics/internal/server/errs"
+	"github.com/niksmo/runlytics/internal/server"
 	"github.com/niksmo/runlytics/pkg/di"
 	"github.com/niksmo/runlytics/pkg/metrics"
 )
@@ -23,7 +23,7 @@ func (s *UpdateService) Update(
 	ctx context.Context, m *metrics.Metrics,
 ) error {
 	if m == nil {
-		return errs.ErrInternal
+		return server.ErrInternal
 	}
 
 	switch m.MType {
@@ -32,7 +32,7 @@ func (s *UpdateService) Update(
 	case metrics.MTypeCounter:
 		return s.updateCounter(ctx, m)
 	default:
-		return errs.ErrInternal
+		return server.ErrInternal
 	}
 }
 
@@ -40,7 +40,7 @@ func (s *UpdateService) updateGauge(
 	ctx context.Context, m *metrics.Metrics,
 ) error {
 	if m.Value == nil {
-		return errs.ErrInternal
+		return server.ErrInternal
 	}
 	v, err := s.repository.UpdateGaugeByName(
 		ctx, m.ID, *m.Value,
@@ -56,7 +56,7 @@ func (s *UpdateService) updateCounter(
 	ctx context.Context, m *metrics.Metrics,
 ) error {
 	if m.Delta == nil {
-		return errs.ErrInternal
+		return server.ErrInternal
 	}
 	d, err := s.repository.UpdateCounterByName(
 		ctx, m.ID, *m.Delta,

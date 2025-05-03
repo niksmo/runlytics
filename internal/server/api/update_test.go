@@ -14,8 +14,8 @@ import (
 	"testing"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/niksmo/runlytics/internal/server"
 	"github.com/niksmo/runlytics/internal/server/api"
-	"github.com/niksmo/runlytics/internal/server/errs"
 	"github.com/niksmo/runlytics/internal/server/middleware"
 	"github.com/niksmo/runlytics/pkg/httpserver/header"
 	"github.com/niksmo/runlytics/pkg/httpserver/mime"
@@ -210,7 +210,7 @@ func TestUpdateByJSONHandler(t *testing.T) {
 		data, err := io.ReadAll(res.Body)
 		require.NoError(t, err)
 		res.Body.Close()
-		assert.Equal(t, errs.ErrInternal.Error(), strings.TrimSpace(string(data)))
+		assert.Equal(t, server.ErrInternal.Error(), strings.TrimSpace(string(data)))
 
 		mockService.AssertNumberOfCalls(t, "Update", 1)
 	})
@@ -503,7 +503,7 @@ func TestUpdateByURLParamsHandler(t *testing.T) {
 		data, err := io.ReadAll(res.Body)
 		res.Body.Close()
 		require.NoError(t, err)
-		assert.Equal(t, errs.ErrInternal.Error(), strings.TrimSpace(string(data)))
+		assert.Equal(t, server.ErrInternal.Error(), strings.TrimSpace(string(data)))
 
 		mockService.AssertNumberOfCalls(t, "Update", 1)
 	})

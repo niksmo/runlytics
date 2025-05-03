@@ -7,7 +7,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/niksmo/runlytics/internal/logger"
-	"github.com/niksmo/runlytics/internal/server/errs"
+	"github.com/niksmo/runlytics/internal/server"
 	"github.com/niksmo/runlytics/internal/server/middleware"
 	"github.com/niksmo/runlytics/pkg/di"
 	"github.com/niksmo/runlytics/pkg/jsonhttp"
@@ -40,11 +40,6 @@ func SetValueHandler(mux *chi.Mux, service di.ReadService) {
 }
 
 // ReadByJSON reads JSON data from request body.
-//
-// Possible responses:
-//   - 200 response metrics data in JSON format
-//   - 400 broken JSON data, or invalid metrics
-//   - 500 internal error
 func (h *ValueHandler) ReadByJSON() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var m metrics.Metrics
@@ -61,14 +56,14 @@ func (h *ValueHandler) ReadByJSON() http.HandlerFunc {
 		}
 
 		err = h.service.Read(r.Context(), &m)
-		if errors.Is(err, errs.ErrNotExists) {
+		if errors.Is(err, server.ErrNotExists) {
 			http.Error(w, err.Error(), http.StatusNotFound)
 			return
 		}
 		if err != nil {
 			http.Error(
 				w,
-				errs.ErrInternal.Error(),
+				server.ErrInternal.Error(),
 				http.StatusInternalServerError,
 			)
 			return
@@ -87,12 +82,6 @@ func (h *ValueHandler) ReadByJSON() http.HandlerFunc {
 }
 
 // ReadByURLParams reads data from URL params.
-//
-// Possible responses:
-//   - 200 return metrics value in text format
-//   - 400 invalid data
-//   - 404 not found
-//   - 500 internal error
 func (h *ValueHandler) ReadByURLParams() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		m := metrics.NewFromStrArgs(
@@ -107,14 +96,14 @@ func (h *ValueHandler) ReadByURLParams() http.HandlerFunc {
 		}
 
 		err = h.service.Read(r.Context(), &m)
-		if errors.Is(err, errs.ErrNotExists) {
+		if errors.Is(err, server.ErrNotExists) {
 			http.Error(w, err.Error(), http.StatusNotFound)
 			return
 		}
 		if err != nil {
 			http.Error(
 				w,
-				errs.ErrInternal.Error(),
+				server.ErrInternal.Error(),
 				http.StatusInternalServerError,
 			)
 			return

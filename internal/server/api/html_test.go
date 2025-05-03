@@ -10,8 +10,8 @@ import (
 	"testing"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/niksmo/runlytics/internal/server"
 	"github.com/niksmo/runlytics/internal/server/api"
-	"github.com/niksmo/runlytics/internal/server/errs"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -87,7 +87,7 @@ func TestHTMLHandler(t *testing.T) {
 
 	t.Run("Should return internal error", func(t *testing.T) {
 		mux := chi.NewRouter()
-		api.SetHTMLHandler(mux, &mockHTMLService{err: errs.ErrInternal, data: ""})
+		api.SetHTMLHandler(mux, &mockHTMLService{err: server.ErrInternal, data: ""})
 		s := httptest.NewServer(mux)
 		defer s.Close()
 
@@ -102,6 +102,6 @@ func TestHTMLHandler(t *testing.T) {
 		require.NoError(t, err)
 		res.Body.Close()
 		data := strings.TrimSpace(string(rawData))
-		assert.Equal(t, errs.ErrInternal.Error(), data)
+		assert.Equal(t, server.ErrInternal.Error(), data)
 	})
 }

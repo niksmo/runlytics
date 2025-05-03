@@ -3,7 +3,7 @@ package service
 import (
 	"context"
 
-	"github.com/niksmo/runlytics/internal/server/errs"
+	"github.com/niksmo/runlytics/internal/server"
 	"github.com/niksmo/runlytics/pkg/di"
 	"github.com/niksmo/runlytics/pkg/metrics"
 )
@@ -39,16 +39,16 @@ func (s *BatchUpdateService) BatchUpdate(
 		switch m.MType {
 		case metrics.MTypeGauge:
 			if m.Value == nil {
-				return errs.ErrInternal
+				return server.ErrInternal
 			}
 			gl = append(gl, m)
 		case metrics.MTypeCounter:
 			if m.Delta == nil {
-				return errs.ErrInternal
+				return server.ErrInternal
 			}
 			cl = append(cl, m)
 		default:
-			return errs.ErrInternal
+			return server.ErrInternal
 		}
 	}
 

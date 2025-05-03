@@ -4,7 +4,7 @@ import (
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/niksmo/runlytics/internal/server/errs"
+	"github.com/niksmo/runlytics/internal/server"
 	"github.com/niksmo/runlytics/internal/server/middleware"
 	"github.com/niksmo/runlytics/pkg/di"
 	"github.com/niksmo/runlytics/pkg/jsonhttp"
@@ -30,12 +30,6 @@ func SetBatchUpdateHandler(mux *chi.Mux, service di.BatchUpdateService) {
 }
 
 // BatchUpdate reads metrics list from request for update.
-//
-// Possible responses:
-//
-//   - 200 metrics updated
-//   - 400 broken JSON or invalid metrics
-//   - 500 internal error
 func (h *BatchUpdateHandler) BatchUpdate() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var ml metrics.MetricsList
@@ -57,7 +51,7 @@ func (h *BatchUpdateHandler) BatchUpdate() http.HandlerFunc {
 
 		err = h.service.BatchUpdate(r.Context(), ml)
 		if err != nil {
-			http.Error(w, errs.ErrInternal.Error(), http.StatusInternalServerError)
+			http.Error(w, server.ErrInternal.Error(), http.StatusInternalServerError)
 			return
 		}
 
