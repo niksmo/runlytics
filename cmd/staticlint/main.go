@@ -1,6 +1,7 @@
 package main
 
 import (
+	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/multichecker"
 	"golang.org/x/tools/go/analysis/passes/appends"
 	"golang.org/x/tools/go/analysis/passes/assign"
@@ -27,10 +28,11 @@ import (
 	"golang.org/x/tools/go/analysis/passes/unusedwrite"
 	"golang.org/x/tools/go/analysis/passes/usesgenerics"
 	"golang.org/x/tools/go/analysis/passes/waitgroup"
+	"honnef.co/go/tools/staticcheck"
 )
 
 func main() {
-	multichecker.Main(
+	checks := []*analysis.Analyzer{
 		appends.Analyzer,
 		assign.Analyzer,
 		atomic.Analyzer,
@@ -56,5 +58,11 @@ func main() {
 		unusedwrite.Analyzer,
 		usesgenerics.Analyzer,
 		waitgroup.Analyzer,
-	)
+	}
+
+	for _, lintAnalyzer := range staticcheck.Analyzers {
+		checks = append(checks, lintAnalyzer.Analyzer)
+	}
+
+	multichecker.Main(checks...)
 }

@@ -10,7 +10,10 @@ require (
 	go.uber.org/zap v1.27.0
 )
 
-require golang.org/x/mod v0.24.0 // indirect
+require (
+	golang.org/x/exp/typeparams v0.0.0-20231108232855-2478ac86f678 // indirect
+	golang.org/x/mod v0.24.0 // indirect
+)
 
 require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
@@ -34,4 +37,5 @@ require (
 	golang.org/x/text v0.22.0 // indirect
 	golang.org/x/tools v0.32.0
 	gopkg.in/yaml.v3 v3.0.1 // indirect
+	honnef.co/go/tools v0.6.1
 )
