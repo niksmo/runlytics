@@ -3,6 +3,6 @@ package mime
 
 const (
 	JSON = "application/json"
-	HTML = "text/html; charset=utf-8"
+	HTML = "text/html"
 	TEXT = "text/plain"
 )
