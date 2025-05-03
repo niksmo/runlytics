@@ -28,7 +28,10 @@ import (
 	"golang.org/x/tools/go/analysis/passes/unusedwrite"
 	"golang.org/x/tools/go/analysis/passes/usesgenerics"
 	"golang.org/x/tools/go/analysis/passes/waitgroup"
+	"honnef.co/go/tools/quickfix"
+	"honnef.co/go/tools/simple"
 	"honnef.co/go/tools/staticcheck"
+	"honnef.co/go/tools/stylecheck"
 )
 
 func main() {
@@ -60,8 +63,29 @@ func main() {
 		waitgroup.Analyzer,
 	}
 
-	for _, lintAnalyzer := range staticcheck.Analyzers {
-		checks = append(checks, lintAnalyzer.Analyzer)
+	for _, sa := range staticcheck.Analyzers {
+		checks = append(checks, sa.Analyzer)
+	}
+
+	for _, s := range simple.Analyzers {
+		if s.Analyzer.Name == "S1034" {
+			checks = append(checks, s.Analyzer)
+			break
+		}
+	}
+
+	for _, st := range stylecheck.Analyzers {
+		if st.Analyzer.Name == "ST1005" {
+			checks = append(checks, st.Analyzer)
+			break
+		}
+	}
+
+	for _, qf := range quickfix.Analyzers {
+		if qf.Analyzer.Name == "QF1011" {
+			checks = append(checks, qf.Analyzer)
+			break
+		}
 	}
 
 	multichecker.Main(checks...)
