@@ -1,3 +1,4 @@
+// Package osexit provides "os.Exit(n)" direct call detection in main function.
 package osexit
 
 import (
@@ -17,6 +18,7 @@ const (
 	osExitFunc = "Exit"
 )
 
+// Analyzer returns instance of [analysis.Analyzer]
 func Analyzer() *analysis.Analyzer {
 	return &analysis.Analyzer{
 		Name: "osexit",

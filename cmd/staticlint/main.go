@@ -19,12 +19,10 @@ import (
 	"golang.org/x/tools/go/analysis/passes/loopclosure"
 	"golang.org/x/tools/go/analysis/passes/lostcancel"
 	"golang.org/x/tools/go/analysis/passes/nilfunc"
-	"golang.org/x/tools/go/analysis/passes/nilness"
 	"golang.org/x/tools/go/analysis/passes/printf"
 	"golang.org/x/tools/go/analysis/passes/shadow"
 	"golang.org/x/tools/go/analysis/passes/stringintconv"
 	"golang.org/x/tools/go/analysis/passes/structtag"
-	"golang.org/x/tools/go/analysis/passes/timeformat"
 	"golang.org/x/tools/go/analysis/passes/unmarshal"
 	"golang.org/x/tools/go/analysis/passes/unreachable"
 	"golang.org/x/tools/go/analysis/passes/unusedresult"
@@ -51,33 +49,86 @@ var includedQuickFixChecks = map[string]struct{}{
 
 func main() {
 	checks := []*analysis.Analyzer{
+		// Detects if there is only one variable in append.
 		appends.Analyzer,
+
+		// Detects useless assignments.
 		assign.Analyzer,
+
+		// Checks for common mistakes using the sync/atomic package.
 		atomic.Analyzer,
+
+		// Detects common mistakes involving boolean operators.
 		bools.Analyzer,
+
+		// Checks for unkeyed composite literals.
 		composite.Analyzer,
+
+		// Checks for locks erroneously passed by value.
 		copylock.Analyzer,
+
+		// Checks for common mistakes in defer statements.
 		defers.Analyzer,
+
+		// Checks that the second argument to errors.As is
+		// a pointer to a type implementing error.
 		errorsas.Analyzer,
+
+		// Detects structs that would use less memory
+		// if their fields were sorted.
 		fieldalignment.Analyzer,
+
+		// Checks for mistakes using HTTP responses.
 		httpresponse.Analyzer,
+
+		// Checks for references to enclosing loop
+		// variables from within nested functions.
 		loopclosure.Analyzer,
+
+		// Checks for failure to call a context cancellation function.
 		lostcancel.Analyzer,
+
+		// Checks for useless comparisons against nil.
 		nilfunc.Analyzer,
-		nilness.Analyzer,
+
+		// Checks consistency of Printf format strings and arguments.
 		printf.Analyzer,
+
+		// Checks for shadowed variables.
 		shadow.Analyzer,
+
+		// Flags type conversions from integers to strings.
 		stringintconv.Analyzer,
+
+		// Checks struct field tags are well formed.
 		structtag.Analyzer,
-		timeformat.Analyzer,
+
+		// Checks for passing non-pointer or non-interface
+		// types to unmarshal and decode functions.
 		unmarshal.Analyzer,
+
+		// Checks for unreachable code.
 		unreachable.Analyzer,
+
+		// Checks for unused results of calls to certain pure functions.
 		unusedresult.Analyzer,
+
+		// Checks for unused writes to the elements of a struct or array object.
 		unusedwrite.Analyzer,
+
+		// Checks for usage of generic features.
 		usesgenerics.Analyzer,
+
+		// Detects simple misuses of sync.WaitGroup.
 		waitgroup.Analyzer,
-		bodyclose.Analyzer,
+
+		// Checks testify methods misuses.
 		testifylint.New(),
+
+		// Checks whether HTTP response body is closed successfully.
+		bodyclose.Analyzer,
+
+		// Detects os.Exit direct call in main function.
 		osexit.Analyzer(),
 	}
 
