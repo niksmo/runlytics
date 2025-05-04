@@ -48,7 +48,6 @@ func getAddrFlag(addr string) *url.URL {
 	}
 
 	URL, _ := url.ParseRequestURI(addrDefault)
-	printUsedDefault("address", addrDefault)
 
 	return URL
 }

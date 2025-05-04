@@ -52,6 +52,5 @@ func getRateLimitFlag(rawRate int) int {
 		printMinRateErr(isEnv)
 	}
 
-	printUsedDefault("rate limit", rateLimitDefault)
 	return rateLimitDefault
 }

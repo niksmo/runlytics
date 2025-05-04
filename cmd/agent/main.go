@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"os"
 	"os/signal"
@@ -15,8 +16,14 @@ import (
 	"go.uber.org/zap"
 )
 
-func main() {
+var (
+	buildVersion = "N/A"
+	buildDate    = "N/A"
+	buildCommit  = "N/A"
+)
 
+func main() {
+	printBuildInfo()
 	config := config.Load()
 
 	logger.Init(config.LogLvl())
@@ -58,4 +65,10 @@ func main() {
 
 	<-stopCtx.Done()
 	logger.Log.Info("garecefully shutdown")
+}
+
+func printBuildInfo() {
+	fmt.Println("Build version:", buildVersion)
+	fmt.Println("Build date:", buildDate)
+	fmt.Println("Build commit:", buildCommit)
 }

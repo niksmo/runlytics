@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"os"
 	"os/signal"
@@ -22,7 +23,14 @@ import (
 	"github.com/niksmo/runlytics/pkg/sqldb"
 )
 
+var (
+	buildVersion = "N/A"
+	buildDate    = "N/A"
+	buildCommit  = "N/A"
+)
+
 func main() {
+	printBuildInfo()
 	config := config.Load()
 	logger.Init(config.LogLvl())
 
@@ -73,4 +81,10 @@ func main() {
 	repository.Run(interruptCtx, &wg)
 	HTTPServer.Run(interruptCtx, &wg)
 	wg.Wait()
+}
+
+func printBuildInfo() {
+	fmt.Println("Build version:", buildVersion)
+	fmt.Println("Build date:", buildDate)
+	fmt.Println("Build commit:", buildCommit)
 }

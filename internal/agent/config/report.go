@@ -52,6 +52,5 @@ func getReportFlag(rawReport int) time.Duration {
 	}
 
 	report := reportDefault * time.Second
-	printUsedDefault("report interval", report.String())
 	return report
 }

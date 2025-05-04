@@ -91,10 +91,6 @@ func verifyPollVsReport(poll, report time.Duration) error {
 	return fmt.Errorf("Report should be more or equal poll")
 }
 
-func printUsedDefault(configField string, value any) {
-	fmt.Println("Used default", configField+":", value)
-}
-
 func printParamError(isEnv bool, envP, cmdP, errText string) {
 	var prefix string
 	var p string
