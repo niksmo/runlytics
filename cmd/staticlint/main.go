@@ -14,7 +14,6 @@ import (
 	"golang.org/x/tools/go/analysis/passes/copylock"
 	"golang.org/x/tools/go/analysis/passes/defers"
 	"golang.org/x/tools/go/analysis/passes/errorsas"
-	"golang.org/x/tools/go/analysis/passes/fieldalignment"
 	"golang.org/x/tools/go/analysis/passes/httpresponse"
 	"golang.org/x/tools/go/analysis/passes/loopclosure"
 	"golang.org/x/tools/go/analysis/passes/lostcancel"
@@ -29,21 +28,24 @@ import (
 	"golang.org/x/tools/go/analysis/passes/unusedwrite"
 	"golang.org/x/tools/go/analysis/passes/usesgenerics"
 	"golang.org/x/tools/go/analysis/passes/waitgroup"
+	"honnef.co/go/tools/analysis/lint"
 	"honnef.co/go/tools/quickfix"
 	"honnef.co/go/tools/simple"
 	"honnef.co/go/tools/staticcheck"
 	"honnef.co/go/tools/stylecheck"
 )
 
-var includedSimpleChecks = map[string]struct{}{
+type include map[string]struct{}
+
+var includedSimpleChecks = include{
 	"S1034": {}, // Use result of type assertion to simplify cases
 }
 
-var includedStyleChecks = map[string]struct{}{
+var includedStyleChecks = include{
 	"ST1005": {}, // Incorrectly formatted error string
 }
 
-var includedQuickFixChecks = map[string]struct{}{
+var includedQuickFixChecks = include{
 	"QF1011": {}, // Omit redundant type from variable declaration
 }
 
@@ -73,10 +75,6 @@ func main() {
 		// Checks that the second argument to errors.As is
 		// a pointer to a type implementing error.
 		errorsas.Analyzer,
-
-		// Detects structs that would use less memory
-		// if their fields were sorted.
-		fieldalignment.Analyzer,
 
 		// Checks for mistakes using HTTP responses.
 		httpresponse.Analyzer,
@@ -136,26 +134,21 @@ func main() {
 		checks = append(checks, v.Analyzer)
 	}
 
-	for _, v := range simple.Analyzers {
-		if _, ok := includedSimpleChecks[v.Analyzer.Name]; ok {
-			checks = append(checks, v.Analyzer)
-			break
-		}
-	}
-
-	for _, v := range stylecheck.Analyzers {
-		if _, ok := includedStyleChecks[v.Analyzer.Name]; ok {
-			checks = append(checks, v.Analyzer)
-			break
-		}
-	}
-
-	for _, v := range quickfix.Analyzers {
-		if _, ok := includedQuickFixChecks[v.Analyzer.Name]; ok {
-			checks = append(checks, v.Analyzer)
-			break
-		}
-	}
-
+	checks = appendIncluded(checks, simple.Analyzers, includedSimpleChecks)
+	checks = appendIncluded(checks, stylecheck.Analyzers, includedStyleChecks)
+	checks = appendIncluded(checks, quickfix.Analyzers, includedQuickFixChecks)
 	multichecker.Main(checks...)
+}
+
+func appendIncluded(
+	checks []*analysis.Analyzer,
+	lintAnalyzers []*lint.Analyzer,
+	included include,
+) []*analysis.Analyzer {
+	for _, v := range lintAnalyzers {
+		if _, ok := included[v.Analyzer.Name]; ok {
+			checks = append(checks, v.Analyzer)
+		}
+	}
+	return checks
 }

@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 	"os"
 	"os/signal"
@@ -11,19 +10,14 @@ import (
 	"github.com/niksmo/runlytics/internal/agent/config"
 	"github.com/niksmo/runlytics/internal/agent/generator"
 	"github.com/niksmo/runlytics/internal/agent/worker"
+	"github.com/niksmo/runlytics/internal/buildinfo"
 	"github.com/niksmo/runlytics/internal/logger"
 	"github.com/niksmo/runlytics/pkg/di"
 	"go.uber.org/zap"
 )
 
-var (
-	buildVersion = "N/A"
-	buildDate    = "N/A"
-	buildCommit  = "N/A"
-)
-
 func main() {
-	printBuildInfo()
+	buildinfo.Print()
 	config := config.Load()
 
 	logger.Init(config.LogLvl())
@@ -65,10 +59,4 @@ func main() {
 
 	<-stopCtx.Done()
 	logger.Log.Info("garecefully shutdown")
-}
-
-func printBuildInfo() {
-	fmt.Println("Build version:", buildVersion)
-	fmt.Println("Build date:", buildDate)
-	fmt.Println("Build commit:", buildCommit)
 }

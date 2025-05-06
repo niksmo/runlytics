@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 	"os"
 	"os/signal"
@@ -12,6 +11,7 @@ import (
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"go.uber.org/zap"
 
+	"github.com/niksmo/runlytics/internal/buildinfo"
 	"github.com/niksmo/runlytics/internal/logger"
 	"github.com/niksmo/runlytics/internal/server/api"
 	"github.com/niksmo/runlytics/internal/server/config"
@@ -23,14 +23,8 @@ import (
 	"github.com/niksmo/runlytics/pkg/sqldb"
 )
 
-var (
-	buildVersion = "N/A"
-	buildDate    = "N/A"
-	buildCommit  = "N/A"
-)
-
 func main() {
-	printBuildInfo()
+	buildinfo.Print()
 	config := config.Load()
 	logger.Init(config.LogLvl())
 
@@ -81,10 +75,4 @@ func main() {
 	repository.Run(interruptCtx, &wg)
 	HTTPServer.Run(interruptCtx, &wg)
 	wg.Wait()
-}
-
-func printBuildInfo() {
-	fmt.Println("Build version:", buildVersion)
-	fmt.Println("Build date:", buildDate)
-	fmt.Println("Build commit:", buildCommit)
 }
