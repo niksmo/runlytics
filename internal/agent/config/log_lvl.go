@@ -35,7 +35,6 @@ func getLogLvlFlag(logLvl string) string {
 	if _, ok := allowed[strings.ToLower(logLvl)]; !ok {
 		printError(isEnv, "error: level is not allowed")
 		logLvl = logLvlDefault
-		printUsedDefault("logging level", logLvlDefault)
 	}
 
 	return logLvl

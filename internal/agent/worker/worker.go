@@ -33,8 +33,8 @@ var (
 )
 
 type JobErr struct {
-	jobID int64
 	err   error
+	jobID int64
 }
 
 func (e *JobErr) ID() int64 {

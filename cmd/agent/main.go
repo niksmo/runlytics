@@ -10,13 +10,14 @@ import (
 	"github.com/niksmo/runlytics/internal/agent/config"
 	"github.com/niksmo/runlytics/internal/agent/generator"
 	"github.com/niksmo/runlytics/internal/agent/worker"
+	"github.com/niksmo/runlytics/internal/buildinfo"
 	"github.com/niksmo/runlytics/internal/logger"
 	"github.com/niksmo/runlytics/pkg/di"
 	"go.uber.org/zap"
 )
 
 func main() {
-
+	buildinfo.Print()
 	config := config.Load()
 
 	logger.Init(config.LogLvl())

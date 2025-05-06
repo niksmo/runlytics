@@ -13,15 +13,15 @@ import (
 
 // HTTPServer wrap the [http.Server] and provide Run method.
 type HTTPServer struct {
-	http.Server
 	logger di.Logger
+	http.Server
 }
 
 // New construncts the http.Server with passed parameters and returns HTTPServer pointer.
 func New(addr string, handler http.Handler, logger di.Logger) *HTTPServer {
 	return &HTTPServer{
-		http.Server{Addr: addr, Handler: handler},
 		logger,
+		http.Server{Addr: addr, Handler: handler},
 	}
 }
 

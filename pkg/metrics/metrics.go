@@ -19,10 +19,10 @@ type VerifyOp func(m Metrics) error
 
 // A Metrics describes metrics object.
 type Metrics struct {
-	ID    string   `json:"id"`
-	MType string   `json:"type"`            // use gauge or counter constants
-	Delta *int64   `json:"delta,omitempty"` // for counter
 	Value *float64 `json:"value,omitempty"` // for gauge
+	Delta *int64   `json:"delta,omitempty"` // for counter
+	ID    string   `json:"id"`
+	MType string   `json:"type"` // use gauge or counter constants
 }
 
 // NewFromStrArgs constructor returns a new metrics.

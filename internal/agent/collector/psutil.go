@@ -12,8 +12,8 @@ import (
 )
 
 type PsUtilStat struct {
-	poll time.Duration
 	data metricsData
+	poll time.Duration
 	mu   sync.RWMutex
 }
 

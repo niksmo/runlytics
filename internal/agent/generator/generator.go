@@ -11,27 +11,28 @@ import (
 )
 
 type Job struct {
-	id      int64
 	payload []metrics.Metrics
+	id      int64
+}
+
+func (job *Job) ID() int64 {
+	return job.id
 }
 
 func (job *Job) Payload() []metrics.Metrics {
 	return job.payload
 }
-func (job *Job) ID() int64 {
-	return job.id
-}
 
 type JobGenerator struct {
-	interval time.Duration
-	counter  *counter.Counter
+	counter *counter.Counter
 	pollCounter
+	interval time.Duration
 }
 
 type pollCounter struct {
+	rollbackValue func()
 	jobID         int64
 	prevValue     int64
-	rollbackValue func()
 }
 
 func New(interval time.Duration) *JobGenerator {

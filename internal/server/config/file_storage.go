@@ -69,17 +69,17 @@ func getFilePathFlag(path string) *os.File {
 		return file
 	}
 
-	fileInfo, err := os.Stat(path)
+	fileInfo, errPath := os.Stat(path)
 
-	if errors.Is(err, os.ErrNotExist) {
+	if errors.Is(errPath, os.ErrNotExist) {
 		if err := os.MkdirAll(filepath.Dir(path), 0744); err != nil {
 			panic("Create file storage path directories error: " + err.Error())
 		}
 		return openFile()
 	}
 
-	if err != nil {
-		panic("File storage path error: " + err.Error())
+	if errPath != nil {
+		panic("File storage path error: " + errPath.Error())
 	}
 
 	if !fileInfo.Mode().IsRegular() {

@@ -11,6 +11,7 @@ import (
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"go.uber.org/zap"
 
+	"github.com/niksmo/runlytics/internal/buildinfo"
 	"github.com/niksmo/runlytics/internal/logger"
 	"github.com/niksmo/runlytics/internal/server/api"
 	"github.com/niksmo/runlytics/internal/server/config"
@@ -23,6 +24,7 @@ import (
 )
 
 func main() {
+	buildinfo.Print()
 	config := config.Load()
 	logger.Init(config.LogLvl())
 

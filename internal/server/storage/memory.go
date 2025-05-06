@@ -24,10 +24,10 @@ type storageData struct {
 // MemoryStorage store metrics in underlyin map and implements [di.Repository] interface.
 type MemoryStorage struct {
 	mu       sync.RWMutex
-	data     storageData
-	interval time.Duration
 	fo       di.FileOperator
+	data     storageData
 	restore  bool
+	interval time.Duration
 }
 
 // NewMemory returns MemoryStorage pointer.

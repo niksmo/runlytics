@@ -51,6 +51,5 @@ func getPollFlag(rawPoll int) time.Duration {
 	}
 
 	poll := pollDefault * time.Second
-	printUsedDefault("poll interval", poll.String())
 	return poll
 }

@@ -100,7 +100,7 @@ func TestMetricsConstructor(t *testing.T) {
 		m := metrics.NewFromStrArgs(id, mType, value)
 		assert.Equal(t, id, m.ID)
 		assert.Equal(t, mType, m.MType)
-		assert.Equal(t, expectedValue, *m.Value)
+		assert.InDelta(t, expectedValue, *m.Value, 0)
 		assert.Nil(t, m.Delta)
 	})
 }
@@ -296,10 +296,9 @@ func TestMetricsVerify(t *testing.T) {
 				metrics.VerifyDelta,
 				metrics.VerifyValue,
 			)
-			require.Error(t, err)
-			assert.ErrorIs(t, err, metrics.ErrIDRequired)
-			assert.ErrorIs(t, err, metrics.ErrInvalidType)
-			assert.NotErrorIs(
+			require.ErrorIs(t, err, metrics.ErrIDRequired)
+			require.ErrorIs(t, err, metrics.ErrInvalidType)
+			require.NotErrorIs(
 				t, err, metrics.ErrDeltaRequired, "Delta should not check",
 			)
 			assert.NotErrorIs(
@@ -315,9 +314,8 @@ func TestMetricsVerify(t *testing.T) {
 				metrics.VerifyDelta,
 				metrics.VerifyValue,
 			)
-			require.Error(t, err)
-			assert.ErrorIs(t, err, metrics.ErrIDRequired)
-			assert.ErrorIs(t, err, metrics.ErrDeltaRequired)
+			require.ErrorIs(t, err, metrics.ErrIDRequired)
+			require.ErrorIs(t, err, metrics.ErrDeltaRequired)
 			assert.NotErrorIs(t, err, metrics.ErrInvalidType)
 		})
 
@@ -343,9 +341,8 @@ func TestMetricsVerify(t *testing.T) {
 				metrics.VerifyDelta,
 				metrics.VerifyValue,
 			)
-			require.Error(t, err)
-			assert.ErrorIs(t, err, metrics.ErrIDRequired)
-			assert.ErrorIs(t, err, metrics.ErrValueRequired)
+			require.ErrorIs(t, err, metrics.ErrIDRequired)
+			require.ErrorIs(t, err, metrics.ErrValueRequired)
 			assert.NotErrorIs(t, err, metrics.ErrInvalidType)
 		})
 

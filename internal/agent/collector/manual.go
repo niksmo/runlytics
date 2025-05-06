@@ -11,10 +11,10 @@ import (
 )
 
 type ManualStat struct {
-	poll    time.Duration
-	data    metricsData
-	counter *counter.Counter
 	mu      sync.RWMutex
+	counter *counter.Counter
+	data    metricsData
+	poll    time.Duration
 }
 
 func NewManualStat(interval time.Duration) *ManualStat {
