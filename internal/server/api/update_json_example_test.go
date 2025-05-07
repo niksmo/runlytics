@@ -73,5 +73,5 @@ func ExampleSetUpdateHandler_updateByJSON() {
 
 	// Output:
 	// 200
-	// {"id":"0","type":"gauge","value":123.45}
+	// {"value":123.45,"id":"0","type":"gauge"}
 }

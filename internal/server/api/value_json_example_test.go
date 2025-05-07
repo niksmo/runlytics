@@ -74,5 +74,5 @@ func ExampleSetValueHandler_readByJSON() {
 	io.Copy(os.Stdout, res.Body)
 	// Output:
 	// 200
-	// {"id":"0","type":"gauge","value":123.45}
+	// {"value":123.45,"id":"0","type":"gauge"}
 }
