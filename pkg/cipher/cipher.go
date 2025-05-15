@@ -17,7 +17,6 @@ var (
 	ErrParsePrivateKey = errors.New("failed to parse private key")
 	ErrPublicKeyType   = errors.New("invalid RSA PublicKey")
 	ErrEncryptMsg      = errors.New("failed to encrypt message")
-	ErrDecryptMsg      = errors.New("failed to decrypt message")
 )
 
 // Encrypter provides simple message encrypting.
@@ -58,6 +57,7 @@ type Decrypter struct {
 }
 
 // NewDecrypter returns Decrypter pointer.
+// If PEMData is invalid error in occur.
 func NewDecrypter(PEMData []byte) (*Decrypter, error) {
 	block, _ := pem.Decode(PEMData)
 
@@ -73,7 +73,7 @@ func NewDecrypter(PEMData []byte) (*Decrypter, error) {
 func (d *Decrypter) DecryptMsg(msg []byte) ([]byte, error) {
 	data, err := rsa.DecryptOAEP(d.hash, rand.Reader, d.privateKey, msg, nil)
 	if err != nil {
-		return nil, errors.Join(ErrDecryptMsg, err)
+		return nil, err
 	}
 	return data, nil
 }

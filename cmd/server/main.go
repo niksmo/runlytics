@@ -42,6 +42,7 @@ func main() {
 
 	mux := chi.NewRouter()
 	mux.Use(middleware.Logger)
+	mux.Use(middleware.Decrypt(config.CryptoKeyData()))
 	mux.Use(middleware.AllowContentEncoding("gzip"))
 	mux.Use(middleware.Gzip)
 	mux.Use(middleware.VerifyAndWriteSHA256(config.Key(), http.MethodPost))
