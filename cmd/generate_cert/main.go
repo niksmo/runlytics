@@ -1,3 +1,4 @@
+// Generate cert.pem and key.pem
 package main
 
 import (

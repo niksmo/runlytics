@@ -12,6 +12,7 @@ import (
 	"github.com/niksmo/runlytics/internal/agent/worker"
 	"github.com/niksmo/runlytics/internal/buildinfo"
 	"github.com/niksmo/runlytics/internal/logger"
+	"github.com/niksmo/runlytics/pkg/cipher"
 	"github.com/niksmo/runlytics/pkg/di"
 	"go.uber.org/zap"
 )
@@ -41,6 +42,11 @@ func main() {
 	errCh := make(chan di.JobErr, config.JobsErrBuf())
 	jobGenerator := generator.New(config.Report())
 
+	encrypter, err := cipher.NewEncrypter(config.CryptoKeyData())
+	if err != nil {
+		logger.Log.Fatal("failed to init encrypter", zap.Error(err))
+	}
+
 	collectors := []di.MetricsCollector{
 		collector.NewRuntimeMemStat(config.Poll()),
 		collector.NewManualStat(config.Poll()),
@@ -54,7 +60,7 @@ func main() {
 	go jobGenerator.Run(jobCh, errCh, collectors)
 
 	for idx := range config.RateLimit() {
-		go worker.Run(jobCh, errCh, URL, config.Key(), HTTPClient)
+		go worker.Run(jobCh, errCh, URL, config.Key(), encrypter, HTTPClient)
 		logger.Log.Info("Worker is running", zap.Int("workerIdx", idx))
 	}
 
