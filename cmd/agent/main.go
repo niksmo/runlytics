@@ -29,6 +29,7 @@ func main() {
 		zap.String("REPORT_INTERVAL", config.Report().String()),
 		zap.String("KEY", config.Key()),
 		zap.Int("RATE_LIMIT", config.RateLimit()),
+		zap.String("CRYPTO_KEY", config.CryptoKeyPath()),
 	)
 
 	stopCtx, stopFn := signal.NotifyContext(context.Background(), os.Interrupt)

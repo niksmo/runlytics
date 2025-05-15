@@ -4,7 +4,7 @@ import "os"
 
 const (
 	keyDefault = ""
-	keyUsage   = "Sercret key for verify and pass hash in HTTP header."
+	keyUsage   = "Sercret key for verify and pass hash in HTTP header (optional)"
 	keyEnv     = "KEY"
 )
 

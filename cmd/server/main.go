@@ -37,6 +37,7 @@ func main() {
 		zap.Bool("RESTORE", config.Restore()),
 		zap.String("DATABASE_DSN", config.DatabaseDSN()),
 		zap.String("KEY", config.Key()),
+		zap.String("CRYPTO_KEY", config.CryptoKeyPath()),
 	)
 
 	mux := chi.NewRouter()
