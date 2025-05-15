@@ -5,7 +5,7 @@ import "os"
 const (
 	databaseDSNDefault = ""
 	databaseDSNEnv     = "DATABASE_DSN"
-	databaseDSNUsage   = "Usage 'postgres://user_name:user_pwd@localhost:5432/db_name?sslmode=disable'"
+	databaseDSNUsage   = "Usage 'postgres://user_name:user_pwd@localhost:5432/db_name?sslmode=disable' (optional)"
 )
 
 type db struct {

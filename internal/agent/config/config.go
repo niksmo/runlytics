@@ -13,6 +13,7 @@ const jobsErrBuf = 128
 type Config struct {
 	addr      *url.URL
 	key       string
+	cryptoKey cryptoKey
 	logLvl    string
 	poll      time.Duration
 	rateLimit int
@@ -26,6 +27,10 @@ func Load() *Config {
 	rawReportFlag := flag.Int("r", reportDefault, reportUsage)
 	rawKeyFlag := flag.String("k", keyDefault, keyUsage)
 	rawRateLimitFlag := flag.Int("l", rateLimitDefault, rateLimitUsage)
+
+	rawCryptoKeyFlag := flag.String(
+		"crypto-key", cryptoKeyDefault, cryptoKeyUsage,
+	)
 	flag.Parse()
 
 	pollFlag := getPollFlag(*rawPollFlag)
@@ -42,6 +47,7 @@ func Load() *Config {
 		report:    reportFlag,
 		key:       getKeyFlag(*rawKeyFlag),
 		rateLimit: getRateLimitFlag(*rawRateLimitFlag),
+		cryptoKey: getCryptoKeyFlag(*rawCryptoKeyFlag),
 	}
 	return &config
 }
@@ -81,6 +87,16 @@ func (c *Config) JobsErrBuf() int {
 
 func (c *Config) HTTPClientTimeout() time.Duration {
 	return c.Report() - 100*time.Millisecond
+}
+
+// CryptoKeyPath returns cert path.
+func (c *Config) CryptoKeyPath() string {
+	return c.cryptoKey.path
+}
+
+// CryptoKeyData returns cert file data.
+func (c *Config) CryptoKeyData() []byte {
+	return c.cryptoKey.pemData
 }
 
 func verifyPollVsReport(poll, report time.Duration) error {

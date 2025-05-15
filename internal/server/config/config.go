@@ -14,6 +14,7 @@ type Config struct {
 	fileStorage *fileStorage
 	database    db
 	key         string
+	cryptoKey   cryptoKey
 	logLvl      string
 	isDatabase  bool
 }
@@ -25,14 +26,20 @@ func Load() *Config {
 	rawFilePathFlag := flag.String("f", filePathDefault, filePathUsage)
 
 	rawSaveIntervalFlag := flag.Int(
-		"i",
-		saveIntervalDefault,
-		saveIntervalUsage,
+		"i", saveIntervalDefault, saveIntervalUsage,
 	)
 
 	rawRestoreFlag := flag.Bool("r", restoreDefault, restoreUsage)
-	rawDatabaseDSNFlag := flag.String("d", databaseDSNDefault, databaseDSNUsage)
+
+	rawDatabaseDSNFlag := flag.String(
+		"d", databaseDSNDefault, databaseDSNUsage,
+	)
+
 	rawKeyFlag := flag.String("k", keyDefault, keyUsage)
+
+	rawCryptoKeyFlag := flag.String(
+		"crypto-key", cryptoKeyDefault, cryptoKeyUsage,
+	)
 	flag.Parse()
 
 	database := makeDatabaseConfig(*rawDatabaseDSNFlag)
@@ -51,6 +58,7 @@ func Load() *Config {
 		database:   database,
 		isDatabase: isDatabase,
 		key:        getKeyFlag(*rawKeyFlag),
+		cryptoKey:  getCryptoKeyFlag(*rawCryptoKeyFlag),
 	}
 
 	return &config
@@ -106,6 +114,16 @@ func (c *Config) DatabaseDSN() string {
 // Key returns hash checking key.
 func (c *Config) Key() string {
 	return c.key
+}
+
+// CryptoKeyPath returns private key path.
+func (c *Config) CryptoKeyPath() string {
+	return c.cryptoKey.path
+}
+
+// CryptoKeyData returns private key PEM file data.
+func (c *Config) CryptoKeyData() []byte {
+	return c.cryptoKey.pemData
 }
 
 func printUsedDefault(configField, value string) {

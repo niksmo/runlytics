@@ -37,10 +37,12 @@ func main() {
 		zap.Bool("RESTORE", config.Restore()),
 		zap.String("DATABASE_DSN", config.DatabaseDSN()),
 		zap.String("KEY", config.Key()),
+		zap.String("CRYPTO_KEY", config.CryptoKeyPath()),
 	)
 
 	mux := chi.NewRouter()
 	mux.Use(middleware.Logger)
+	mux.Use(middleware.Decrypt(config.CryptoKeyData()))
 	mux.Use(middleware.AllowContentEncoding("gzip"))
 	mux.Use(middleware.Gzip)
 	mux.Use(middleware.VerifyAndWriteSHA256(config.Key(), http.MethodPost))

@@ -15,7 +15,8 @@ type GaugeMetricsGetter interface {
 	GetGaugeMetrics() map[string]float64
 }
 
-// CounterMetricsGetter is the interface that wraps the GetCounterMetrics method.
+// CounterMetricsGetter is the interface
+// that wraps the GetCounterMetrics method.
 type CounterMetricsGetter interface {
 	GetCounterMetrics() map[string]int64
 }
@@ -40,20 +41,41 @@ type Logger interface {
 	Errorw(msg string, keysAndValues ...any)
 }
 
-// ServerConfig is the interface that wraps the IsDatabase, SaveInterval and Restore methods.
+// ServerConfig is the interface that wraps
+// the IsDatabase, SaveInterval and Restore methods.
 type ServerConfig interface {
 	IsDatabase() bool
 	SaveInterval() time.Duration
 	Restore() bool
 }
 
+// FileCloser is the interface that wraps the basic Close method.
+type FileCloser interface {
+	Close() error
+}
+
+// FileClearer is the interface that wraps the basic Clear method.
+type FileClearer interface {
+	Clear() error
+}
+
+// FileLoader is the interface that wraps the basic Load method.
+type FileLoader interface {
+	Load() ([]byte, error)
+}
+
+// FileSaver is the interface that wraps the basic Save method.
+type FileSaver interface {
+	Save([]byte) error
+}
+
 // FileOperator is the interface that wraps the
 // Clear, Load, Save and Close methods.
 type FileOperator interface {
-	Clear() (err error)
-	Load() ([]byte, error)
-	Save([]byte) (err error)
-	Close() error
+	FileClearer
+	FileCloser
+	FileLoader
+	FileSaver
 }
 
 // UpdateByNameRepository is the interface that wraps the
@@ -85,8 +107,9 @@ type ReadListRepository interface {
 }
 
 // Repository is the interface that groups
-// the UpdateCounterByName, UpdateGaugeByName, UpdateCounterList, UpdateGaugeList,
-// ReadCounterByName, ReadGaugeByName, ReadGauge, ReadCounter and Run methods.
+// the UpdateCounterByName, UpdateGaugeByName, UpdateCounterList,
+// UpdateGaugeList,ReadCounterByName, ReadGaugeByName,
+// ReadGauge, ReadCounter and Run methods.
 type Repository interface {
 	ReadByNameRepository
 	ReadListRepository

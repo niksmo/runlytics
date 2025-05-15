@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/niksmo/runlytics/internal/logger"
+	"github.com/niksmo/runlytics/pkg/cipher"
 	"github.com/niksmo/runlytics/pkg/di"
 	"github.com/niksmo/runlytics/pkg/metrics"
 	"go.uber.org/zap"
@@ -50,6 +51,7 @@ func Run(
 	errCh chan<- di.JobErr,
 	URL string,
 	key string,
+	encrypter *cipher.Encrypter,
 	HTTPClient *http.Client,
 ) {
 	for job := range jobCh {
@@ -58,7 +60,7 @@ func Run(
 		buf := bufferPool.Get().(*bytes.Buffer)
 		buf.Reset()
 
-		sha256 := makeRequestBody(job.Payload(), key, buf)
+		sha256 := makeRequestBody(buf, job.Payload(), key, encrypter)
 		start := time.Now()
 		res, err := HTTPClient.Do(createRequest(URL, buf, sha256))
 		bufferPool.Put(buf)
@@ -104,7 +106,10 @@ func getHexHashSHA256(data []byte, key string) string {
 }
 
 func makeRequestBody(
-	metrics []metrics.Metrics, key string, buf *bytes.Buffer,
+	buf *bytes.Buffer,
+	metrics []metrics.Metrics,
+	key string,
+	encrypter *cipher.Encrypter,
 ) (hexSHA256 string) {
 	jsonData, err := json.Marshal(metrics)
 	if err != nil {
@@ -129,6 +134,13 @@ func makeRequestBody(
 	if err != nil {
 		logger.Log.Panic("Close gzip", zap.Error(err))
 	}
+
+	encryptedData, err := encrypter.EncryptMsg(buf.Bytes())
+	if err != nil {
+		logger.Log.Panic("Failed to encrypt request data", zap.Error(err))
+	}
+	buf.Reset()
+	buf.Write(encryptedData)
 	return
 }
 
