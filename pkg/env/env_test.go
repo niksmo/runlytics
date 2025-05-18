@@ -11,84 +11,84 @@ import (
 func TestEnvSet(t *testing.T) {
 	t.Run("regular use no errors", func(t *testing.T) {
 		const (
-			INT_ENV    = "INT"
-			STRING_ENV = "STRING"
-			BOOL_ENV   = "BOOL"
+			intEnv    = "INT"
+			stringEnv = "STRING"
+			boolEnv   = "BOOL"
 		)
 
-		t.Setenv(INT_ENV, "12345")
-		t.Setenv(STRING_ENV, "Hello, world!")
-		t.Setenv(BOOL_ENV, "true")
+		t.Setenv(intEnv, "12345")
+		t.Setenv(stringEnv, "Hello, world!")
+		t.Setenv(boolEnv, "true")
 
 		envSet := env.New()
-		intPtr := envSet.Int(INT_ENV)
-		strPtr := envSet.String(STRING_ENV)
-		boolPtr := envSet.Bool(BOOL_ENV)
+		intPtr := envSet.Int(intEnv)
+		strPtr := envSet.String(stringEnv)
+		boolPtr := envSet.Bool(boolEnv)
 		err := envSet.Parse()
 		require.NoError(t, err)
 
 		assert.Equal(t, 12345, *intPtr)
-		assert.True(t, envSet.IsSet(INT_ENV))
+		assert.True(t, envSet.IsSet(intEnv))
 
 		assert.Equal(t, "Hello, world!", *strPtr)
-		assert.True(t, envSet.IsSet(STRING_ENV))
+		assert.True(t, envSet.IsSet(stringEnv))
 
 		assert.Equal(t, true, *boolPtr)
-		assert.True(t, envSet.IsSet(BOOL_ENV))
+		assert.True(t, envSet.IsSet(boolEnv))
 	})
 
 	t.Run("Env not provided", func(t *testing.T) {
 		const (
-			INT_ENV    = "INT"
-			STRING_ENV = "STRING"
-			BOOL_ENV   = "BOOL"
+			intEnv    = "INT"
+			stringEnv = "STRING"
+			boolEnv   = "BOOL"
 		)
 
-		t.Setenv(INT_ENV, "12345")
-		t.Setenv(BOOL_ENV, "true")
+		t.Setenv(intEnv, "12345")
+		t.Setenv(boolEnv, "true")
 
 		envSet := env.New()
-		intPtr := envSet.Int(INT_ENV)
-		strPtr := envSet.String(STRING_ENV) // not provided
-		boolPtr := envSet.Bool(BOOL_ENV)
+		intPtr := envSet.Int(intEnv)
+		strPtr := envSet.String(stringEnv) // not provided
+		boolPtr := envSet.Bool(boolEnv)
 		err := envSet.Parse()
 		require.NoError(t, err)
 
 		assert.Zero(t, *strPtr)
-		assert.False(t, envSet.IsSet(STRING_ENV))
+		assert.False(t, envSet.IsSet(stringEnv))
 
 		assert.Equal(t, 12345, *intPtr)
-		assert.True(t, envSet.IsSet(INT_ENV))
+		assert.True(t, envSet.IsSet(intEnv))
 
 		assert.Equal(t, true, *boolPtr)
-		assert.True(t, envSet.IsSet(BOOL_ENV))
+		assert.True(t, envSet.IsSet(boolEnv))
 	})
 
 	t.Run("Parse int error", func(t *testing.T) {
-		const INT_ENV = "INT"
+		const intEnv = "INT"
 
-		t.Setenv(INT_ENV, "123.45")
+		t.Setenv(intEnv, "123.45")
 
 		envSet := env.New()
-		intPtr := envSet.Int(INT_ENV)
+		intPtr := envSet.Int(intEnv)
 		err := envSet.Parse()
 		require.Error(t, err)
 
 		assert.Zero(t, *intPtr)
-		assert.False(t, envSet.IsSet(INT_ENV))
+		assert.False(t, envSet.IsSet(intEnv))
 	})
 
 	t.Run("Parse bool error", func(t *testing.T) {
-		const BOOL_ENV = "BOOL"
+		const boolEnv = "BOOL"
 
-		t.Setenv(BOOL_ENV, "TrUe")
+		t.Setenv(boolEnv, "TrUe")
 
 		envSet := env.New()
-		boolPtr := envSet.Bool(BOOL_ENV)
+		boolPtr := envSet.Bool(boolEnv)
 		err := envSet.Parse()
 		require.Error(t, err)
 		assert.Zero(t, *boolPtr)
-		assert.False(t, envSet.IsSet(BOOL_ENV))
+		assert.False(t, envSet.IsSet(boolEnv))
 	})
 
 }
