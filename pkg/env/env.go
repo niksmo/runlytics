@@ -59,6 +59,10 @@ type EnvSet struct {
 	vSet map[string]struct{}
 }
 
+func New() *EnvSet {
+	return &EnvSet{}
+}
+
 func (es *EnvSet) Parse() error {
 	var errs parseError
 	for n, v := range es.vMap {

@@ -20,7 +20,7 @@ func TestEnvSet(t *testing.T) {
 		t.Setenv(STRING_ENV, "Hello, world!")
 		t.Setenv(BOOL_ENV, "true")
 
-		var envSet env.EnvSet
+		envSet := env.New()
 		intPtr := envSet.Int(INT_ENV)
 		strPtr := envSet.String(STRING_ENV)
 		boolPtr := envSet.Bool(BOOL_ENV)
@@ -47,7 +47,7 @@ func TestEnvSet(t *testing.T) {
 		t.Setenv(INT_ENV, "12345")
 		t.Setenv(BOOL_ENV, "true")
 
-		var envSet env.EnvSet
+		envSet := env.New()
 		intPtr := envSet.Int(INT_ENV)
 		strPtr := envSet.String(STRING_ENV) // not provided
 		boolPtr := envSet.Bool(BOOL_ENV)
@@ -69,7 +69,7 @@ func TestEnvSet(t *testing.T) {
 
 		t.Setenv(INT_ENV, "123.45")
 
-		var envSet env.EnvSet
+		envSet := env.New()
 		intPtr := envSet.Int(INT_ENV)
 		err := envSet.Parse()
 		require.Error(t, err)
@@ -83,7 +83,7 @@ func TestEnvSet(t *testing.T) {
 
 		t.Setenv(BOOL_ENV, "TrUe")
 
-		var envSet env.EnvSet
+		envSet := env.New()
 		boolPtr := envSet.Bool(BOOL_ENV)
 		err := envSet.Parse()
 		require.Error(t, err)
