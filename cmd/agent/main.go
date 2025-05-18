@@ -3,8 +3,8 @@ package main
 import (
 	"context"
 	"net/http"
-	"os"
 	"os/signal"
+	"syscall"
 
 	"github.com/niksmo/runlytics/internal/agent/collector"
 	"github.com/niksmo/runlytics/internal/agent/config"
@@ -33,7 +33,9 @@ func main() {
 		zap.String("CRYPTO_KEY", config.CryptoKeyPath()),
 	)
 
-	stopCtx, stopFn := signal.NotifyContext(context.Background(), os.Interrupt)
+	stopCtx, stopFn := signal.NotifyContext(
+		context.Background(), syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT,
+	)
 	defer stopFn()
 
 	HTTPClient := &http.Client{Timeout: config.HTTPClientTimeout()}

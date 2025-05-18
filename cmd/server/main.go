@@ -3,9 +3,9 @@ package main
 import (
 	"context"
 	"net/http"
-	"os"
 	"os/signal"
 	"sync"
+	"syscall"
 
 	"github.com/go-chi/chi/v5"
 	_ "github.com/jackc/pgx/v5/stdlib"
@@ -72,9 +72,11 @@ func main() {
 	HTTPServer := httpserver.New(config.Addr(), mux, logger.Log.Sugar())
 
 	var wg sync.WaitGroup
-	interruptCtx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
-	defer stop()
-	repository.Run(interruptCtx, &wg)
-	HTTPServer.Run(interruptCtx, &wg)
+	stopCtx, stopFn := signal.NotifyContext(
+		context.Background(), syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT,
+	)
+	defer stopFn()
+	repository.Run(stopCtx, &wg)
+	HTTPServer.Run(stopCtx, &wg)
 	wg.Wait()
 }
