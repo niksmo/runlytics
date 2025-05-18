@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/niksmo/runlytics/pkg/env"
+	"github.com/niksmo/runlytics/pkg/failprint"
 	"github.com/niksmo/runlytics/pkg/flag"
 )
 
@@ -17,7 +18,7 @@ const (
 	srcFlag = "arg"
 )
 
-var srcSettings = "settings.json" // changes dynamically
+var srcSettings = "settings.json" // change dynamically
 
 const (
 	addrFlagName     = "a"
@@ -149,13 +150,13 @@ func Load() *Config {
 
 	flagSet.Parse()
 	if err := envSet.Parse(); err != nil {
-		printFail(err)
+		failprint.Println(err)
 	}
 
 	settings := loadSettings(flagV.configFile, envV.configFile, flagSet, envSet)
 
 	errStream := make(chan error)
-	go errorsWorker(errStream)
+	go failprint.PrintFailWorker(errStream, failprint.ExitOnError)
 
 	addrConfig := getAddrConfig(
 		flagV.addr, envV.addr, flagSet, envSet, settings, errStream,
@@ -338,7 +339,7 @@ func loadSettings(
 	if settingsPath != "" {
 		settings, err := newSettings(settingsPath)
 		if err != nil {
-			printFail(err)
+			failprint.Println(err)
 			return settings
 		}
 		srcSettings = settingsPath
@@ -366,21 +367,4 @@ func getStoreDefaultPath() string {
 		panic(err)
 	}
 	return filepath.Join(filepath.Dir(execPath), "store.json")
-}
-
-func printFail(err error) {
-	fmt.Fprintln(os.Stderr, err)
-}
-
-// Prints erros while gettings configs params
-// interrupts start app if error occured
-func errorsWorker(errStream <-chan error) {
-	var shouldExit bool
-	for err := range errStream {
-		shouldExit = true
-		printFail(err)
-	}
-	if shouldExit {
-		os.Exit(2)
-	}
 }
