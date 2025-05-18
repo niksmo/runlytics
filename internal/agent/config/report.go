@@ -1,56 +1,40 @@
 package config
 
 import (
-	"os"
-	"strconv"
+	"fmt"
 	"time"
+
+	"github.com/niksmo/runlytics/pkg/env"
+	"github.com/niksmo/runlytics/pkg/flag"
 )
 
-const (
-	reportDefault     = 10
-	reportUsage       = "Emitting metrics interval in sec, e.g. 10 (min 1)"
-	reportEnv         = "REPORT_INTERVAL"
-	minReportInterval = 1
-)
+const minReportInterval = 1
 
-func getReportFlag(rawReport int) time.Duration {
-
-	printMinIntervalErr := func(isEnv bool) {
-		printParamError(
-			isEnv, pollEnv, "-p", "should be more or equal 1 second",
-		)
-	}
-
-	var (
-		isEnv    bool
-		envValue string
-	)
-	isCmd := rawReport != reportDefault
-
-	if envValue = os.Getenv(reportEnv); envValue != "" {
-		isEnv = true
-	}
-
-	if isEnv {
-		reportInt, err := strconv.Atoi(envValue)
-		switch {
-		case err != nil:
-			printParamError(isEnv, reportEnv, "-p", "invalid report interval")
-		case reportInt >= minReportInterval:
-			return time.Duration(reportInt) * time.Second
-		default:
-			printMinIntervalErr(isEnv)
+func getReportConfig(
+	flagV, envV *int,
+	flagSet *flag.FlagSet,
+	envSet *env.EnvSet,
+	settings settings,
+	errStream chan<- error,
+) time.Duration {
+	resolve := func(value int, src, name string) time.Duration {
+		if value < minReportInterval {
+			errStream <- fmt.Errorf(
+				"report interval '%d' less '%d', source '%s' name '%s'",
+				value, minReportInterval, src, name,
+			)
 		}
-		isEnv = false
+		return time.Duration(value) * time.Second
 	}
 
-	if isCmd {
-		if rawReport >= minReportInterval {
-			return time.Duration(rawReport) * time.Second
-		}
-		printMinIntervalErr(isEnv)
+	if envSet.IsSet(reportEnvName) {
+		return resolve(*envV, srcEnv, reportEnvName)
 	}
-
-	report := reportDefault * time.Second
-	return report
+	if flagSet.IsSet(reportFlagName) {
+		return resolve(*flagV, srcFlag, "-"+reportFlagName)
+	}
+	if settings.Report != nil {
+		return resolve(*settings.Report, srcSettings, reportSettingsName)
+	}
+	return time.Duration(reportDefault) * time.Second
 }

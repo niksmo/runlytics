@@ -201,7 +201,7 @@ func Load() *Config {
 
 	close(errStream)
 
-	config := Config{
+	return &Config{
 		addr:             addrConfig,
 		logLvl:           logConfig,
 		storeFile:        storeFileConfig,
@@ -212,8 +212,6 @@ func Load() *Config {
 		cryptoKeyFile:    cryptoKeyFile,
 		cryptoKeyPEMData: cryptoKeyData,
 	}
-
-	return &config
 }
 
 // LogLvl returns logging level.
