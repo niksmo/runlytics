@@ -5,50 +5,56 @@ import (
 	"fmt"
 	"io"
 	"os"
+
+	"github.com/niksmo/runlytics/pkg/env"
+	"github.com/niksmo/runlytics/pkg/flag"
 )
 
-const (
-	cryptoKeyDefault = ""
-	cryptoKeyEnv     = "CRYPTO_KEY"
-	cryptoKeyUsage   = "Private key absolute path, e.g. '/folder/key.pem' (required)"
-)
+func getCryptoKeyFile(
+	flagV, envV *string,
+	flagSet *flag.FlagSet,
+	envSet *env.EnvSet,
+	settings settings,
+	errStream chan<- error,
+) *os.File {
+	resolve := func(p, src, name string) *os.File {
+		f, err := os.Open(p)
+		if err != nil {
+			errStream <- fmt.Errorf(
+				"failed to open crypto key path '%s', source '%s' name '%s': %w",
+				p, src, name, err,
+			)
+			return nil
+		}
+		return f
+	}
 
-var (
-	ErrCryptoKeyEmptyFlag = errors.New("required -crypto-key flag not set")
-	ErrCryptoKeyOpenFile  = errors.New("failed to open crypto key file")
-	ErrCryptoKeyReadFile  = errors.New("failed to read crypto key file")
-)
+	if envSet.IsSet(cryptoKeyEnvName) {
+		return resolve(*envV, srcEnv, cryptoKeyEnvName)
+	}
+	if flagSet.IsSet(cryptoKeyFlagName) {
+		return resolve(*flagV, srcFlag, cryptoKeyFlagName)
+	}
+	if settings.CryptoKey != nil {
+		return resolve(*settings.CryptoKey, srcSettings, cryptoKeySettingsName)
+	}
 
-type cryptoKey struct {
-	path    string
-	pemData []byte
+	errStream <- fmt.Errorf("failed to open crypto key, flag is required")
+	return nil
 }
 
-func getCryptoKeyFlag(path string) cryptoKey {
-	if envValue := os.Getenv(cryptoKeyEnv); envValue != "" {
-		path = envValue
+func getCryptoKeyData(p *os.File, errStream chan<- error) []byte {
+	errText := "failed to read crypto key file"
+
+	if p == nil {
+		errStream <- errors.New(errText)
+		return nil
 	}
 
-	if path == "" {
-		fmt.Printf("%s\ntype --help for usage\n", ErrCryptoKeyEmptyFlag)
-		os.Exit(1)
-	}
-
-	pemData, err := getPEMData(path)
+	pemData, err := io.ReadAll(p)
 	if err != nil {
-		panic(err)
+		errStream <- fmt.Errorf("%s: %w", errText, err)
+		return nil
 	}
-	return cryptoKey{path, pemData}
-}
-
-func getPEMData(path string) ([]byte, error) {
-	f, err := os.Open(path)
-	if err != nil {
-		return nil, errors.Join(ErrCryptoKeyOpenFile, err)
-	}
-	pemData, err := io.ReadAll(f)
-	if err != nil {
-		return nil, errors.Join(ErrCryptoKeyReadFile, err)
-	}
-	return pemData, nil
+	return pemData
 }
