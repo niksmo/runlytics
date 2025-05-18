@@ -39,7 +39,7 @@ func getCryptoKeyFile(
 		return resolve(*settings.CryptoKey, srcSettings, cryptoKeySettingsName)
 	}
 
-	errStream <- fmt.Errorf("failed to open crypto key, flag is required")
+	errStream <- errors.New("failed to open crypto key file, flag is required")
 	return nil
 }
 

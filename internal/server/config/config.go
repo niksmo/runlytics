@@ -13,10 +13,11 @@ import (
 )
 
 const (
-	srcEnv      = "env"
-	srcFlag     = "arg"
-	srcSettings = "config"
+	srcEnv  = "env"
+	srcFlag = "arg"
 )
+
+var srcSettings = "settings.json" // changes dynamically
 
 const (
 	addrFlagName     = "a"
@@ -72,6 +73,30 @@ const (
 
 var storeDefaultPath = getStoreDefaultPath()
 
+type flagValues struct {
+	addr          *string
+	log           *string
+	dsn           *string
+	store         *string
+	storeInterval *int
+	storeRestore  *bool
+	hashKey       *string
+	cryptoKey     *string
+	configFile    *string
+}
+
+type envValues struct {
+	addr          *string
+	log           *string
+	dsn           *string
+	store         *string
+	storeInterval *int
+	storeRestore  *bool
+	hashKey       *string
+	cryptoKey     *string
+	configFile    *string
+}
+
 type settings struct {
 	Address       *string `json:"address"`
 	Log           *string `json:"log"`
@@ -106,83 +131,51 @@ type Config struct {
 	storeRestore     bool
 	dsn              string
 	hashKey          string
-	cryptoKeyPath    string
+	cryptoKeyFile    *os.File
 	cryptoKeyPEMData []byte
 }
 
 // Loag initializes flags and enviroments parameters then returns Config pointer.
 func Load() *Config {
 	var (
-		flagSet = flag.New()
-		envSet  = env.New()
+		flagSet         = flag.New()
+		envSet          = env.New()
+		storeFileConfig *os.File
+		cryptoKeyData   []byte
 	)
 
-	addrFlag := flagSet.String(addrFlagName, addrDefault, addrUsage)
-	addrEnv := envSet.String(addrEnvName)
-
-	logFlag := flagSet.String(logFlagName, logDefault, logUsage)
-	logEnv := envSet.String(logEnvName)
-
-	storeFlag := flagSet.String(
-		storeFlagName, storeDefaultPath, storeUsage,
-	)
-	storeEnv := envSet.String(storeEnvName)
-
-	storeIntervalFlag := flagSet.Int(
-		storeIntervalFlagName,
-		storeIntervalDefault,
-		storeIntervalUsage,
-	)
-	storeIntervalEnv := envSet.Int(storeIntervalEnvName)
-
-	storeRestoreFlag := flagSet.Bool(
-		storeRestoreFlagName, storeRestoreDefault, storeRestoreUsage,
-	)
-	storeRestoreEnv := envSet.Bool(storeRestoreEnvName)
-
-	dsnFlag := flagSet.String(dsnFlagName, dsnDefault, dsnUsage)
-	dsnEnv := envSet.String(dsnEnvName)
-
-	hashKeyFlag := flagSet.String(hashKeyFlagName, hashKeyDefault, hashKeyUsage)
-	hashKeyEnv := envSet.String(hashKeyEnvName)
-
-	cryptoKeyFlag := flagSet.String(cryptoKeyFlagName, cryptoKeyDefault, cryptoKeyUsage)
-	cryptoKeyEnv := envSet.String(cryptoKeyEnvName)
-
-	configFileFlag := flagSet.String(configFileFlagName, configFileDefault, configFileUsage)
-	configFileEnv := envSet.String(configFileEnvName)
+	flagV := setupFlagValues(flagSet)
+	envV := setupEnvValues(envSet)
 
 	flagSet.Parse()
 	if err := envSet.Parse(); err != nil {
 		printFail(err)
 	}
 
-	settings := loadSettings(configFileFlag, configFileEnv, flagSet, envSet)
+	settings := loadSettings(flagV.configFile, envV.configFile, flagSet, envSet)
 
 	errStream := make(chan error)
 	go errorsWorker(errStream)
 
 	addrConfig := getAddrConfig(
-		addrFlag, addrEnv, flagSet, envSet, settings, errStream,
+		flagV.addr, envV.addr, flagSet, envSet, settings, errStream,
 	)
 
 	logConfig := getLogConfig(
-		logFlag, logEnv, flagSet, envSet, settings, errStream,
+		flagV.log, envV.log, flagSet, envSet, settings, errStream,
 	)
 
-	dsnConfig := getDSNConfig(dsnFlag, dsnEnv, flagSet, envSet, settings)
-
-	var storeFileConfig *os.File
+	dsnConfig := getDSNConfig(flagV.dsn, envV.dsn, flagSet, envSet, settings)
 
 	if dsnConfig == "" {
 		storeFileConfig = getStoreFileConfig(
-			storeFlag, storeEnv, flagSet, envSet, settings, errStream,
+			flagV.store, envV.store, flagSet, envSet, settings, errStream,
 		)
 	}
 
 	storeIntervalConfig := getStoreIntervalConfig(
-		storeIntervalFlag,
-		storeIntervalEnv,
+		flagV.storeInterval,
+		envV.storeInterval,
 		flagSet,
 		envSet,
 		settings,
@@ -190,18 +183,20 @@ func Load() *Config {
 	)
 
 	storeRestoreConfig := getStoreRestoreConfig(
-		storeRestoreFlag, storeRestoreEnv, flagSet, envSet, settings,
+		flagV.storeRestore, envV.storeRestore, flagSet, envSet, settings,
 	)
 
 	hashKeyConfig := getHashKeyConfig(
-		hashKeyFlag, hashKeyEnv, flagSet, envSet, settings,
+		flagV.hashKey, envV.hashKey, flagSet, envSet, settings,
 	)
 
 	cryptoKeyFile := getCryptoKeyFile(
-		cryptoKeyFlag, cryptoKeyEnv, flagSet, envSet, settings, errStream,
+		flagV.cryptoKey, envV.cryptoKey, flagSet, envSet, settings, errStream,
 	)
 
-	cryptoKeyData := getCryptoKeyData(cryptoKeyFile, errStream)
+	if cryptoKeyFile != nil {
+		cryptoKeyData = getCryptoKeyData(cryptoKeyFile, errStream)
+	}
 
 	close(errStream)
 
@@ -213,7 +208,7 @@ func Load() *Config {
 		storeRestore:     storeRestoreConfig,
 		dsn:              dsnConfig,
 		hashKey:          hashKeyConfig,
-		cryptoKeyPath:    cryptoKeyFile.Name(),
+		cryptoKeyFile:    cryptoKeyFile,
 		cryptoKeyPEMData: cryptoKeyData,
 	}
 
@@ -274,12 +269,62 @@ func (c *Config) Key() string {
 
 // CryptoKeyPath returns private key path.
 func (c *Config) CryptoKeyPath() string {
-	return c.cryptoKeyPath
+	if c.cryptoKeyFile != nil {
+		return c.cryptoKeyFile.Name()
+	}
+	return ""
 }
 
 // CryptoKeyData returns private key PEM file data.
 func (c *Config) CryptoKeyData() []byte {
 	return c.cryptoKeyPEMData
+}
+
+func setupFlagValues(flagSet *flag.FlagSet) flagValues {
+	var fv flagValues
+
+	fv.addr = flagSet.String(addrFlagName, addrDefault, addrUsage)
+	fv.log = flagSet.String(logFlagName, logDefault, logUsage)
+
+	fv.store = flagSet.String(
+		storeFlagName, "cwd/store.json", storeUsage,
+	)
+
+	fv.storeInterval = flagSet.Int(
+		storeIntervalFlagName,
+		storeIntervalDefault,
+		storeIntervalUsage,
+	)
+
+	fv.storeRestore = flagSet.Bool(
+		storeRestoreFlagName, storeRestoreDefault, storeRestoreUsage,
+	)
+
+	fv.dsn = flagSet.String(dsnFlagName, dsnDefault, dsnUsage)
+	fv.hashKey = flagSet.String(hashKeyFlagName, hashKeyDefault, hashKeyUsage)
+
+	fv.cryptoKey = flagSet.String(
+		cryptoKeyFlagName, cryptoKeyDefault, cryptoKeyUsage,
+	)
+	fv.configFile = flagSet.String(
+		configFileFlagName, configFileDefault, configFileUsage,
+	)
+
+	return fv
+}
+
+func setupEnvValues(envSet *env.EnvSet) envValues {
+	var ev envValues
+	ev.addr = envSet.String(addrEnvName)
+	ev.log = envSet.String(logEnvName)
+	ev.store = envSet.String(storeEnvName)
+	ev.storeInterval = envSet.Int(storeIntervalEnvName)
+	ev.storeRestore = envSet.Bool(storeRestoreEnvName)
+	ev.dsn = envSet.String(dsnEnvName)
+	ev.hashKey = envSet.String(hashKeyEnvName)
+	ev.cryptoKey = envSet.String(cryptoKeyEnvName)
+	ev.configFile = envSet.String(configFileEnvName)
+	return ev
 }
 
 func loadSettings(
@@ -294,7 +339,9 @@ func loadSettings(
 		settings, err := newSettings(settingsPath)
 		if err != nil {
 			printFail(err)
+			return settings
 		}
+		srcSettings = settingsPath
 		return settings
 	}
 	return settings{}
@@ -304,10 +351,10 @@ func getSettingsFilePath(
 	configFileFlag, configFileEnv *string,
 	flagSet *flag.FlagSet, envSet *env.EnvSet,
 ) string {
-	if flagSet.IsSet(configFileEnvName) {
+	if envSet.IsSet(configFileEnvName) {
 		return *configFileEnv
 	}
-	if envSet.IsSet(configFileFlagName) {
+	if flagSet.IsSet(configFileFlagName) {
 		return *configFileFlag
 	}
 	return ""
@@ -318,13 +365,15 @@ func getStoreDefaultPath() string {
 	if err != nil {
 		panic(err)
 	}
-	return filepath.Join(filepath.Dir(execPath), "storage.json")
+	return filepath.Join(filepath.Dir(execPath), "store.json")
 }
 
 func printFail(err error) {
-	fmt.Fprint(os.Stderr, err)
+	fmt.Fprintln(os.Stderr, err)
 }
 
+// Prints erros while gettings configs params
+// interrupts start app if error occured
 func errorsWorker(errStream <-chan error) {
 	var shouldExit bool
 	for err := range errStream {
