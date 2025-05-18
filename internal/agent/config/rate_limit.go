@@ -1,56 +1,39 @@
 package config
 
 import (
-	"os"
-	"runtime"
-	"strconv"
+	"fmt"
+
+	"github.com/niksmo/runlytics/pkg/env"
+	"github.com/niksmo/runlytics/pkg/flag"
 )
 
-const (
-	minRateLimit   = 1
-	rateLimitUsage = "Emitting rate limit, e.g. 8 (min 1)"
-	rateLimitEnv   = "RATE_LIMIT"
-)
+const minRateLimit = 1
 
-var rateLimitDefault = runtime.NumCPU()
-
-func getRateLimitFlag(rawRate int) int {
-	var (
-		isEnv    bool
-		envValue string
-	)
-
-	printMinRateErr := func(isEnv bool) {
-		printParamError(
-			isEnv, rateLimitEnv, "-l", "should be more or equal 1",
-		)
-	}
-
-	isCmd := rawRate != rateLimitDefault
-
-	if envValue = os.Getenv(rateLimitEnv); envValue != "" {
-		isEnv = true
-	}
-
-	if isEnv {
-		rateInt, err := strconv.Atoi(envValue)
-		switch {
-		case err != nil:
-			printParamError(isEnv, reportEnv, "-l", "invalid rate limit")
-		case rateInt >= minRateLimit:
-			return rateInt
-		default:
-			printMinRateErr(isEnv)
+func getRateLimitConfig(
+	flagV, envV *int,
+	flagSet *flag.FlagSet,
+	envSet *env.EnvSet,
+	settings settings,
+	errStream chan<- error,
+) int {
+	resolve := func(value int, src, name string) int {
+		if value < minRateLimit {
+			errStream <- fmt.Errorf(
+				"rate limit '%d' less '%d', source '%s' name '%s'",
+				value, minPollInterval, src, name,
+			)
 		}
-		isEnv = false
+		return value
 	}
 
-	if isCmd {
-		if rawRate >= minRateLimit {
-			return rawRate
-		}
-		printMinRateErr(isEnv)
+	if envSet.IsSet(rateLimitEnvName) {
+		return resolve(*envV, srcEnv, rateLimitEnvName)
 	}
-
+	if flagSet.IsSet(rateLimitFlagName) {
+		return resolve(*flagV, srcFlag, "-"+rateLimitFlagName)
+	}
+	if settings.RateLimit != nil {
+		return resolve(*settings.RateLimit, srcSettings, rateLimitSettingsName)
+	}
 	return rateLimitDefault
 }

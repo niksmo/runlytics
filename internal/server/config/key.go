@@ -1,16 +1,27 @@
 package config
 
-import "os"
-
-const (
-	keyDefault = ""
-	keyUsage   = "Sercret key for verify and pass hash in HTTP header."
-	keyEnv     = "KEY"
+import (
+	"github.com/niksmo/runlytics/pkg/env"
+	"github.com/niksmo/runlytics/pkg/flag"
 )
 
-func getKeyFlag(key string) string {
-	if envValue := os.Getenv(keyEnv); envValue != "" {
-		return envValue
+func getHashKeyConfig(
+	flagV, envV *string,
+	flagSet *flag.FlagSet,
+	envSet *env.EnvSet,
+	settings settings,
+) string {
+	if envSet.IsSet(hashKeyEnvName) {
+		return *envV
 	}
-	return key
+
+	if flagSet.IsSet(hashKeyFlagName) {
+		return *flagV
+	}
+
+	if settings.HashKey != nil {
+		return *settings.HashKey
+	}
+
+	return ""
 }

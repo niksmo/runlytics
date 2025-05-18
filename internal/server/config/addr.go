@@ -1,34 +1,44 @@
 package config
 
 import (
+	"fmt"
 	"net"
-	"os"
+
+	"github.com/niksmo/runlytics/pkg/env"
+	"github.com/niksmo/runlytics/pkg/flag"
 )
 
-const (
-	addrDefault = "localhost:8080"
-	addrEnv     = "ADDRESS"
-	addrUsage   = "Listening server address, e.g. '127.0.0.1:8080'"
-)
+func getAddrConfig(
+	flagV, envV *string,
+	flagSet *flag.FlagSet,
+	envSet *env.EnvSet,
+	settings settings,
+	errStream chan<- error,
+) *net.TCPAddr {
 
-func getAddrFlag(addr string) *net.TCPAddr {
-	printError := func(isEnv bool, text string) {
-		printParamError(isEnv, addrEnv, "-a", text)
+	resolveAddr := func(addr, src, name string) *net.TCPAddr {
+		TCPAddr, err := net.ResolveTCPAddr("tcp", addr)
+		if err != nil {
+			errStream <- fmt.Errorf(
+				"address '%s' is not valid TCP address, source '%s' name '%s': %w",
+				addr, src, name, err,
+			)
+			return nil
+		}
+		return TCPAddr
+
 	}
 
-	isEnv := false
-	if envValue := os.Getenv(addrEnv); envValue != "" {
-		isEnv = true
-		addr = envValue
+	if envSet.IsSet(addrEnvName) {
+		return resolveAddr(*envV, srcEnv, addrEnvName)
+	}
+	if flagSet.IsSet(addrFlagName) {
+		return resolveAddr(*flagV, srcFlag, "-"+addrFlagName)
+	}
+	if settings.Address != nil {
+		return resolveAddr(*settings.Address, srcSettings, addrSettingsName)
 	}
 
-	TCPAddr, err := net.ResolveTCPAddr("tcp", addr)
-	if err != nil {
-		text := "error: " + err.Error()
-		printError(isEnv, text)
-		TCPAddr, _ = net.ResolveTCPAddr("tcp", addrDefault)
-		printUsedDefault("address", addrDefault)
-	}
-
+	TCPAddr, _ := net.ResolveTCPAddr("tcp", addrDefault)
 	return TCPAddr
 }
