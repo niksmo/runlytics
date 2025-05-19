@@ -222,7 +222,7 @@ func (ms *MemoryStorage) intervalSave() {
 func (ms *MemoryStorage) close() {
 	ms.save()
 	if err := ms.fo.Close(); err != nil {
-		logger.Log.Error("FileOperator close", zap.Error(err))
+		logger.Log.Error("FileOperator failed to close", zap.Error(err))
 	} else {
 		logger.Log.Debug("FileOperator closed properly")
 	}

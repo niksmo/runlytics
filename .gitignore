@@ -26,3 +26,6 @@ vendor/
 
 # macOS unnecessary file system meta data
 .DS_Store
+
+# cert and private keys
+*.pem

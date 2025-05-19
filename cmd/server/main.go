@@ -3,9 +3,9 @@ package main
 import (
 	"context"
 	"net/http"
-	"os"
 	"os/signal"
 	"sync"
+	"syscall"
 
 	"github.com/go-chi/chi/v5"
 	_ "github.com/jackc/pgx/v5/stdlib"
@@ -37,10 +37,12 @@ func main() {
 		zap.Bool("RESTORE", config.Restore()),
 		zap.String("DATABASE_DSN", config.DatabaseDSN()),
 		zap.String("KEY", config.Key()),
+		zap.String("CRYPTO_KEY", config.CryptoKeyPath()),
 	)
 
 	mux := chi.NewRouter()
 	mux.Use(middleware.Logger)
+	mux.Use(middleware.Decrypt(config.CryptoKeyData()))
 	mux.Use(middleware.AllowContentEncoding("gzip"))
 	mux.Use(middleware.Gzip)
 	mux.Use(middleware.VerifyAndWriteSHA256(config.Key(), http.MethodPost))
@@ -70,9 +72,11 @@ func main() {
 	HTTPServer := httpserver.New(config.Addr(), mux, logger.Log.Sugar())
 
 	var wg sync.WaitGroup
-	interruptCtx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
-	defer stop()
-	repository.Run(interruptCtx, &wg)
-	HTTPServer.Run(interruptCtx, &wg)
+	stopCtx, stopFn := signal.NotifyContext(
+		context.Background(), syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT,
+	)
+	defer stopFn()
+	repository.Run(stopCtx, &wg)
+	HTTPServer.Run(stopCtx, &wg)
 	wg.Wait()
 }

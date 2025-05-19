@@ -3,8 +3,8 @@ package main
 import (
 	"context"
 	"net/http"
-	"os"
 	"os/signal"
+	"syscall"
 
 	"github.com/niksmo/runlytics/internal/agent/collector"
 	"github.com/niksmo/runlytics/internal/agent/config"
@@ -12,6 +12,7 @@ import (
 	"github.com/niksmo/runlytics/internal/agent/worker"
 	"github.com/niksmo/runlytics/internal/buildinfo"
 	"github.com/niksmo/runlytics/internal/logger"
+	"github.com/niksmo/runlytics/pkg/cipher"
 	"github.com/niksmo/runlytics/pkg/di"
 	"go.uber.org/zap"
 )
@@ -29,9 +30,12 @@ func main() {
 		zap.String("REPORT_INTERVAL", config.Report().String()),
 		zap.String("KEY", config.Key()),
 		zap.Int("RATE_LIMIT", config.RateLimit()),
+		zap.String("CRYPTO_KEY", config.CryptoKeyPath()),
 	)
 
-	stopCtx, stopFn := signal.NotifyContext(context.Background(), os.Interrupt)
+	stopCtx, stopFn := signal.NotifyContext(
+		context.Background(), syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT,
+	)
 	defer stopFn()
 
 	HTTPClient := &http.Client{Timeout: config.HTTPClientTimeout()}
@@ -39,6 +43,11 @@ func main() {
 	jobCh := make(chan di.Job, config.JobsBuf())
 	errCh := make(chan di.JobErr, config.JobsErrBuf())
 	jobGenerator := generator.New(config.Report())
+
+	encrypter, err := cipher.NewEncrypter(config.CryptoKeyData())
+	if err != nil {
+		logger.Log.Fatal("failed to init encrypter", zap.Error(err))
+	}
 
 	collectors := []di.MetricsCollector{
 		collector.NewRuntimeMemStat(config.Poll()),
@@ -50,13 +59,20 @@ func main() {
 		go collector.Run()
 	}
 
-	go jobGenerator.Run(jobCh, errCh, collectors)
+	go jobGenerator.Run(stopCtx, jobCh, errCh, collectors)
 
+	workerStopStream := make(chan struct{}, config.RateLimit())
 	for idx := range config.RateLimit() {
-		go worker.Run(jobCh, errCh, URL, config.Key(), HTTPClient)
+		go worker.Run(
+			jobCh, errCh, workerStopStream, URL, config.Key(), encrypter, HTTPClient,
+		)
 		logger.Log.Info("Worker is running", zap.Int("workerIdx", idx))
 	}
 
 	<-stopCtx.Done()
 	logger.Log.Info("garecefully shutdown")
+	for range config.RateLimit() {
+		<-workerStopStream
+	}
+	logger.Log.Info("workers stopped")
 }
