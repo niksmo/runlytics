@@ -59,13 +59,20 @@ func main() {
 		go collector.Run()
 	}
 
-	go jobGenerator.Run(jobCh, errCh, collectors)
+	go jobGenerator.Run(stopCtx, jobCh, errCh, collectors)
 
+	workerStopStream := make(chan struct{}, config.RateLimit())
 	for idx := range config.RateLimit() {
-		go worker.Run(jobCh, errCh, URL, config.Key(), encrypter, HTTPClient)
+		go worker.Run(
+			jobCh, errCh, workerStopStream, URL, config.Key(), encrypter, HTTPClient,
+		)
 		logger.Log.Info("Worker is running", zap.Int("workerIdx", idx))
 	}
 
 	<-stopCtx.Done()
 	logger.Log.Info("garecefully shutdown")
+	for range config.RateLimit() {
+		<-workerStopStream
+	}
+	logger.Log.Info("workers stopped")
 }

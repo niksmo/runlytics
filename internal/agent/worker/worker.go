@@ -49,6 +49,7 @@ func (e *JobErr) Err() error {
 func Run(
 	jobCh <-chan di.Job,
 	errCh chan<- di.JobErr,
+	stopStream chan<- struct{},
 	URL string,
 	key string,
 	encrypter *cipher.Encrypter,
@@ -89,6 +90,7 @@ func Run(
 			zap.String("data", string(data)),
 		)
 	}
+	stopStream <- struct{}{}
 }
 
 func getHexHashSHA256(data []byte, key string) string {
