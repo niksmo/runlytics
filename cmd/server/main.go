@@ -18,6 +18,7 @@ import (
 	"github.com/niksmo/runlytics/internal/server/middleware"
 	"github.com/niksmo/runlytics/internal/server/service"
 	"github.com/niksmo/runlytics/internal/server/storage"
+	"github.com/niksmo/runlytics/pkg/cipher"
 	"github.com/niksmo/runlytics/pkg/fileoperator"
 	"github.com/niksmo/runlytics/pkg/httpserver"
 	"github.com/niksmo/runlytics/pkg/sqldb"
@@ -40,9 +41,14 @@ func main() {
 		zap.String("CRYPTO_KEY", config.CryptoKeyPath()),
 	)
 
+	decrypter, err := cipher.NewDecrypter(config.CryptoKeyData())
+	if err != nil {
+		logger.Log.Fatal("failed to init decrypter", zap.Error(err))
+	}
+
 	mux := chi.NewRouter()
 	mux.Use(middleware.Logger)
-	mux.Use(middleware.Decrypt(config.CryptoKeyData()))
+	mux.Use(middleware.Decrypt(decrypter))
 	mux.Use(middleware.AllowContentEncoding("gzip"))
 	mux.Use(middleware.Gzip)
 	mux.Use(middleware.VerifyAndWriteSHA256(config.Key(), http.MethodPost))

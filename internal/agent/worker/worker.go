@@ -14,7 +14,6 @@ import (
 	"time"
 
 	"github.com/niksmo/runlytics/internal/logger"
-	"github.com/niksmo/runlytics/pkg/cipher"
 	"github.com/niksmo/runlytics/pkg/di"
 	"github.com/niksmo/runlytics/pkg/metrics"
 	"go.uber.org/zap"
@@ -46,31 +45,35 @@ func (e *JobErr) Err() error {
 	return e.err
 }
 
-func Run(
-	jobCh <-chan di.Job,
-	errCh chan<- di.JobErr,
-	stopStream chan<- struct{},
-	URL string,
-	key string,
-	encrypter *cipher.Encrypter,
-	HTTPClient *http.Client,
-) {
-	for job := range jobCh {
+type WorkerParams struct {
+	Wg         *sync.WaitGroup
+	JobCh      <-chan di.Job
+	ErrCh      chan<- di.JobErr
+	URL        string
+	Key        string
+	Encrypter  di.Encrypter
+	HTTPClient *http.Client
+}
+
+func Run(p WorkerParams) {
+	p.Wg.Add(1)
+	defer p.Wg.Done()
+	for job := range p.JobCh {
 		logger.Log.Info("Start job", zap.Int64("jobID", job.ID()))
 
 		buf := bufferPool.Get().(*bytes.Buffer)
 		buf.Reset()
 
-		sha256 := makeRequestBody(buf, job.Payload(), key, encrypter)
+		sha256 := makeRequestBody(buf, job.Payload(), p.Key, p.Encrypter)
 		start := time.Now()
-		res, err := HTTPClient.Do(createRequest(URL, buf, sha256))
+		res, err := p.HTTPClient.Do(createRequest(p.URL, buf, sha256))
 		bufferPool.Put(buf)
 		if err != nil {
-			errCh <- &JobErr{jobID: job.ID(), err: err}
+			p.ErrCh <- &JobErr{jobID: job.ID(), err: err}
 			logger.Log.Info(
 				"Got response",
 				zap.Int64("jobID", job.ID()),
-				zap.String("URL", URL),
+				zap.String("URL", p.URL),
 				zap.String("method", "POST"),
 				zap.Duration("duration", time.Since(start)),
 				zap.Error(err),
@@ -82,7 +85,7 @@ func Run(
 		logger.Log.Info(
 			"Got response",
 			zap.Int64("jobID", job.ID()),
-			zap.String("URL", URL),
+			zap.String("URL", p.URL),
 			zap.String("method", "POST"),
 			zap.Duration("duration", time.Since(start)),
 			zap.Int("statusCode", res.StatusCode),
@@ -90,7 +93,6 @@ func Run(
 			zap.String("data", string(data)),
 		)
 	}
-	stopStream <- struct{}{}
 }
 
 func getHexHashSHA256(data []byte, key string) string {
@@ -111,7 +113,7 @@ func makeRequestBody(
 	buf *bytes.Buffer,
 	metrics []metrics.Metrics,
 	key string,
-	encrypter *cipher.Encrypter,
+	encrypter di.Encrypter,
 ) (hexSHA256 string) {
 	jsonData, err := json.Marshal(metrics)
 	if err != nil {

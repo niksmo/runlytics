@@ -169,3 +169,13 @@ type JobErr interface {
 	IID
 	IErr
 }
+
+// Decrypter is the interface that wraps the DecryptMsg method.
+type Decrypter interface {
+	DecryptMsg([]byte) ([]byte, error)
+}
+
+// Encrypter is the interface that wraps the EncryptMsg method.
+type Encrypter interface {
+	EncryptMsg([]byte) ([]byte, error)
+}
