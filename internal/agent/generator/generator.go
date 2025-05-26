@@ -1,6 +1,7 @@
 package generator
 
 import (
+	"context"
 	"time"
 
 	"github.com/niksmo/runlytics/internal/logger"
@@ -43,22 +44,30 @@ func New(interval time.Duration) *JobGenerator {
 }
 
 func (g *JobGenerator) Run(
+	stopCtx context.Context,
 	jobCh chan<- di.Job,
 	errCh <-chan di.JobErr,
 	collectors []di.MetricsCollector,
 ) {
+	ticker := time.NewTicker(g.interval)
+	defer ticker.Stop()
 	defer close(jobCh)
 	for {
-		logger.Log.Debug("Generator wait", zap.Float64("seconds", g.interval.Seconds()))
-		time.Sleep(g.interval)
-		for len(errCh) != 0 {
-			err := <-errCh
-			if err.ID() == g.pollCounter.jobID {
-				g.pollCounter.rollbackValue()
+		logger.Log.Debug("JobGenerator wait", zap.Float64("seconds", g.interval.Seconds()))
+		select {
+		case <-stopCtx.Done():
+			logger.Log.Debug("JobGenerator close jobStream")
+			return
+		case <-ticker.C:
+			for len(errCh) != 0 {
+				err := <-errCh
+				if err.ID() == g.pollCounter.jobID {
+					g.pollCounter.rollbackValue()
+				}
 			}
-		}
-		for _, collector := range collectors {
-			jobCh <- g.makeJob(g.getJobID(), collector)
+			for _, collector := range collectors {
+				jobCh <- g.makeJob(g.getJobID(), collector)
+			}
 		}
 
 	}

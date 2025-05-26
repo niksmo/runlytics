@@ -45,29 +45,35 @@ func (e *JobErr) Err() error {
 	return e.err
 }
 
-func Run(
-	jobCh <-chan di.Job,
-	errCh chan<- di.JobErr,
-	URL string,
-	key string,
-	HTTPClient *http.Client,
-) {
-	for job := range jobCh {
+type WorkerParams struct {
+	Wg         *sync.WaitGroup
+	JobCh      <-chan di.Job
+	ErrCh      chan<- di.JobErr
+	URL        string
+	Key        string
+	Encrypter  di.Encrypter
+	HTTPClient *http.Client
+}
+
+func Run(p WorkerParams) {
+	p.Wg.Add(1)
+	defer p.Wg.Done()
+	for job := range p.JobCh {
 		logger.Log.Info("Start job", zap.Int64("jobID", job.ID()))
 
 		buf := bufferPool.Get().(*bytes.Buffer)
 		buf.Reset()
 
-		sha256 := makeRequestBody(job.Payload(), key, buf)
+		sha256 := makeRequestBody(buf, job.Payload(), p.Key, p.Encrypter)
 		start := time.Now()
-		res, err := HTTPClient.Do(createRequest(URL, buf, sha256))
+		res, err := p.HTTPClient.Do(createRequest(p.URL, buf, sha256))
 		bufferPool.Put(buf)
 		if err != nil {
-			errCh <- &JobErr{jobID: job.ID(), err: err}
+			p.ErrCh <- &JobErr{jobID: job.ID(), err: err}
 			logger.Log.Info(
 				"Got response",
 				zap.Int64("jobID", job.ID()),
-				zap.String("URL", URL),
+				zap.String("URL", p.URL),
 				zap.String("method", "POST"),
 				zap.Duration("duration", time.Since(start)),
 				zap.Error(err),
@@ -79,7 +85,7 @@ func Run(
 		logger.Log.Info(
 			"Got response",
 			zap.Int64("jobID", job.ID()),
-			zap.String("URL", URL),
+			zap.String("URL", p.URL),
 			zap.String("method", "POST"),
 			zap.Duration("duration", time.Since(start)),
 			zap.Int("statusCode", res.StatusCode),
@@ -104,7 +110,10 @@ func getHexHashSHA256(data []byte, key string) string {
 }
 
 func makeRequestBody(
-	metrics []metrics.Metrics, key string, buf *bytes.Buffer,
+	buf *bytes.Buffer,
+	metrics []metrics.Metrics,
+	key string,
+	encrypter di.Encrypter,
 ) (hexSHA256 string) {
 	jsonData, err := json.Marshal(metrics)
 	if err != nil {
@@ -129,6 +138,13 @@ func makeRequestBody(
 	if err != nil {
 		logger.Log.Panic("Close gzip", zap.Error(err))
 	}
+
+	encryptedData, err := encrypter.EncryptMsg(buf.Bytes())
+	if err != nil {
+		logger.Log.Panic("Failed to encrypt request data", zap.Error(err))
+	}
+	buf.Reset()
+	buf.Write(encryptedData)
 	return
 }
 

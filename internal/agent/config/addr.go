@@ -1,16 +1,12 @@
 package config
 
 import (
-	"errors"
+	"fmt"
 	"net/url"
-	"os"
 	"strings"
-)
 
-const (
-	addrDefault = "http://localhost:8080"
-	addrUsage   = "Host address for metrics emitting, e.g. http://example.com:8080"
-	addrEnv     = "ADDRESS"
+	"github.com/niksmo/runlytics/pkg/env"
+	"github.com/niksmo/runlytics/pkg/flag"
 )
 
 var allowedScheme = map[string]struct{}{
@@ -18,37 +14,36 @@ var allowedScheme = map[string]struct{}{
 	"https": {},
 }
 
-func getAddrFlag(addr string) *url.URL {
-	var (
-		isEnv    bool
-		envValue string
-	)
-	cmdValue := addr
-	isCmd := cmdValue != addrDefault
+func getAddrConfig(
+	flagV, envV *string,
+	flagSet *flag.FlagSet,
+	envSet *env.EnvSet,
+	settings settings,
+	errStream chan<- error,
+) *url.URL {
 
-	if envValue = os.Getenv(addrEnv); envValue != "" {
-		isEnv = true
-	}
-
-	if isEnv {
-		URL, err := parseAddrToURL(envValue)
-		if err == nil {
-			return URL
+	resolve := func(value, src, name string) *url.URL {
+		URL, err := parseAddrToURL(value)
+		if err != nil {
+			errStream <- fmt.Errorf(
+				"invalid address '%s', source '%s' name '%s': %w",
+				value, src, name, err,
+			)
 		}
-		printParamError(isEnv, addrEnv, "-a", "invalid addr")
-		isEnv = false
+		return URL
 	}
 
-	if isCmd {
-		URL, err := parseAddrToURL(cmdValue)
-		if err == nil {
-			return URL
-		}
-		printParamError(isEnv, addrEnv, "-a", "invalid addr")
+	if envSet.IsSet(addrEnvName) {
+		return resolve(*envV, srcEnv, addrEnvName)
+	}
+	if flagSet.IsSet(addrFlagName) {
+		return resolve(*flagV, srcFlag, "-"+addrFlagName)
+	}
+	if settings.Address != nil {
+		return resolve(*settings.Address, srcSettings, addrSettingsName)
 	}
 
-	URL, _ := url.ParseRequestURI(addrDefault)
-
+	URL, _ := parseAddrToURL(addrDefault)
 	return URL
 }
 
@@ -66,7 +61,7 @@ func parseAddrToURL(addr string) (*url.URL, error) {
 
 	URL, err := url.ParseRequestURI(addr)
 	if err != nil || URL.Host == "" {
-		return nil, errors.New("invalid addr: " + addr)
+		return nil, err
 	}
 
 	return URL, nil

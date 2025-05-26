@@ -5,22 +5,22 @@ import (
 	"github.com/niksmo/runlytics/pkg/flag"
 )
 
-func getHashKeyConfig(
+func getDSNConfig(
 	flagV, envV *string,
 	flagSet *flag.FlagSet,
 	envSet *env.EnvSet,
 	settings settings,
 ) string {
-	if envSet.IsSet(hashKeyEnvName) {
+	if envSet.IsSet(dsnEnvName) {
 		return *envV
 	}
 
-	if flagSet.IsSet(hashKeyFlagName) {
+	if flagSet.IsSet(dsnFlagName) {
 		return *flagV
 	}
 
-	if settings.HashKey != nil {
-		return *settings.HashKey
+	if settings.DSN != nil {
+		return *settings.DSN
 	}
 
 	return ""

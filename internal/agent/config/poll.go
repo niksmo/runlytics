@@ -1,55 +1,40 @@
 package config
 
 import (
-	"os"
-	"strconv"
+	"fmt"
 	"time"
+
+	"github.com/niksmo/runlytics/pkg/env"
+	"github.com/niksmo/runlytics/pkg/flag"
 )
 
-const (
-	pollDefault     = 2
-	pollUsage       = "Polling collecting metrics interval in sec, e.g. 5 (min 1)"
-	pollEnv         = "POLL_INTERVAL"
-	minPollInterval = 1
-)
+const minPollInterval = 1
 
-func getPollFlag(rawPoll int) time.Duration {
-	printMinIntervalErr := func(isEnv bool) {
-		printParamError(
-			isEnv, pollEnv, "-p", "should be more or equal 1 second",
-		)
-	}
-
-	var (
-		isEnv    bool
-		envValue string
-	)
-	isCmd := rawPoll != pollDefault
-
-	if envValue = os.Getenv(pollEnv); envValue != "" {
-		isEnv = true
-	}
-
-	if isEnv {
-		pollInt, err := strconv.Atoi(envValue)
-		switch {
-		case err != nil:
-			printParamError(isEnv, pollEnv, "-p", "invalid poll interval")
-		case pollInt >= minPollInterval:
-			return time.Duration(pollInt) * time.Second
-		default:
-			printMinIntervalErr(isEnv)
+func getPollConfig(
+	flagV, envV *int,
+	flagSet *flag.FlagSet,
+	envSet *env.EnvSet,
+	settings settings,
+	errStream chan<- error,
+) time.Duration {
+	resolve := func(value int, src, name string) time.Duration {
+		if value < minPollInterval {
+			errStream <- fmt.Errorf(
+				"poll interval '%d' less '%d', source '%s' name '%s'",
+				value, minPollInterval, src, name,
+			)
 		}
-		isEnv = false
+		return time.Duration(value) * time.Second
 	}
 
-	if isCmd {
-		if rawPoll >= minPollInterval {
-			return time.Duration(rawPoll) * time.Second
-		}
-		printMinIntervalErr(isEnv)
+	if envSet.IsSet(pollEnvName) {
+		return resolve(*envV, srcEnv, pollEnvName)
 	}
-
-	poll := pollDefault * time.Second
-	return poll
+	if flagSet.IsSet(pollFlagName) {
+		return resolve(*flagV, srcFlag, "-"+pollFlagName)
+	}
+	if settings.Poll != nil {
+		return resolve(*settings.Poll, srcSettings, pollSettingsName)
+	}
+	return time.Duration(pollDefault) * time.Second
 }

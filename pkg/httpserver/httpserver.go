@@ -26,22 +26,23 @@ func New(addr string, handler http.Handler, logger di.Logger) *HTTPServer {
 }
 
 // Run start the http.Server and then waiting Done signal from context for gracefully shutdown.
-func (server *HTTPServer) Run(stopCtx context.Context, wg *sync.WaitGroup) {
-	server.logger.Infow("Listen", "host", server.Addr)
+func (s *HTTPServer) Run(stopCtx context.Context, wg *sync.WaitGroup) {
+	s.logger.Infow("Listen", "host", s.Addr)
 	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		<-stopCtx.Done()
-		shutdownCtx, cancel := context.WithTimeout(
-			context.Background(), 3*time.Second,
-		)
-		defer cancel()
-		if err := server.Shutdown(shutdownCtx); err != nil {
-			server.logger.Infow("Server shutdown", "error", err)
-		}
-	}()
+	go waitForShutdown(stopCtx, wg, s)
+	if err := s.ListenAndServe(); !errors.Is(err, http.ErrServerClosed) {
+		s.logger.Errorw("Server closed with errors", "error", err)
+	}
+}
 
-	if err := server.ListenAndServe(); !errors.Is(err, http.ErrServerClosed) {
-		server.logger.Errorw("Server closed with errors", "error", err)
+func waitForShutdown(stopCtx context.Context, wg *sync.WaitGroup, s *HTTPServer) {
+	defer wg.Done()
+	<-stopCtx.Done()
+	shutdownCtx, cancel := context.WithTimeout(
+		context.Background(), 3*time.Second,
+	)
+	defer cancel()
+	if err := s.Shutdown(shutdownCtx); err != nil {
+		s.logger.Infow("Server shutdown", "error", err)
 	}
 }

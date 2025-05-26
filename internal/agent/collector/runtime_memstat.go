@@ -27,7 +27,7 @@ func NewRuntimeMemStat(interval time.Duration) *RuntimeMemStat {
 func (collector *RuntimeMemStat) Run() {
 	logger.Log.Info(
 		"Run RuntimeMemStat collector",
-		zap.Duration("interval", collector.poll),
+		zap.Float64("interval", collector.poll.Seconds()),
 	)
 
 	for {
