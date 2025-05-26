@@ -15,6 +15,8 @@ import (
 
 	"github.com/niksmo/runlytics/internal/logger"
 	"github.com/niksmo/runlytics/pkg/di"
+	"github.com/niksmo/runlytics/pkg/httpserver/header"
+	"github.com/niksmo/runlytics/pkg/httpserver/mime"
 	"github.com/niksmo/runlytics/pkg/metrics"
 	"go.uber.org/zap"
 )
@@ -153,9 +155,9 @@ func createRequest(URL string, body *bytes.Buffer, sha256 string) *http.Request 
 	if err != nil {
 		logger.Log.Panic("Error while creating http request", zap.Error(err))
 	}
-	request.Header.Set("Content-Type", "application/json")
-	request.Header.Set("Content-Encoding", "gzip")
-	request.Header.Set("Accept-Encoding", "gzip")
+	request.Header.Set(header.ContentType, mime.JSON)
+	request.Header.Set(header.ContentEncoding, "gzip")
+	request.Header.Set(header.AcceptEncoding, "gzip")
 	if sha256 != "" {
 		request.Header.Set(headerHashKey, sha256)
 	}
@@ -165,7 +167,7 @@ func createRequest(URL string, body *bytes.Buffer, sha256 string) *http.Request 
 func readBody(response *http.Response) []byte {
 	defer response.Body.Close()
 
-	if response.Header.Get("Content-Encoding") == "gzip" {
+	if response.Header.Get(header.ContentEncoding) == "gzip" {
 		gzipReader, err := gzip.NewReader(response.Body)
 		if err != nil {
 			logger.Log.Panic("Error while creating new gzip reader", zap.Error(err))

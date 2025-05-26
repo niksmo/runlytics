@@ -30,11 +30,11 @@ func main() {
 	buildinfo.Print()
 
 	config := config.Load()
-	logger.Init(config.LogLvl())
+	logger.Init(config.Log.Level)
 
 	printAgentConfig(config, logger.Log)
 
-	encrypter, err := cipher.NewEncrypter(config.CryptoKeyData())
+	encrypter, err := cipher.NewEncrypter(config.Crypto.Data)
 	if err != nil {
 		logger.Log.Fatal("failed to init encrypter", zap.Error(err))
 	}
@@ -47,8 +47,8 @@ func main() {
 		Wg:         &wg,
 		JobCh:      jobCh,
 		ErrCh:      errCh,
-		URL:        config.Addr().JoinPath("updates").String(),
-		Key:        config.Key(),
+		URL:        config.Server.URL(),
+		Key:        config.HashKey.Key,
 		Encrypter:  encrypter,
 		HTTPClient: &http.Client{Timeout: config.HTTPClientTimeout()},
 	}
@@ -65,24 +65,25 @@ func main() {
 	logger.Log.Info("workers stopped")
 }
 
-func printAgentConfig(config *config.Config, logger *zap.Logger) {
+func printAgentConfig(config *config.AgentConfig, logger *zap.Logger) {
 	logger.Info(
 		"Start agent with flags",
-		zap.String("ADDRESS", config.Addr().String()),
-		zap.String("LOG_LVL", config.LogLvl()),
-		zap.String("POLL_INTERVAL", config.Poll().String()),
-		zap.String("REPORT_INTERVAL", config.Report().String()),
-		zap.String("KEY", config.Key()),
-		zap.Int("RATE_LIMIT", config.RateLimit()),
-		zap.String("CRYPTO_KEY", config.CryptoKeyPath()),
+		zap.String("ADDRESS", config.Server.URL()),
+		zap.String("LOG_LVL", config.Log.Level),
+		zap.String("POLL_INTERVAL", config.Metrics.Poll.String()),
+		zap.String("REPORT_INTERVAL", config.Metrics.Report.String()),
+		zap.String("KEY", config.HashKey.Key),
+		zap.Int("RATE_LIMIT", config.Metrics.RateLimit),
+		zap.String("CRYPTO_KEY", config.Crypto.Path),
+		zap.String("OUTBOUND_IP", config.GetOutboundIP()),
 	)
 }
 
-func runCollectors(config *config.Config) []di.MetricsCollector {
+func runCollectors(config *config.AgentConfig) []di.MetricsCollector {
 	collectors := []di.MetricsCollector{
-		collector.NewRuntimeMemStat(config.Poll()),
-		collector.NewManualStat(config.Poll()),
-		collector.NewPsUtilStat(config.Poll()),
+		collector.NewRuntimeMemStat(config.Metrics.Poll),
+		collector.NewManualStat(config.Metrics.Poll),
+		collector.NewPsUtilStat(config.Metrics.Poll),
 	}
 
 	for _, collector := range collectors {
@@ -94,19 +95,19 @@ func runCollectors(config *config.Config) []di.MetricsCollector {
 func runJobGenerator(
 	ctx context.Context,
 	collectors []di.MetricsCollector,
-	config *config.Config,
+	config *config.AgentConfig,
 ) (jobCh chan di.Job, errCh chan di.JobErr) {
-	jobCh = make(chan di.Job, config.JobsBuf())
-	errCh = make(chan di.JobErr, config.JobsErrBuf())
-	jobGenerator := generator.New(config.Report())
+	jobCh = make(chan di.Job, config.Metrics.JobsBuf)
+	errCh = make(chan di.JobErr, config.Metrics.JobsErrBuf)
+	jobGenerator := generator.New(config.Metrics.Report)
 	go jobGenerator.Run(ctx, jobCh, errCh, collectors)
 	return jobCh, errCh
 }
 
 func runWorkers(
-	params worker.WorkerParams, config *config.Config, logger *zap.Logger,
+	params worker.WorkerParams, config *config.AgentConfig, logger *zap.Logger,
 ) {
-	for idx := range config.RateLimit() {
+	for idx := range config.Metrics.RateLimit {
 		go worker.Run(params)
 		logger.Info("Worker is running", zap.Int("workerIdx", idx))
 	}

@@ -5,4 +5,6 @@ const (
 	ContentType     = "Content-Type"
 	ContentEncoding = "Content-Encoding"
 	AcceptEncoding  = "Accept-Encoding"
+
+	XRealIP = "X-Real-IP"
 )
