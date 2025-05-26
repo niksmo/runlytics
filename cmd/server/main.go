@@ -27,34 +27,15 @@ import (
 func main() {
 	buildinfo.Print()
 	config := config.Load()
-	logger.Init(config.LogLvl())
+	logger.Init(config.Log.Level)
 
-	logger.Log.Info(
-		"Bootstrap server with flags",
-		zap.String("ADDRESS", config.Addr()),
-		zap.String("LOG_LVL", config.LogLvl()),
-		zap.Float64("STORE_INTERVAL", config.SaveInterval().Seconds()),
-		zap.String("FILE_STORAGE_PATH", config.FileName()),
-		zap.Bool("RESTORE", config.Restore()),
-		zap.String("DATABASE_DSN", config.DatabaseDSN()),
-		zap.String("KEY", config.Key()),
-		zap.String("CRYPTO_KEY", config.CryptoKeyPath()),
-	)
-
-	decrypter, err := cipher.NewDecrypter(config.CryptoKeyData())
-	if err != nil {
-		logger.Log.Fatal("failed to init decrypter", zap.Error(err))
-	}
+	printServerConfig(config, logger.Log)
 
 	mux := chi.NewRouter()
-	mux.Use(middleware.Logger)
-	mux.Use(middleware.Decrypt(decrypter))
-	mux.Use(middleware.AllowContentEncoding("gzip"))
-	mux.Use(middleware.Gzip)
-	mux.Use(middleware.VerifyAndWriteSHA256(config.Key(), http.MethodPost))
+	setupMeddlewares(mux, config)
 
-	pgDB := sqldb.New("pgx", config.DatabaseDSN(), logger.Log.Sugar())
-	fileOperator := fileoperator.New(config.File())
+	pgDB := sqldb.New("pgx", config.DB.DSN, logger.Log.Sugar())
+	fileOperator := fileoperator.New(config.FileStorage.File)
 	repository := storage.New(pgDB, fileOperator, config)
 
 	api.SetHTMLHandler(mux, service.NewHTMLService(repository))
@@ -75,14 +56,55 @@ func main() {
 
 	api.SetHealthCheckHandler(mux, service.NewHealthCheckService(pgDB))
 
-	HTTPServer := httpserver.New(config.Addr(), mux, logger.Log.Sugar())
+	HTTPServer := httpserver.New(
+		config.Addr.TCPAddr.String(), mux, logger.Log.Sugar(),
+	)
 
-	var wg sync.WaitGroup
 	stopCtx, stopFn := signal.NotifyContext(
 		context.Background(), syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT,
 	)
 	defer stopFn()
+	var wg sync.WaitGroup
 	repository.Run(stopCtx, &wg)
 	HTTPServer.Run(stopCtx, &wg)
 	wg.Wait()
+}
+
+func printServerConfig(config *config.ServerConfig, logger *zap.Logger) {
+	logger.Info(
+		"Bootstrap server with flags",
+		zap.String("ADDRESS", config.Addr.TCPAddr.String()),
+		zap.String("LOG_LVL", config.Log.Level),
+		zap.Float64(
+			"STORE_INTERVAL", config.FileStorage.SaveInterval.Seconds(),
+		),
+		zap.String("FILE_STORAGE_PATH", config.FileStorage.FileName()),
+		zap.Bool("RESTORE", config.FileStorage.Restore),
+		zap.String("DATABASE_DSN", config.DB.DSN),
+		zap.String("KEY", config.HashKey.Key),
+		zap.String("CRYPTO_KEY", config.Crypto.Path),
+		zap.String("TRUSTED_SUBNET", config.TrustedNet.IPNet.String()),
+	)
+}
+
+func setupMeddlewares(mux *chi.Mux, config *config.ServerConfig) {
+	decrypter, err := cipher.NewDecrypterX509(config.Crypto.Data)
+	if err != nil {
+		logger.Log.Fatal("failed to init decrypter", zap.Error(err))
+	}
+
+	mux.Use(middleware.Logger)
+	mux.Use(middleware.Decrypt(decrypter))
+	mux.Use(middleware.AllowContentEncoding("gzip"))
+	mux.Use(middleware.Gzip)
+
+	if config.HashKey.IsSet() {
+		mux.Use(
+			middleware.VerifyAndWriteSHA256(config.HashKey.Key, http.MethodPost),
+		)
+	}
+
+	if config.TrustedNet.IsSet() {
+		mux.Use(middleware.TrustedNet(config.TrustedNet.IPNet))
+	}
 }

@@ -3,42 +3,34 @@ package config
 import (
 	"fmt"
 	"net"
-
-	"github.com/niksmo/runlytics/pkg/env"
-	"github.com/niksmo/runlytics/pkg/flag"
 )
 
-func getAddrConfig(
-	flagV, envV *string,
-	flagSet *flag.FlagSet,
-	envSet *env.EnvSet,
-	settings settings,
-	errStream chan<- error,
-) *net.TCPAddr {
+type AddrConfig struct {
+	TCPAddr *net.TCPAddr
+}
 
-	resolveAddr := func(addr, src, name string) *net.TCPAddr {
+func NewAddrConfig(p ConfigParams) (ac AddrConfig) {
+	resolveAddr := func(addr, src, name string) {
 		TCPAddr, err := net.ResolveTCPAddr("tcp", addr)
 		if err != nil {
-			errStream <- fmt.Errorf(
+			p.ErrStream <- fmt.Errorf(
 				"address '%s' is not valid TCP address, source '%s' name '%s': %w",
 				addr, src, name, err,
 			)
-			return nil
+			return
 		}
-		return TCPAddr
-
+		ac.TCPAddr = TCPAddr
 	}
 
-	if envSet.IsSet(addrEnvName) {
-		return resolveAddr(*envV, srcEnv, addrEnvName)
+	switch {
+	case p.EnvSet.IsSet(addrEnvName):
+		resolveAddr(*p.EnvValues.addr, srcEnv, addrEnvName)
+	case p.FlagSet.IsSet(addrFlagName):
+		resolveAddr(*p.FlagValues.addr, srcFlag, addrFlagName)
+	case p.Settings.Address != nil:
+		resolveAddr(*p.Settings.Address, srcSettings, addrSettingsName)
+	default:
+		resolveAddr(addrDefault, "", "")
 	}
-	if flagSet.IsSet(addrFlagName) {
-		return resolveAddr(*flagV, srcFlag, "-"+addrFlagName)
-	}
-	if settings.Address != nil {
-		return resolveAddr(*settings.Address, srcSettings, addrSettingsName)
-	}
-
-	TCPAddr, _ := net.ResolveTCPAddr("tcp", addrDefault)
-	return TCPAddr
+	return
 }

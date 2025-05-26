@@ -15,6 +15,8 @@ import (
 
 	"github.com/niksmo/runlytics/internal/logger"
 	"github.com/niksmo/runlytics/pkg/di"
+	"github.com/niksmo/runlytics/pkg/httpserver/header"
+	"github.com/niksmo/runlytics/pkg/httpserver/mime"
 	"github.com/niksmo/runlytics/pkg/metrics"
 	"go.uber.org/zap"
 )
@@ -53,6 +55,7 @@ type WorkerParams struct {
 	Key        string
 	Encrypter  di.Encrypter
 	HTTPClient *http.Client
+	OutboundIP string
 }
 
 func Run(p WorkerParams) {
@@ -66,7 +69,9 @@ func Run(p WorkerParams) {
 
 		sha256 := makeRequestBody(buf, job.Payload(), p.Key, p.Encrypter)
 		start := time.Now()
-		res, err := p.HTTPClient.Do(createRequest(p.URL, buf, sha256))
+		res, err := p.HTTPClient.Do(
+			createRequest(p.URL, buf, sha256, p.OutboundIP),
+		)
 		bufferPool.Put(buf)
 		if err != nil {
 			p.ErrCh <- &JobErr{jobID: job.ID(), err: err}
@@ -148,16 +153,21 @@ func makeRequestBody(
 	return
 }
 
-func createRequest(URL string, body *bytes.Buffer, sha256 string) *http.Request {
+func createRequest(
+	URL string, body *bytes.Buffer, sha256 string, outboundIP string,
+) *http.Request {
 	request, err := http.NewRequest("POST", URL, body)
 	if err != nil {
 		logger.Log.Panic("Error while creating http request", zap.Error(err))
 	}
-	request.Header.Set("Content-Type", "application/json")
-	request.Header.Set("Content-Encoding", "gzip")
-	request.Header.Set("Accept-Encoding", "gzip")
+	request.Header.Set(header.ContentType, mime.JSON)
+	request.Header.Set(header.ContentEncoding, "gzip")
+	request.Header.Set(header.AcceptEncoding, "gzip")
 	if sha256 != "" {
 		request.Header.Set(headerHashKey, sha256)
+	}
+	if outboundIP != "" {
+		request.Header.Set(header.XRealIP, outboundIP)
 	}
 	return request
 }
@@ -165,7 +175,7 @@ func createRequest(URL string, body *bytes.Buffer, sha256 string) *http.Request 
 func readBody(response *http.Response) []byte {
 	defer response.Body.Close()
 
-	if response.Header.Get("Content-Encoding") == "gzip" {
+	if response.Header.Get(header.ContentEncoding) == "gzip" {
 		gzipReader, err := gzip.NewReader(response.Body)
 		if err != nil {
 			logger.Log.Panic("Error while creating new gzip reader", zap.Error(err))

@@ -5,7 +5,6 @@ import (
 	"bytes"
 	"context"
 	"sync"
-	"time"
 
 	"github.com/niksmo/runlytics/pkg/metrics"
 )
@@ -39,14 +38,6 @@ type Logger interface {
 	Debugw(msg string, keysAndValues ...any)
 	Infow(msg string, keysAndValues ...any)
 	Errorw(msg string, keysAndValues ...any)
-}
-
-// ServerConfig is the interface that wraps
-// the IsDatabase, SaveInterval and Restore methods.
-type ServerConfig interface {
-	IsDatabase() bool
-	SaveInterval() time.Duration
-	Restore() bool
 }
 
 // FileCloser is the interface that wraps the basic Close method.
