@@ -3,10 +3,8 @@ package config
 import (
 	"encoding/json"
 	"fmt"
-	"net"
 	"os"
 	"path/filepath"
-	"time"
 
 	"github.com/niksmo/runlytics/pkg/env"
 	"github.com/niksmo/runlytics/pkg/failprint"
@@ -66,6 +64,12 @@ const (
 	cryptoKeyDefault      = ""
 	cryptoKeyUsage        = "Private key absolute path, e.g. '/folder/key.pem' (required)"
 
+	trustedNetFlagName     = "t"
+	trustedNetEnvName      = "TRUSTED_SUBNET"
+	trustedNetSettingsName = "trusted_subnet"
+	trustedNetDefault      = ""
+	trustedNetUsage        = "Trusted subnet CIDR, e.g. '192.168.1.1/24'"
+
 	configFileFlagName = "config"
 	configFileEnvName  = "CONFIG"
 	configFileDefault  = ""
@@ -74,7 +78,7 @@ const (
 
 var storeDefaultPath = getStoreDefaultPath()
 
-type flagValues struct {
+type values struct {
 	addr          *string
 	log           *string
 	dsn           *string
@@ -83,18 +87,7 @@ type flagValues struct {
 	storeRestore  *bool
 	hashKey       *string
 	cryptoKey     *string
-	configFile    *string
-}
-
-type envValues struct {
-	addr          *string
-	log           *string
-	dsn           *string
-	store         *string
-	storeInterval *int
-	storeRestore  *bool
-	hashKey       *string
-	cryptoKey     *string
+	trustedNet    *string
 	configFile    *string
 }
 
@@ -107,6 +100,7 @@ type settings struct {
 	DSN           *string `json:"database_dsn"`
 	HashKey       *string `json:"hash_key"`
 	CryptoKey     *string `json:"crypto_key"`
+	TrustedNet    *string `json:"trusted_subnet"`
 }
 
 func newSettings(path string) (settings, error) {
@@ -123,26 +117,31 @@ func newSettings(path string) (settings, error) {
 	return s, nil
 }
 
-// Config describes server configurations parameters.
-type Config struct {
-	addr             *net.TCPAddr
-	logLvl           string
-	storeFile        *os.File
-	storeInterval    time.Duration
-	storeRestore     bool
-	dsn              string
-	hashKey          string
-	cryptoKeyFile    *os.File
-	cryptoKeyPEMData []byte
+type ConfigParams struct {
+	FlagValues, EnvValues values
+	FlagSet               *flag.FlagSet
+	EnvSet                *env.EnvSet
+	Settings              settings
+	ErrStream             chan<- error
+}
+
+// ServerConfig describes server configurations parameters.
+type ServerConfig struct {
+	Addr        AddrConfig
+	FileStorage FileStorageConfig
+	Log         LogConfig
+	DB          DBConfig
+	HashKey     HashKeyConfig
+	Crypto      CryptoConfig
+	TrustedNet  TrustedNetConfig
 }
 
 // Loag initializes flags and enviroments parameters then returns Config pointer.
-func Load() *Config {
+func Load() *ServerConfig {
 	var (
-		flagSet         = flag.New()
-		envSet          = env.New()
-		storeFileConfig *os.File
-		cryptoKeyData   []byte
+		flagSet           = flag.New()
+		envSet            = env.New()
+		fileStorageConfig FileStorageConfig
 	)
 
 	flagV := setupFlagValues(flagSet)
@@ -156,131 +155,48 @@ func Load() *Config {
 	settings := loadSettings(flagV.configFile, envV.configFile, flagSet, envSet)
 
 	errStream := make(chan error)
+	defer close(errStream)
 	go failprint.PrintFailWorker(errStream, failprint.ExitOnError)
 
-	addrConfig := getAddrConfig(
-		flagV.addr, envV.addr, flagSet, envSet, settings, errStream,
-	)
-
-	logConfig := getLogConfig(
-		flagV.log, envV.log, flagSet, envSet, settings, errStream,
-	)
-
-	dsnConfig := getDSNConfig(flagV.dsn, envV.dsn, flagSet, envSet, settings)
-
-	if dsnConfig == "" {
-		storeFileConfig = getStoreFileConfig(
-			flagV.store, envV.store, flagSet, envSet, settings, errStream,
-		)
+	params := ConfigParams{
+		FlagValues: flagV,
+		EnvValues:  envV,
+		FlagSet:    flagSet,
+		EnvSet:     envSet,
+		Settings:   settings,
+		ErrStream:  errStream,
 	}
 
-	storeIntervalConfig := getStoreIntervalConfig(
-		flagV.storeInterval,
-		envV.storeInterval,
-		flagSet,
-		envSet,
-		settings,
-		errStream,
-	)
+	addrConfig := NewAddrConfig(params)
+	logConfig := NewLogConfig(params)
+	dbConfig := NewDBConfig(params)
 
-	storeRestoreConfig := getStoreRestoreConfig(
-		flagV.storeRestore, envV.storeRestore, flagSet, envSet, settings,
-	)
-
-	hashKeyConfig := getHashKeyConfig(
-		flagV.hashKey, envV.hashKey, flagSet, envSet, settings,
-	)
-
-	cryptoKeyFile := getCryptoKeyFile(
-		flagV.cryptoKey, envV.cryptoKey, flagSet, envSet, settings, errStream,
-	)
-
-	if cryptoKeyFile != nil {
-		cryptoKeyData = getCryptoKeyData(cryptoKeyFile, errStream)
+	if !dbConfig.IsSet() {
+		fileStorageConfig = NewFileStorageConfig(params)
 	}
 
-	close(errStream)
+	hashKeyConfig := NewHashKeyConfig(params)
+	cryptoConfig := NewCryptoConfig(params)
+	trustedNetConfig := NewTrustedNetConfig(params)
 
-	return &Config{
-		addr:             addrConfig,
-		logLvl:           logConfig,
-		storeFile:        storeFileConfig,
-		storeInterval:    storeIntervalConfig,
-		storeRestore:     storeRestoreConfig,
-		dsn:              dsnConfig,
-		hashKey:          hashKeyConfig,
-		cryptoKeyFile:    cryptoKeyFile,
-		cryptoKeyPEMData: cryptoKeyData,
+	return &ServerConfig{
+		Addr:        addrConfig,
+		Log:         logConfig,
+		FileStorage: fileStorageConfig,
+		DB:          dbConfig,
+		HashKey:     hashKeyConfig,
+		Crypto:      cryptoConfig,
+		TrustedNet:  trustedNetConfig,
 	}
-}
-
-// LogLvl returns logging level.
-func (c *Config) LogLvl() string {
-	return c.logLvl
-}
-
-// Addr returns server listening address.
-func (c *Config) Addr() string {
-	return c.addr.String()
-}
-
-// File returns memory storage underlying file.
-func (c *Config) File() *os.File {
-	if c.storeFile != nil {
-		file := *c.storeFile
-		return &file
-	}
-	return nil
-}
-
-// FileName returns filename of memory storage underlying file.
-func (c *Config) FileName() string {
-	if c.storeFile != nil {
-		return c.storeFile.Name()
-	}
-	return ""
-}
-
-// SaveInterval returns memory storage save duration.
-func (c *Config) SaveInterval() time.Duration {
-	return c.storeInterval
-}
-
-// Restore returns memery storage restore flag.
-func (c *Config) Restore() bool {
-	return c.storeRestore
 }
 
 // IsDatabase returns database usage flag.
-func (c *Config) IsDatabase() bool {
-	return c.dsn != ""
+func (c *ServerConfig) IsDatabase() bool {
+	return c.DB.IsSet()
 }
 
-// DatabaseDNS returns database data source name
-func (c *Config) DatabaseDSN() string {
-	return c.dsn
-}
-
-// Key returns hash checking key.
-func (c *Config) Key() string {
-	return c.hashKey
-}
-
-// CryptoKeyPath returns private key path.
-func (c *Config) CryptoKeyPath() string {
-	if c.cryptoKeyFile != nil {
-		return c.cryptoKeyFile.Name()
-	}
-	return ""
-}
-
-// CryptoKeyData returns private key PEM file data.
-func (c *Config) CryptoKeyData() []byte {
-	return c.cryptoKeyPEMData
-}
-
-func setupFlagValues(flagSet *flag.FlagSet) flagValues {
-	var fv flagValues
+func setupFlagValues(flagSet *flag.FlagSet) values {
+	var fv values
 
 	fv.addr = flagSet.String(addrFlagName, addrDefault, addrUsage)
 	fv.log = flagSet.String(logFlagName, logDefault, logUsage)
@@ -305,6 +221,9 @@ func setupFlagValues(flagSet *flag.FlagSet) flagValues {
 	fv.cryptoKey = flagSet.String(
 		cryptoKeyFlagName, cryptoKeyDefault, cryptoKeyUsage,
 	)
+	fv.trustedNet = flagSet.String(
+		trustedNetFlagName, trustedNetDefault, trustedNetUsage,
+	)
 	fv.configFile = flagSet.String(
 		configFileFlagName, configFileDefault, configFileUsage,
 	)
@@ -312,8 +231,8 @@ func setupFlagValues(flagSet *flag.FlagSet) flagValues {
 	return fv
 }
 
-func setupEnvValues(envSet *env.EnvSet) envValues {
-	var ev envValues
+func setupEnvValues(envSet *env.EnvSet) values {
+	var ev values
 	ev.addr = envSet.String(addrEnvName)
 	ev.log = envSet.String(logEnvName)
 	ev.store = envSet.String(storeEnvName)
@@ -322,6 +241,7 @@ func setupEnvValues(envSet *env.EnvSet) envValues {
 	ev.dsn = envSet.String(dsnEnvName)
 	ev.hashKey = envSet.String(hashKeyEnvName)
 	ev.cryptoKey = envSet.String(cryptoKeyEnvName)
+	ev.trustedNet = envSet.String(trustedNetEnvName)
 	ev.configFile = envSet.String(configFileEnvName)
 	return ev
 }

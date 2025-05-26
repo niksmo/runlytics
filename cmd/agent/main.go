@@ -34,7 +34,7 @@ func main() {
 
 	printAgentConfig(config, logger.Log)
 
-	encrypter, err := cipher.NewEncrypter(config.Crypto.Data)
+	encrypter, err := cipher.NewEncrypterX509(config.Crypto.Data)
 	if err != nil {
 		logger.Log.Fatal("failed to init encrypter", zap.Error(err))
 	}
@@ -51,6 +51,7 @@ func main() {
 		Key:        config.HashKey.Key,
 		Encrypter:  encrypter,
 		HTTPClient: &http.Client{Timeout: config.HTTPClientTimeout()},
+		OutboundIP: config.GetOutboundIP(),
 	}
 
 	runWorkers(

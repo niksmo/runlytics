@@ -55,6 +55,7 @@ type WorkerParams struct {
 	Key        string
 	Encrypter  di.Encrypter
 	HTTPClient *http.Client
+	OutboundIP string
 }
 
 func Run(p WorkerParams) {
@@ -68,7 +69,9 @@ func Run(p WorkerParams) {
 
 		sha256 := makeRequestBody(buf, job.Payload(), p.Key, p.Encrypter)
 		start := time.Now()
-		res, err := p.HTTPClient.Do(createRequest(p.URL, buf, sha256))
+		res, err := p.HTTPClient.Do(
+			createRequest(p.URL, buf, sha256, p.OutboundIP),
+		)
 		bufferPool.Put(buf)
 		if err != nil {
 			p.ErrCh <- &JobErr{jobID: job.ID(), err: err}
@@ -150,7 +153,9 @@ func makeRequestBody(
 	return
 }
 
-func createRequest(URL string, body *bytes.Buffer, sha256 string) *http.Request {
+func createRequest(
+	URL string, body *bytes.Buffer, sha256 string, outboundIP string,
+) *http.Request {
 	request, err := http.NewRequest("POST", URL, body)
 	if err != nil {
 		logger.Log.Panic("Error while creating http request", zap.Error(err))
@@ -160,6 +165,9 @@ func createRequest(URL string, body *bytes.Buffer, sha256 string) *http.Request 
 	request.Header.Set(header.AcceptEncoding, "gzip")
 	if sha256 != "" {
 		request.Header.Set(headerHashKey, sha256)
+	}
+	if outboundIP != "" {
+		request.Header.Set(header.XRealIP, outboundIP)
 	}
 	return request
 }
