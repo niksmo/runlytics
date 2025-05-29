@@ -1,11 +1,10 @@
-package storage
+package psqlstorage
 
 import (
 	"context"
 	"database/sql"
 	"errors"
 	"fmt"
-	"sync"
 	"time"
 
 	"github.com/niksmo/runlytics/internal/logger"
@@ -16,26 +15,51 @@ import (
 
 var waitIntervals = []time.Duration{time.Second, 3 * time.Second}
 
-// PSQLStorage wrap [*sql.DB] and implements [di.Repository] interface.
+// PSQLStorage wrap [*sql.DB] and implements [di.Storage] interface.
 type PSQLStorage struct {
 	db *sql.DB
 }
 
-// NewPSQL returns PSQLStorage pointer.
-func NewPSQL(db *sql.DB) *PSQLStorage {
+// New returns PSQLStorage pointer.
+func New(dsn string) *PSQLStorage {
+	db, _ := sql.Open("pgx", dsn)
 	return &PSQLStorage{db}
 }
 
-// Creating database tables and waiting graceful shutdown
-func (ps *PSQLStorage) Run(stopCtx context.Context, wg *sync.WaitGroup) {
-	ps.createTables(stopCtx)
-
-	wg.Add(1)
-	go ps.waitStop(stopCtx, wg)
+func (ps *PSQLStorage) MustRun() {
+	if err := ps.Run(); err != nil {
+		panic(err)
+	}
 }
 
-func (ps *PSQLStorage) close() error {
-	return ps.db.Close()
+// Creating database tables and waiting graceful shutdown
+func (ps *PSQLStorage) Run() error {
+	const op = "psqlstorage.Run"
+
+	err := ps.checkDB(context.Background())
+	if err != nil {
+		return fmt.Errorf("%s: %w", op, err)
+	}
+
+	err = ps.createTables()
+	if err != nil {
+		return fmt.Errorf("%s: %w", op, err)
+	}
+	return nil
+}
+
+func (ps *PSQLStorage) Stop() {
+	const op = "psqlstorage.Stop"
+	if err := ps.db.Close(); err != nil {
+		logger.Log.Error(
+			"failed to close storage",
+			zap.String("op", op), zap.Error(err),
+		)
+	}
+}
+
+func (ps *PSQLStorage) Ping(ctx context.Context) error {
+	return ps.checkDB(ctx)
 }
 
 // UpdateCounterByName returns updated counter value and sql driver error, if occur.
@@ -243,7 +267,7 @@ func (ps *PSQLStorage) ReadGauge(
 	return gaugeMap, nil
 }
 
-// ReadCounter returns counter metrics and sql driver error, if occur.
+// ReadCounter returns counter metrics and sql driver error if occurs.
 func (ps *PSQLStorage) ReadCounter(
 	ctx context.Context,
 ) (map[string]int64, error) {
@@ -276,8 +300,15 @@ func (ps *PSQLStorage) ReadCounter(
 	return counterMap, nil
 }
 
-func (ps *PSQLStorage) createTables(ctx context.Context) {
-	logPrefix := "Create tables"
+func (ps *PSQLStorage) checkDB(ctx context.Context) error {
+	return ps.db.PingContext(ctx)
+}
+
+func (ps *PSQLStorage) createTables() error {
+	const op = "psqlstorage.createTables"
+
+	log := logger.Log.With(zap.String("op", op))
+
 	stmt := `
 	CREATE TABLE IF NOT EXISTS gauge (
 	    name TEXT PRIMARY KEY,
@@ -288,32 +319,23 @@ func (ps *PSQLStorage) createTables(ctx context.Context) {
 		value BIGINT NOT NULL
 	);`
 
-	_, err := execWithRetries(ctx, ps.db, stmt, logPrefix)
+	_, err := execWithRetries(context.Background(), ps.db, stmt, log)
 	if err != nil {
-		logger.Log.Error(logPrefix+": exec", zap.Error(err))
+		return err
 	}
-}
-
-func (ps *PSQLStorage) waitStop(stopCtx context.Context, wg *sync.WaitGroup) {
-	defer wg.Done()
-	<-stopCtx.Done()
-	if err := ps.close(); err != nil {
-		logger.Log.Error("Database close connection", zap.Error(err))
-		return
-	}
-	logger.Log.Debug("Database disconnected")
+	return nil
 }
 
 const tryAfter = "tryAfter"
 
 func execWithRetries(
-	ctx context.Context, db *sql.DB, stmt, logPrefix string, args ...any,
+	ctx context.Context, db *sql.DB, stmt string, log *zap.Logger, args ...any,
 ) (sql.Result, error) {
 	result, err := db.ExecContext(ctx, stmt, args...)
 	if err != nil {
 	retries:
 		for _, interval := range waitIntervals {
-			logger.Log.Debug(logPrefix, zap.Duration(tryAfter, interval))
+			log.Debug("", zap.Duration(tryAfter, interval))
 			select {
 			case <-ctx.Done():
 				return nil, ctx.Err()

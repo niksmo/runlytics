@@ -16,7 +16,7 @@ func Init(lvl string) {
 	config := zap.NewDevelopmentConfig()
 	config.Level = atomicLvl
 	config.Encoding = "json"
-	config.EncoderConfig.EncodeTime = zapcore.EpochNanosTimeEncoder
+	config.EncoderConfig.EncodeTime = zapcore.EpochMillisTimeEncoder
 
 	if Log, err = config.Build(); err != nil {
 		panic(err)

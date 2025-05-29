@@ -9,6 +9,7 @@ import (
 	"github.com/niksmo/runlytics/pkg/env"
 	"github.com/niksmo/runlytics/pkg/failprint"
 	"github.com/niksmo/runlytics/pkg/flag"
+	"go.uber.org/zap"
 )
 
 const (
@@ -204,6 +205,24 @@ func Load() *ServerConfig {
 // IsDatabase returns database usage flag.
 func (c *ServerConfig) IsDatabase() bool {
 	return c.DB.IsSet()
+}
+
+func (c *ServerConfig) PrintConfig(logger *zap.Logger) {
+	logger.Info(
+		"Bootstrap server with flags",
+		zap.String("-"+httpAddrFlagName, c.HTTPAddr.TCPAddr.String()),
+		zap.String("-"+grpcAddrFlagName, c.GRPCAddr.TCPAddr.String()),
+		zap.String("-"+logFlagName, c.Log.Level),
+		zap.String("-"+storeFlagName, c.FileStorage.FileName()),
+		zap.Bool("-"+storeRestoreFlagName, c.FileStorage.Restore),
+		zap.Float64(
+			"-"+storeIntervalFlagName, c.FileStorage.SaveInterval.Seconds(),
+		),
+		zap.String("-"+dsnFlagName, c.DB.DSN),
+		zap.String("-"+hashKeyFlagName, c.HashKey.Key),
+		zap.String("-"+cryptoKeyFlagName, c.Crypto.Path),
+		zap.String("-"+trustedNetFlagName, c.TrustedNet.IPNet.String()),
+	)
 }
 
 func setupFlagValues(flagSet *flag.FlagSet) values {

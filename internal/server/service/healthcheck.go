@@ -2,26 +2,27 @@ package service
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"strings"
+
+	"github.com/niksmo/runlytics/pkg/di"
 )
 
 var (
-	ErrHealthDB = errors.New("database: down")
+	ErrStorage = errors.New("storage: down")
 )
 
-// HealthCheckService works with database and provides Check method.
+// HealthCheckService works with storage and provides Check method.
 type HealthCheckService struct {
-	db *sql.DB
+	storage di.Storage
 }
 
 // NewHealthCheckService returns HealthCheckService pointer.
-func NewHealthCheckService(db *sql.DB) *HealthCheckService {
-	return &HealthCheckService{db}
+func NewHealthCheckService(storage di.Storage) *HealthCheckService {
+	return &HealthCheckService{storage: storage}
 }
 
-// Check sends test to database and returns [ErrHealthDB] if occured.
+// Check sends test to storage and returns [ErrStorage] if occured.
 func (s *HealthCheckService) Check(ctx context.Context) error {
 	var errs errS
 	if err := s.pingDB(ctx); err != nil {
@@ -34,8 +35,8 @@ func (s *HealthCheckService) Check(ctx context.Context) error {
 }
 
 func (s *HealthCheckService) pingDB(ctx context.Context) error {
-	if err := s.db.PingContext(ctx); err != nil {
-		return ErrHealthDB
+	if err := s.storage.Ping(ctx); err != nil {
+		return ErrStorage
 	}
 	return nil
 }

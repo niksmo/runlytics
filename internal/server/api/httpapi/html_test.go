@@ -1,4 +1,4 @@
-package api_test
+package httpapi_test
 
 import (
 	"bytes"
@@ -11,7 +11,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/niksmo/runlytics/internal/server"
-	"github.com/niksmo/runlytics/internal/server/api"
+	"github.com/niksmo/runlytics/internal/server/api/httpapi"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -45,7 +45,7 @@ func TestHTMLHandler(t *testing.T) {
 			http.MethodOptions,
 		}
 		mux := chi.NewRouter()
-		api.SetHTMLHandler(mux, nil)
+		httpapi.SetHTMLHandler(mux, nil)
 
 		for _, method := range methods {
 			s := httptest.NewServer(mux)
@@ -68,7 +68,7 @@ func TestHTMLHandler(t *testing.T) {
 	t.Run("Should return data", func(t *testing.T) {
 		expectedData := "test"
 		mux := chi.NewRouter()
-		api.SetHTMLHandler(mux, &mockHTMLService{err: nil, data: expectedData})
+		httpapi.SetHTMLHandler(mux, &mockHTMLService{err: nil, data: expectedData})
 		s := httptest.NewServer(mux)
 		defer s.Close()
 
@@ -87,7 +87,7 @@ func TestHTMLHandler(t *testing.T) {
 
 	t.Run("Should return internal error", func(t *testing.T) {
 		mux := chi.NewRouter()
-		api.SetHTMLHandler(mux, &mockHTMLService{err: server.ErrInternal, data: ""})
+		httpapi.SetHTMLHandler(mux, &mockHTMLService{err: server.ErrInternal, data: ""})
 		s := httptest.NewServer(mux)
 		defer s.Close()
 

@@ -1,27 +1,30 @@
-package api_test
+package httpapi_test
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
-	"net/url"
 	"os"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/niksmo/runlytics/internal/server/api"
+	"github.com/niksmo/runlytics/internal/server/api/httpapi"
+	"github.com/niksmo/runlytics/pkg/httpserver/header"
+	"github.com/niksmo/runlytics/pkg/httpserver/mime"
 	"github.com/niksmo/runlytics/pkg/metrics"
 	"github.com/stretchr/testify/mock"
 )
 
 // ValueByJSONService represents mocked ValueService project component.
-type ValueByURLService struct {
+type ValueByJSONService struct {
 	mock.Mock
 }
 
 // Read assumes write "123.45" to metrics value.
-func (service *ValueByURLService) Read(
+func (service *ValueByJSONService) Read(
 	ctx context.Context, m *metrics.Metrics,
 ) error {
 	retArgs := service.Called(context.Background(), m)
@@ -32,36 +35,35 @@ func (service *ValueByURLService) Read(
 	return retArgs.Error(0)
 }
 
-func ExampleSetValueHandler_readByURLParams() {
-	id := "0"
-	mType := metrics.MTypeGauge
-
+func ExampleSetValueHandler_readByJSON() {
 	var scheme metrics.Metrics
-	scheme.ID = id
-	scheme.MType = mType
+	scheme.ID = "0"
+	scheme.MType = metrics.MTypeGauge
 
-	valueService := new(ValueByURLService)
+	valueService := new(ValueByJSONService)
 	valueService.On("Read", context.Background(), &scheme).Return(nil)
 
 	mux := chi.NewRouter()
-	api.SetValueHandler(mux, valueService)
+	httpapi.SetValueHandler(mux, valueService)
 
 	s := httptest.NewServer(mux)
 	defer s.Close()
 
-	reqURL, err := url.JoinPath(s.URL+"/value", mType, id)
+	var reqData bytes.Buffer
+	if err := json.NewEncoder(&reqData).Encode(scheme); err != nil {
+		fmt.Println(err)
+		return
+	}
 
 	req, err := http.NewRequestWithContext(
-		context.Background(),
-		http.MethodGet,
-		reqURL,
-		http.NoBody,
+		context.Background(), http.MethodPost, s.URL+"/value/", &reqData,
 	)
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
 
+	req.Header.Set(header.ContentType, mime.JSON)
 	res, err := s.Client().Do(req)
 	if err != nil {
 		fmt.Println(err)
@@ -72,5 +74,5 @@ func ExampleSetValueHandler_readByURLParams() {
 	io.Copy(os.Stdout, res.Body)
 	// Output:
 	// 200
-	// 123.45
+	// {"value":123.45,"id":"0","type":"gauge"}
 }

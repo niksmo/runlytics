@@ -1,4 +1,4 @@
-package api_test
+package httpapi_test
 
 import (
 	"bytes"
@@ -9,7 +9,7 @@ import (
 	"net/http/httptest"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/niksmo/runlytics/internal/server/api"
+	"github.com/niksmo/runlytics/internal/server/api/httpapi"
 	"github.com/niksmo/runlytics/pkg/httpserver/header"
 	"github.com/niksmo/runlytics/pkg/httpserver/mime"
 	"github.com/niksmo/runlytics/pkg/metrics"
@@ -43,7 +43,7 @@ func ExampleSetBatchUpdateHandler() {
 	).Return(nil)
 
 	mux := chi.NewRouter()
-	api.SetBatchUpdateHandler(mux, batchUpdateService)
+	httpapi.SetBatchUpdateHandler(mux, batchUpdateService)
 
 	s := httptest.NewServer(mux)
 	defer s.Close()

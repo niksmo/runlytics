@@ -1,4 +1,4 @@
-package api_test
+package httpapi_test
 
 import (
 	"bytes"
@@ -10,7 +10,8 @@ import (
 	"os"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/niksmo/runlytics/internal/server/api"
+	"github.com/niksmo/runlytics/internal/server/api/httpapi"
+
 	"github.com/stretchr/testify/mock"
 )
 
@@ -43,7 +44,7 @@ func ExampleSetHTMLHandler() {
 	HTMLService.On("RenderMetricsList", context.Background(), buf).Return(nil)
 
 	mux := chi.NewRouter()
-	api.SetHTMLHandler(mux, HTMLService)
+	httpapi.SetHTMLHandler(mux, HTMLService)
 	s := httptest.NewServer(mux)
 	defer s.Close()
 

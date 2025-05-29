@@ -1,4 +1,4 @@
-package api
+package httpapi
 
 import (
 	"errors"
@@ -8,7 +8,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/niksmo/runlytics/internal/logger"
 	"github.com/niksmo/runlytics/internal/server"
-	"github.com/niksmo/runlytics/internal/server/middleware"
+	"github.com/niksmo/runlytics/internal/server/app/http/middleware"
 	"github.com/niksmo/runlytics/pkg/di"
 	"github.com/niksmo/runlytics/pkg/jsonhttp"
 	"github.com/niksmo/runlytics/pkg/metrics"

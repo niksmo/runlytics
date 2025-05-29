@@ -1,4 +1,4 @@
-package api_test
+package httpapi_test
 
 import (
 	"context"
@@ -7,7 +7,8 @@ import (
 	"net/http/httptest"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/niksmo/runlytics/internal/server/api"
+	"github.com/niksmo/runlytics/internal/server/api/httpapi"
+
 	"github.com/stretchr/testify/mock"
 )
 
@@ -26,7 +27,7 @@ func ExampleSetHealthCheckHandler() {
 	healthCheckService.On("Check", context.Background()).Return(nil)
 
 	mux := chi.NewRouter()
-	api.SetHealthCheckHandler(mux, healthCheckService)
+	httpapi.SetHealthCheckHandler(mux, healthCheckService)
 
 	s := httptest.NewServer(mux)
 	defer s.Close()

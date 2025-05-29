@@ -1,4 +1,4 @@
-package api_test
+package httpapi_test
 
 import (
 	"context"
@@ -10,7 +10,7 @@ import (
 	"os"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/niksmo/runlytics/internal/server/api"
+	"github.com/niksmo/runlytics/internal/server/api/httpapi"
 	"github.com/niksmo/runlytics/pkg/metrics"
 	"github.com/stretchr/testify/mock"
 )
@@ -44,7 +44,7 @@ func ExampleSetUpdateHandler_updateByURLParams() {
 	).Return(nil)
 
 	mux := chi.NewRouter()
-	api.SetUpdateHandler(mux, updateService)
+	httpapi.SetUpdateHandler(mux, updateService)
 
 	s := httptest.NewServer(mux)
 	defer s.Close()

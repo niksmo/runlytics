@@ -1,4 +1,4 @@
-package api_test
+package httpapi_test
 
 import (
 	"bytes"
@@ -11,7 +11,8 @@ import (
 	"os"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/niksmo/runlytics/internal/server/api"
+
+	"github.com/niksmo/runlytics/internal/server/api/httpapi"
 	"github.com/niksmo/runlytics/pkg/httpserver/header"
 	"github.com/niksmo/runlytics/pkg/httpserver/mime"
 	"github.com/niksmo/runlytics/pkg/metrics"
@@ -41,7 +42,7 @@ func ExampleSetUpdateHandler_updateByJSON() {
 	updateService.On("Update", context.Background(), &scheme).Return(nil)
 
 	mux := chi.NewRouter()
-	api.SetUpdateHandler(mux, updateService)
+	httpapi.SetUpdateHandler(mux, updateService)
 
 	s := httptest.NewServer(mux)
 	defer s.Close()

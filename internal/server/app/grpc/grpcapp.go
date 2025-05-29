@@ -17,16 +17,24 @@ type App struct {
 	addr       *net.TCPAddr
 }
 
-func New(batchUpdateService di.BatchUpdateService, addr *net.TCPAddr) *App {
+type AppParams struct {
+	BatchUpdateService di.BatchUpdateService
+	Addr               *net.TCPAddr
+	HashKey            string
+	Decrypter          di.Decrypter
+	TrustedNed         *net.IPNet
+}
+
+func New(p AppParams) *App {
 	gRPCServer := grpc.NewServer(
 		grpc.ChainUnaryInterceptor(
 			interceptor.WithRecovery(),
 			interceptor.WithLog(),
 		),
 	)
-	grpcapi.Register(gRPCServer, batchUpdateService)
+	grpcapi.Register(gRPCServer, p.BatchUpdateService)
 
-	return &App{gRPCServer: gRPCServer, addr: addr}
+	return &App{gRPCServer: gRPCServer, addr: p.Addr}
 }
 
 func (a *App) MustRun() {
@@ -38,19 +46,21 @@ func (a *App) MustRun() {
 func (a *App) Run() error {
 	const op = "grpcapp.Run"
 
+	log := logger.Log.With(
+		zap.String("op", op),
+		zap.String("addr", a.addr.String()),
+	)
+
 	lis, err := net.ListenTCP("tcp", a.addr)
 	if err != nil {
 		return fmt.Errorf("%s: %w", op, err)
 	}
 
-	logger.Log.Info(
-		"gRPC server started",
-		zap.String("op", op),
-		zap.String("addr", a.addr.String()),
-	)
+	log.Info("gRPC server started")
 
 	err = a.gRPCServer.Serve(lis)
 	if err != nil {
+		log.Warn("gRPC server serve error", zap.Error(err))
 		return fmt.Errorf("%s: %w", op, err)
 	}
 

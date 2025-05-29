@@ -17,11 +17,11 @@ import (
 // HTMLService working with prepared html template and repository
 type HTMLService struct {
 	template   *template.Template
-	repository di.ReadListRepository
+	repository di.ReadListStorage
 }
 
 // NewHTMLService returns HTMLService pointer
-func NewHTMLService(repository di.ReadListRepository) *HTMLService {
+func NewHTMLService(repository di.ReadListStorage) *HTMLService {
 	text := `<!DOCTYPE html>
 <html lang="en">
 <head>

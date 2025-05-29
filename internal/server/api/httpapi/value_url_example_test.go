@@ -1,30 +1,27 @@
-package api_test
+package httpapi_test
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/niksmo/runlytics/internal/server/api"
-	"github.com/niksmo/runlytics/pkg/httpserver/header"
-	"github.com/niksmo/runlytics/pkg/httpserver/mime"
+	"github.com/niksmo/runlytics/internal/server/api/httpapi"
 	"github.com/niksmo/runlytics/pkg/metrics"
 	"github.com/stretchr/testify/mock"
 )
 
 // ValueByJSONService represents mocked ValueService project component.
-type ValueByJSONService struct {
+type ValueByURLService struct {
 	mock.Mock
 }
 
 // Read assumes write "123.45" to metrics value.
-func (service *ValueByJSONService) Read(
+func (service *ValueByURLService) Read(
 	ctx context.Context, m *metrics.Metrics,
 ) error {
 	retArgs := service.Called(context.Background(), m)
@@ -35,35 +32,36 @@ func (service *ValueByJSONService) Read(
 	return retArgs.Error(0)
 }
 
-func ExampleSetValueHandler_readByJSON() {
-	var scheme metrics.Metrics
-	scheme.ID = "0"
-	scheme.MType = metrics.MTypeGauge
+func ExampleSetValueHandler_readByURLParams() {
+	id := "0"
+	mType := metrics.MTypeGauge
 
-	valueService := new(ValueByJSONService)
+	var scheme metrics.Metrics
+	scheme.ID = id
+	scheme.MType = mType
+
+	valueService := new(ValueByURLService)
 	valueService.On("Read", context.Background(), &scheme).Return(nil)
 
 	mux := chi.NewRouter()
-	api.SetValueHandler(mux, valueService)
+	httpapi.SetValueHandler(mux, valueService)
 
 	s := httptest.NewServer(mux)
 	defer s.Close()
 
-	var reqData bytes.Buffer
-	if err := json.NewEncoder(&reqData).Encode(scheme); err != nil {
-		fmt.Println(err)
-		return
-	}
+	reqURL, err := url.JoinPath(s.URL+"/value", mType, id)
 
 	req, err := http.NewRequestWithContext(
-		context.Background(), http.MethodPost, s.URL+"/value/", &reqData,
+		context.Background(),
+		http.MethodGet,
+		reqURL,
+		http.NoBody,
 	)
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
 
-	req.Header.Set(header.ContentType, mime.JSON)
 	res, err := s.Client().Do(req)
 	if err != nil {
 		fmt.Println(err)
@@ -74,5 +72,5 @@ func ExampleSetValueHandler_readByJSON() {
 	io.Copy(os.Stdout, res.Body)
 	// Output:
 	// 200
-	// {"value":123.45,"id":"0","type":"gauge"}
+	// 123.45
 }

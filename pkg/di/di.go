@@ -4,7 +4,6 @@ package di
 import (
 	"bytes"
 	"context"
-	"sync"
 
 	"github.com/niksmo/runlytics/pkg/metrics"
 )
@@ -62,44 +61,47 @@ type FileOperator interface {
 	FileSaver
 }
 
-// UpdateByNameRepository is the interface that wraps the
+// UpdateByNameStorage is the interface that wraps the
 // UpdateCounterByName and UpdateGaugeByName methods.
-type UpdateByNameRepository interface {
+type UpdateByNameStorage interface {
 	UpdateCounterByName(ctx context.Context, name string, value int64) (int64, error)
 	UpdateGaugeByName(ctx context.Context, name string, value float64) (float64, error)
 }
 
-// BatchUpdate is the interface that wraps the
+// BatchUpdateStorage is the interface that wraps the
 // UpdateCounterList and UpdateGaugeList methods.
-type BatchUpdate interface {
+type BatchUpdateStorage interface {
 	UpdateCounterList(ctx context.Context, slice metrics.MetricsList) error
 	UpdateGaugeList(ctx context.Context, slice metrics.MetricsList) error
 }
 
-// ReadByNameRepository is the interface that wraps the
+// ReadByNameStorage is the interface that wraps the
 // ReadCounterByName and ReadGaugeByName methods.
-type ReadByNameRepository interface {
+type ReadByNameStorage interface {
 	ReadCounterByName(ctx context.Context, name string) (int64, error)
 	ReadGaugeByName(ctx context.Context, name string) (float64, error)
 }
 
-// ReadListRepository is the interface that wraps the
+// ReadListStorage is the interface that wraps the
 // ReadGauge and ReadCounter methods.
-type ReadListRepository interface {
+type ReadListStorage interface {
 	ReadGauge(context.Context) (map[string]float64, error)
 	ReadCounter(context.Context) (map[string]int64, error)
 }
 
-// Repository is the interface that groups
+// Storage is the interface that groups
 // the UpdateCounterByName, UpdateGaugeByName, UpdateCounterList,
 // UpdateGaugeList,ReadCounterByName, ReadGaugeByName,
 // ReadGauge, ReadCounter and Run methods.
-type Repository interface {
-	ReadByNameRepository
-	ReadListRepository
-	UpdateByNameRepository
-	BatchUpdate
-	Run(stopCtx context.Context, wg *sync.WaitGroup)
+type Storage interface {
+	ReadByNameStorage
+	ReadListStorage
+	UpdateByNameStorage
+	BatchUpdateStorage
+	Run() error
+	MustRun()
+	Ping(context.Context) error
+	Stop()
 }
 
 // HealthCheckService is the interface that wraps the Check method.
