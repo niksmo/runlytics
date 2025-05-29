@@ -1,0 +1,17 @@
+syntax = "proto3";
+
+package runlytics;
+
+option go_package = "github.com/niksmo/runlytics/proto";
+
+service Runlytics {
+  rpc BatchUpdate (BatchUpdateRequest) returns (BatchUpdateResponse) {};
+}
+
+message BatchUpdateRequest {
+  bytes metrics = 1;
+}
+
+message BatchUpdateResponse {
+    uint32 updated_count = 1;
+}

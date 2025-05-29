@@ -19,11 +19,17 @@ const (
 var srcSettings = "settings.json" // change dynamically
 
 const (
-	addrFlagName     = "a"
-	addrEnvName      = "ADDRESS"
-	addrSettingsName = "address"
-	addrDefault      = "localhost:8080"
-	addrUsage        = "Listening server address, e.g. '127.0.0.1:8080'"
+	httpAddrFlagName     = "a"
+	httpAddrEnvName      = "ADDRESS"
+	httpAddrSettingsName = "address"
+	httpAddrDefault      = "localhost:8080"
+	httpAddrUsage        = "Listening http server address, e.g. '127.0.0.1:8080'"
+
+	grpcAddrFlagName     = "grpc"
+	grpcAddrEnvName      = "GRPC_ADDRESS"
+	grpcAddrSettingsName = "grpc_address"
+	grpcAddrDefault      = "localhost:8081"
+	grpcAddrUsage        = "Listening gRPC server address, e.g. '127.0.0.1:8081'"
 
 	logFlagName     = "l"
 	logEnvName      = "LOG_LVL"
@@ -80,6 +86,7 @@ var storeDefaultPath = getStoreDefaultPath()
 
 type values struct {
 	addr          *string
+	grpc          *string
 	log           *string
 	dsn           *string
 	store         *string
@@ -93,6 +100,7 @@ type values struct {
 
 type settings struct {
 	Address       *string `json:"address"`
+	GRPCAddress   *string `json:"grpc_address"`
 	Log           *string `json:"log"`
 	StoreFile     *string `json:"store_file"`
 	StoreInterval *int    `json:"store_interval"`
@@ -127,7 +135,8 @@ type ConfigParams struct {
 
 // ServerConfig describes server configurations parameters.
 type ServerConfig struct {
-	Addr        AddrConfig
+	HTTPAddr    HTTPAddrConfig
+	GRPCAddr    GRPCAddrConfig
 	FileStorage FileStorageConfig
 	Log         LogConfig
 	DB          DBConfig
@@ -167,7 +176,8 @@ func Load() *ServerConfig {
 		ErrStream:  errStream,
 	}
 
-	addrConfig := NewAddrConfig(params)
+	httpAddrConfig := NewHTTPAddrConfig(params)
+	grpcAddrConfig := NewGRPCAddrConfig(params)
 	logConfig := NewLogConfig(params)
 	dbConfig := NewDBConfig(params)
 
@@ -180,7 +190,8 @@ func Load() *ServerConfig {
 	trustedNetConfig := NewTrustedNetConfig(params)
 
 	return &ServerConfig{
-		Addr:        addrConfig,
+		HTTPAddr:    httpAddrConfig,
+		GRPCAddr:    grpcAddrConfig,
 		Log:         logConfig,
 		FileStorage: fileStorageConfig,
 		DB:          dbConfig,
@@ -198,7 +209,8 @@ func (c *ServerConfig) IsDatabase() bool {
 func setupFlagValues(flagSet *flag.FlagSet) values {
 	var fv values
 
-	fv.addr = flagSet.String(addrFlagName, addrDefault, addrUsage)
+	fv.addr = flagSet.String(httpAddrFlagName, httpAddrDefault, httpAddrUsage)
+	fv.grpc = flagSet.String(grpcAddrFlagName, grpcAddrDefault, grpcAddrUsage)
 	fv.log = flagSet.String(logFlagName, logDefault, logUsage)
 
 	fv.store = flagSet.String(
@@ -233,7 +245,8 @@ func setupFlagValues(flagSet *flag.FlagSet) values {
 
 func setupEnvValues(envSet *env.EnvSet) values {
 	var ev values
-	ev.addr = envSet.String(addrEnvName)
+	ev.addr = envSet.String(httpAddrEnvName)
+	ev.grpc = envSet.String(grpcAddrEnvName)
 	ev.log = envSet.String(logEnvName)
 	ev.store = envSet.String(storeEnvName)
 	ev.storeInterval = envSet.Int(storeIntervalEnvName)

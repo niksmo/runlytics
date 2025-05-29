@@ -32,9 +32,11 @@ func main() {
 	printServerConfig(config, logger.Log)
 
 	mux := chi.NewRouter()
-	setupMeddlewares(mux, config)
+	setupMiddlewares(mux, config)
 
-	pgDB := sqldb.New("pgx", config.DB.DSN, logger.Log.Sugar())
+	pgDB := sqldb.New("pgx", config.DB.DSN, func(err error) {
+		logger.Log.Warn("failed to connect to database", zap.Error(err))
+	})
 	fileOperator := fileoperator.New(config.FileStorage.File)
 	repository := storage.New(pgDB, fileOperator, config)
 
@@ -56,9 +58,7 @@ func main() {
 
 	api.SetHealthCheckHandler(mux, service.NewHealthCheckService(pgDB))
 
-	HTTPServer := httpserver.New(
-		config.Addr.TCPAddr.String(), mux, logger.Log.Sugar(),
-	)
+	HTTPServer := httpserver.New(config.HTTPAddr.TCPAddr.String(), mux)
 
 	stopCtx, stopFn := signal.NotifyContext(
 		context.Background(), syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT,
@@ -73,7 +73,7 @@ func main() {
 func printServerConfig(config *config.ServerConfig, logger *zap.Logger) {
 	logger.Info(
 		"Bootstrap server with flags",
-		zap.String("ADDRESS", config.Addr.TCPAddr.String()),
+		zap.String("ADDRESS", config.HTTPAddr.TCPAddr.String()),
 		zap.String("LOG_LVL", config.Log.Level),
 		zap.Float64(
 			"STORE_INTERVAL", config.FileStorage.SaveInterval.Seconds(),
@@ -87,7 +87,7 @@ func printServerConfig(config *config.ServerConfig, logger *zap.Logger) {
 	)
 }
 
-func setupMeddlewares(mux *chi.Mux, config *config.ServerConfig) {
+func setupMiddlewares(mux *chi.Mux, config *config.ServerConfig) {
 	decrypter, err := cipher.NewDecrypterX509(config.Crypto.Data)
 	if err != nil {
 		logger.Log.Fatal("failed to init decrypter", zap.Error(err))

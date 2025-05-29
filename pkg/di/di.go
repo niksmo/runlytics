@@ -33,13 +33,6 @@ type MetricsCollector interface {
 	CounterMetricsGetter
 }
 
-// Looger is the interface that wraps the Debugw, Infow and Errorw methods.
-type Logger interface {
-	Debugw(msg string, keysAndValues ...any)
-	Infow(msg string, keysAndValues ...any)
-	Errorw(msg string, keysAndValues ...any)
-}
-
 // FileCloser is the interface that wraps the basic Close method.
 type FileCloser interface {
 	Close() error
