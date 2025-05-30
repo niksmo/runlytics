@@ -10,12 +10,12 @@ import (
 
 // BatchUpdateService works with repository and provides BatchUpdate method.
 type BatchUpdateService struct {
-	repository di.BatchUpdateStorage
+	repository di.IBatchUpdateStorage
 }
 
 // NewBatchUpdateService returns BatchUpdateService pointer.
 func NewBatchUpdateService(
-	repository di.BatchUpdateStorage,
+	repository di.IBatchUpdateStorage,
 ) *BatchUpdateService {
 	return &BatchUpdateService{repository}
 }

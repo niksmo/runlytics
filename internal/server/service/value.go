@@ -10,11 +10,11 @@ import (
 
 // ReadService works with repository and provides Read method.
 type ReadService struct {
-	repository di.ReadByNameStorage
+	repository di.IReadByNameStorage
 }
 
 // NewReadService returns ReadService pointer.
-func NewReadService(repository di.ReadByNameStorage) *ReadService {
+func NewReadService(repository di.IReadByNameStorage) *ReadService {
 	return &ReadService{repository}
 }
 

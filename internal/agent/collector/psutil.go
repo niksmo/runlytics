@@ -26,7 +26,7 @@ func NewPsUtilStat(interval time.Duration) *PsUtilStat {
 	return collector
 }
 
-func (collector *PsUtilStat) Run() {
+func (collector *PsUtilStat) Run() error {
 	logger.Log.Info(
 		"Run PsUtilStat collector", zap.Float64("interval", collector.poll.Seconds()),
 	)

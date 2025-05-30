@@ -21,70 +21,82 @@ type CounterMetricsGetter interface {
 
 // Runner is the interface that wraps the Run method.
 type Runner interface {
-	Run()
+	Run() error
+}
+
+type MustRunner interface {
+	MustRun()
+}
+
+type Pinger interface {
+	Ping(context.Context) error
+}
+
+type Stopper interface {
+	Stop()
 }
 
 // MetricsCollector is the interface that groups
 // the GetGaugeMetrics, GetCounterMetrics and Run methods.
-type MetricsCollector interface {
+type IMetricsCollector interface {
 	Runner
 	GaugeMetricsGetter
 	CounterMetricsGetter
 }
 
-// FileCloser is the interface that wraps the basic Close method.
-type FileCloser interface {
+// Closer is the interface that wraps the basic Close method.
+type Closer interface {
 	Close() error
 }
 
-// FileClearer is the interface that wraps the basic Clear method.
-type FileClearer interface {
+// IClear is the interface that wraps the basic Clear method.
+type IClear interface {
 	Clear() error
 }
 
-// FileLoader is the interface that wraps the basic Load method.
-type FileLoader interface {
+// Loader is the interface that wraps the basic Load method.
+type Loader interface {
 	Load() ([]byte, error)
 }
 
-// FileSaver is the interface that wraps the basic Save method.
-type FileSaver interface {
+// Saver is the interface that wraps the basic Save method.
+type Saver interface {
 	Save([]byte) error
 }
 
 // FileOperator is the interface that wraps the
 // Clear, Load, Save and Close methods.
 type FileOperator interface {
-	FileClearer
-	FileCloser
-	FileLoader
-	FileSaver
+	IClear
+	Closer
+	Loader
+	Saver
 }
 
-// UpdateByNameStorage is the interface that wraps the
+// IUpdateByNameStorage is the interface that wraps the
 // UpdateCounterByName and UpdateGaugeByName methods.
-type UpdateByNameStorage interface {
+type IUpdateByNameStorage interface {
 	UpdateCounterByName(ctx context.Context, name string, value int64) (int64, error)
 	UpdateGaugeByName(ctx context.Context, name string, value float64) (float64, error)
 }
 
-// BatchUpdateStorage is the interface that wraps the
+// IBatchUpdateStorage is the interface that wraps the
 // UpdateCounterList and UpdateGaugeList methods.
-type BatchUpdateStorage interface {
+type IBatchUpdateStorage interface {
 	UpdateCounterList(ctx context.Context, slice metrics.MetricsList) error
 	UpdateGaugeList(ctx context.Context, slice metrics.MetricsList) error
 }
 
-// ReadByNameStorage is the interface that wraps the
+// IReadByNameStorage is the interface that wraps the
 // ReadCounterByName and ReadGaugeByName methods.
-type ReadByNameStorage interface {
+type IReadByNameStorage interface {
 	ReadCounterByName(ctx context.Context, name string) (int64, error)
 	ReadGaugeByName(ctx context.Context, name string) (float64, error)
 }
 
-// ReadListStorage is the interface that wraps the
+// IReadListStorage is the interface that wraps the
 // ReadGauge and ReadCounter methods.
-type ReadListStorage interface {
+type IReadListStorage interface {
 	ReadGauge(context.Context) (map[string]float64, error)
 	ReadCounter(context.Context) (map[string]int64, error)
 }
@@ -93,15 +105,15 @@ type ReadListStorage interface {
 // the UpdateCounterByName, UpdateGaugeByName, UpdateCounterList,
 // UpdateGaugeList,ReadCounterByName, ReadGaugeByName,
 // ReadGauge, ReadCounter and Run methods.
-type Storage interface {
-	ReadByNameStorage
-	ReadListStorage
-	UpdateByNameStorage
-	BatchUpdateStorage
-	Run() error
-	MustRun()
-	Ping(context.Context) error
-	Stop()
+type IStorage interface {
+	IReadByNameStorage
+	IReadListStorage
+	IUpdateByNameStorage
+	IBatchUpdateStorage
+	Runner
+	MustRunner
+	Pinger
+	Stopper
 }
 
 // HealthCheckService is the interface that wraps the Check method.
@@ -145,13 +157,13 @@ type IErr interface {
 }
 
 // Job is the interface that wraps the ID and Payload methods.
-type Job interface {
+type IJob interface {
 	IID
 	IPayload
 }
 
 // JobErr is the interface that wraps the ID and Err methods.
-type JobErr interface {
+type IJobErr interface {
 	IID
 	IErr
 }

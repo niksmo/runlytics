@@ -45,9 +45,9 @@ func New(interval time.Duration) *JobGenerator {
 
 func (g *JobGenerator) Run(
 	stopCtx context.Context,
-	jobCh chan<- di.Job,
-	errCh <-chan di.JobErr,
-	collectors []di.MetricsCollector,
+	jobCh chan<- di.IJob,
+	errCh <-chan di.IJobErr,
+	collectors []di.IMetricsCollector,
 ) {
 	ticker := time.NewTicker(g.interval)
 	defer ticker.Stop()
@@ -78,7 +78,7 @@ func (g *JobGenerator) getJobID() int64 {
 }
 
 func (g *JobGenerator) makeJob(
-	id int64, collector di.MetricsCollector,
+	id int64, collector di.IMetricsCollector,
 ) *Job {
 	var payload []metrics.Metrics
 	for name, value := range collector.GetGaugeMetrics() {

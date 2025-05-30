@@ -27,7 +27,7 @@ func NewManualStat(interval time.Duration) *ManualStat {
 	return collector
 }
 
-func (collector *ManualStat) Run() {
+func (collector *ManualStat) Run() error {
 	logger.Log.Info(
 		"Run ManualStat collector", zap.Float64("interval", collector.poll.Seconds()),
 	)

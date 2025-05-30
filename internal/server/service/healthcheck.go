@@ -14,11 +14,11 @@ var (
 
 // HealthCheckService works with storage and provides Check method.
 type HealthCheckService struct {
-	storage di.Storage
+	storage di.IStorage
 }
 
 // NewHealthCheckService returns HealthCheckService pointer.
-func NewHealthCheckService(storage di.Storage) *HealthCheckService {
+func NewHealthCheckService(storage di.IStorage) *HealthCheckService {
 	return &HealthCheckService{storage: storage}
 }
 

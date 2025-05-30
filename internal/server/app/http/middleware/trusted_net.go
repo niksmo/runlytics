@@ -4,7 +4,7 @@ import (
 	"net"
 	"net/http"
 
-	"github.com/niksmo/runlytics/pkg/httpserver/header"
+	"github.com/niksmo/runlytics/internal/server/app/http/header"
 )
 
 func TrustedNet(ipNet *net.IPNet) func(http.Handler) http.Handler {

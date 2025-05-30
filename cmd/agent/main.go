@@ -80,8 +80,8 @@ func printAgentConfig(config *config.AgentConfig, logger *zap.Logger) {
 	)
 }
 
-func runCollectors(config *config.AgentConfig) []di.MetricsCollector {
-	collectors := []di.MetricsCollector{
+func runCollectors(config *config.AgentConfig) []di.IMetricsCollector {
+	collectors := []di.IMetricsCollector{
 		collector.NewRuntimeMemStat(config.Metrics.Poll),
 		collector.NewManualStat(config.Metrics.Poll),
 		collector.NewPsUtilStat(config.Metrics.Poll),
@@ -95,11 +95,11 @@ func runCollectors(config *config.AgentConfig) []di.MetricsCollector {
 
 func runJobGenerator(
 	ctx context.Context,
-	collectors []di.MetricsCollector,
+	collectors []di.IMetricsCollector,
 	config *config.AgentConfig,
-) (jobCh chan di.Job, errCh chan di.JobErr) {
-	jobCh = make(chan di.Job, config.Metrics.JobsBuf)
-	errCh = make(chan di.JobErr, config.Metrics.JobsErrBuf)
+) (jobCh chan di.IJob, errCh chan di.IJobErr) {
+	jobCh = make(chan di.IJob, config.Metrics.JobsBuf)
+	errCh = make(chan di.IJobErr, config.Metrics.JobsErrBuf)
 	jobGenerator := generator.New(config.Metrics.Report)
 	go jobGenerator.Run(ctx, jobCh, errCh, collectors)
 	return jobCh, errCh

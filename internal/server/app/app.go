@@ -16,7 +16,7 @@ import (
 type App struct {
 	GRPCServer *grpcapp.App
 	HTTPServer *httpapp.App
-	Storage    di.Storage
+	Storage    di.IStorage
 }
 
 func New(cfg *config.ServerConfig) *App {

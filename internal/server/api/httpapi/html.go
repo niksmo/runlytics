@@ -5,9 +5,9 @@ import (
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/niksmo/runlytics/internal/server/app/http/header"
+	"github.com/niksmo/runlytics/internal/server/app/http/mime"
 	"github.com/niksmo/runlytics/pkg/di"
-	"github.com/niksmo/runlytics/pkg/httpserver/header"
-	"github.com/niksmo/runlytics/pkg/httpserver/mime"
 )
 
 // HTMLHandler works with service and provide MetricsHTML method.

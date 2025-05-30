@@ -10,11 +10,11 @@ import (
 
 // UpdateService works with repository and provides Update method.
 type UpdateService struct {
-	repository di.UpdateByNameStorage
+	repository di.IUpdateByNameStorage
 }
 
 // NewUpdateService returns UpdateService pointer.
-func NewUpdateService(repository di.UpdateByNameStorage) *UpdateService {
+func NewUpdateService(repository di.IUpdateByNameStorage) *UpdateService {
 	return &UpdateService{repository}
 }
 

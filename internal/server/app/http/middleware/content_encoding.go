@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/niksmo/runlytics/pkg/httpserver/header"
+	"github.com/niksmo/runlytics/internal/server/app/http/header"
 )
 
 func AllowContentEncoding(

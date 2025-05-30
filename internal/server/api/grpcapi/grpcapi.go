@@ -40,6 +40,16 @@ func (s *serverAPI) BatchUpdate(
 		)
 	}
 
+	err = ml.Verify(
+		metrics.VerifyID,
+		metrics.VerifyType,
+		metrics.VerifyDelta,
+		metrics.VerifyValue,
+	)
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+
 	err = s.batchUpdateService.BatchUpdate(ctx, ml)
 	if err != nil {
 		return nil, status.Error(

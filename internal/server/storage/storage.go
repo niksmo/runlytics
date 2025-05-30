@@ -12,7 +12,7 @@ import (
 // New is a fabric method that returns storage with [di.Storage] interface.
 func New(
 	fo di.FileOperator, dsn string, saveInterval time.Duration, restore bool,
-) di.Storage {
+) di.IStorage {
 	if dsn != "" {
 		return psqlstorage.New(dsn)
 	}

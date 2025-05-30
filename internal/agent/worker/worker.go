@@ -15,8 +15,6 @@ import (
 
 	"github.com/niksmo/runlytics/internal/logger"
 	"github.com/niksmo/runlytics/pkg/di"
-	"github.com/niksmo/runlytics/pkg/httpserver/header"
-	"github.com/niksmo/runlytics/pkg/httpserver/mime"
 	"github.com/niksmo/runlytics/pkg/metrics"
 	"go.uber.org/zap"
 )
@@ -49,8 +47,8 @@ func (e *JobErr) Err() error {
 
 type WorkerParams struct {
 	Wg         *sync.WaitGroup
-	JobCh      <-chan di.Job
-	ErrCh      chan<- di.JobErr
+	JobCh      <-chan di.IJob
+	ErrCh      chan<- di.IJobErr
 	URL        string
 	Key        string
 	Encrypter  di.Encrypter
@@ -160,14 +158,14 @@ func createRequest(
 	if err != nil {
 		logger.Log.Panic("Error while creating http request", zap.Error(err))
 	}
-	request.Header.Set(header.ContentType, mime.JSON)
-	request.Header.Set(header.ContentEncoding, "gzip")
-	request.Header.Set(header.AcceptEncoding, "gzip")
+	request.Header.Set("Content-Type", "application/json")
+	request.Header.Set("Content-Encoding", "gzip")
+	request.Header.Set("Accept-Encoding", "gzip")
 	if sha256 != "" {
 		request.Header.Set(headerHashKey, sha256)
 	}
 	if outboundIP != "" {
-		request.Header.Set(header.XRealIP, outboundIP)
+		request.Header.Set("X-Real-IP", outboundIP)
 	}
 	return request
 }
@@ -175,7 +173,7 @@ func createRequest(
 func readBody(response *http.Response) []byte {
 	defer response.Body.Close()
 
-	if response.Header.Get(header.ContentEncoding) == "gzip" {
+	if response.Header.Get("Content-Encoding") == "gzip" {
 		gzipReader, err := gzip.NewReader(response.Body)
 		if err != nil {
 			logger.Log.Panic("Error while creating new gzip reader", zap.Error(err))

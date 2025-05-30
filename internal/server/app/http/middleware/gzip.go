@@ -6,8 +6,8 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/niksmo/runlytics/pkg/httpserver/header"
-	"github.com/niksmo/runlytics/pkg/httpserver/mime"
+	"github.com/niksmo/runlytics/internal/server/app/http/header"
+	"github.com/niksmo/runlytics/internal/server/app/http/mime"
 )
 
 const gzipFormat = "gzip"
