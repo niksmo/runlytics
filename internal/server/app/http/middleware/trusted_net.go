@@ -3,8 +3,6 @@ package middleware
 import (
 	"net"
 	"net/http"
-
-	"github.com/niksmo/runlytics/internal/server/app/http/header"
 )
 
 func TrustedNet(ipNet *net.IPNet) func(http.Handler) http.Handler {
@@ -19,7 +17,7 @@ type trustedNetHandler struct {
 }
 
 func (h trustedNetHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	clientIP := net.ParseIP(r.Header.Get(header.XRealIP))
+	clientIP := net.ParseIP(r.Header.Get(XRealIP))
 	if clientIP == nil || !h.ipNet.Contains(clientIP) {
 		w.WriteHeader(http.StatusForbidden)
 		return

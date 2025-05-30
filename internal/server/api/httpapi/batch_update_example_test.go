@@ -10,8 +10,6 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/niksmo/runlytics/internal/server/api/httpapi"
-	"github.com/niksmo/runlytics/internal/server/app/http/header"
-	"github.com/niksmo/runlytics/internal/server/app/http/mime"
 	"github.com/niksmo/runlytics/pkg/metrics"
 	"github.com/stretchr/testify/mock"
 )
@@ -61,7 +59,7 @@ func ExampleSetBatchUpdateHandler() {
 		fmt.Println(err)
 		return
 	}
-	req.Header.Set(header.ContentType, mime.JSON)
+	req.Header.Set(httpapi.ContentType, httpapi.JSON)
 
 	res, err := s.Client().Do(req)
 	if err != nil {

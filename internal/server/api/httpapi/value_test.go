@@ -16,9 +16,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/niksmo/runlytics/internal/server"
 	"github.com/niksmo/runlytics/internal/server/api/httpapi"
-	"github.com/niksmo/runlytics/internal/server/app/http/header"
 	"github.com/niksmo/runlytics/internal/server/app/http/middleware"
-	"github.com/niksmo/runlytics/internal/server/app/http/mime"
 	"github.com/niksmo/runlytics/pkg/metrics"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -81,7 +79,7 @@ func TestReadByJSONHandler(t *testing.T) {
 				context.Background(), method, makeURL(s.URL), reqBody,
 			)
 			require.NoError(t, err)
-			req.Header.Set(header.ContentType, mime.JSON)
+			req.Header.Set(httpapi.ContentType, httpapi.JSON)
 
 			res, err := s.Client().Do(req)
 			require.NoError(t, err)
@@ -116,7 +114,7 @@ func TestReadByJSONHandler(t *testing.T) {
 			context.Background(), http.MethodPost, makeURL(s.URL), reqBody,
 		)
 		require.NoError(t, err)
-		req.Header.Set(header.ContentType, mime.TEXT)
+		req.Header.Set(httpapi.ContentType, httpapi.TEXT)
 
 		res, err := s.Client().Do(req)
 		require.NoError(t, err)
@@ -150,7 +148,7 @@ func TestReadByJSONHandler(t *testing.T) {
 			context.Background(), http.MethodPost, makeURL(s.URL), reqBody,
 		)
 		require.NoError(t, err)
-		req.Header.Set(header.ContentType, mime.JSON)
+		req.Header.Set(httpapi.ContentType, httpapi.JSON)
 
 		res, err := s.Client().Do(req)
 		require.NoError(t, err)
@@ -180,7 +178,7 @@ func TestReadByJSONHandler(t *testing.T) {
 			context.Background(), http.MethodPost, makeURL(s.URL), reqBody,
 		)
 		require.NoError(t, err)
-		req.Header.Set(header.ContentType, mime.JSON)
+		req.Header.Set(httpapi.ContentType, httpapi.JSON)
 
 		res, err := s.Client().Do(req)
 		require.NoError(t, err)
@@ -213,7 +211,7 @@ func TestReadByJSONHandler(t *testing.T) {
 			context.Background(), http.MethodPost, makeURL(s.URL), &buf,
 		)
 		require.NoError(t, err)
-		req.Header.Set(header.ContentType, mime.JSON)
+		req.Header.Set(httpapi.ContentType, httpapi.JSON)
 
 		res, err := s.Client().Do(req)
 		require.NoError(t, err)
@@ -251,7 +249,7 @@ func TestReadByJSONHandler(t *testing.T) {
 			context.Background(), http.MethodPost, makeURL(s.URL), &buf,
 		)
 		require.NoError(t, err)
-		req.Header.Set(header.ContentType, mime.JSON)
+		req.Header.Set(httpapi.ContentType, httpapi.JSON)
 
 		res, err := s.Client().Do(req)
 		require.NoError(t, err)
@@ -286,12 +284,12 @@ func TestReadByJSONHandler(t *testing.T) {
 			context.Background(), http.MethodPost, makeURL(s.URL), &bufReq,
 		)
 		require.NoError(t, err)
-		req.Header.Set(header.ContentType, mime.JSON)
+		req.Header.Set(httpapi.ContentType, httpapi.JSON)
 
 		res, err := s.Client().Do(req)
 		require.NoError(t, err)
 		require.Equal(t, http.StatusOK, res.StatusCode)
-		require.Equal(t, mime.JSON, res.Header.Get(header.ContentType))
+		require.Equal(t, httpapi.JSON, res.Header.Get(httpapi.ContentType))
 
 		data, err := io.ReadAll(res.Body)
 		require.NoError(t, err)
@@ -328,8 +326,8 @@ func TestReadByJSONHandler(t *testing.T) {
 				context.Background(), http.MethodPost, makeURL(s.URL), reqBody,
 			)
 			require.NoError(t, err)
-			req.Header.Set(header.ContentType, mime.JSON)
-			req.Header.Set(header.ContentEncoding, "br")
+			req.Header.Set(httpapi.ContentType, httpapi.JSON)
+			req.Header.Set(httpapi.ContentEncoding, "br")
 
 			res, err := s.Client().Do(req)
 			require.NoError(t, err)
@@ -372,13 +370,13 @@ func TestReadByJSONHandler(t *testing.T) {
 				context.Background(), http.MethodPost, makeURL(s.URL), &buf,
 			)
 			require.NoError(t, err)
-			req.Header.Set(header.ContentType, mime.JSON)
-			req.Header.Set(header.ContentEncoding, "gzip")
+			req.Header.Set(httpapi.ContentType, httpapi.JSON)
+			req.Header.Set(httpapi.ContentEncoding, "gzip")
 
 			res, err := s.Client().Do(req)
 			require.NoError(t, err)
 			require.Equal(t, http.StatusOK, res.StatusCode)
-			assert.Empty(t, res.Header.Get(header.ContentEncoding))
+			assert.Empty(t, res.Header.Get(httpapi.ContentEncoding))
 
 			data, err := io.ReadAll(res.Body)
 			require.NoError(t, err)
@@ -418,8 +416,8 @@ func TestReadByJSONHandler(t *testing.T) {
 				context.Background(), http.MethodPost, makeURL(s.URL), &bufReq,
 			)
 			require.NoError(t, err)
-			req.Header.Set(header.ContentType, mime.JSON)
-			req.Header.Set(header.AcceptEncoding, "gzip")
+			req.Header.Set(httpapi.ContentType, httpapi.JSON)
+			req.Header.Set(httpapi.AcceptEncoding, "gzip")
 
 			res, err := s.Client().Do(req)
 			require.NoError(t, err)

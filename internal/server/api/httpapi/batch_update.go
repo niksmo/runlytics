@@ -7,7 +7,6 @@ import (
 	"github.com/niksmo/runlytics/internal/server"
 	"github.com/niksmo/runlytics/internal/server/app/http/middleware"
 	"github.com/niksmo/runlytics/pkg/di"
-	"github.com/niksmo/runlytics/pkg/jsonhttp"
 	"github.com/niksmo/runlytics/pkg/metrics"
 )
 
@@ -33,7 +32,7 @@ func SetBatchUpdateHandler(mux *chi.Mux, service di.BatchUpdateService) {
 func (h *BatchUpdateHandler) BatchUpdate() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var ml metrics.MetricsList
-		if err := jsonhttp.ReadRequest(r, &ml); err != nil {
+		if err := ReadJSONRequest(r, &ml); err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}

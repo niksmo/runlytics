@@ -10,7 +10,6 @@ import (
 	"github.com/niksmo/runlytics/internal/server"
 	"github.com/niksmo/runlytics/internal/server/app/http/middleware"
 	"github.com/niksmo/runlytics/pkg/di"
-	"github.com/niksmo/runlytics/pkg/jsonhttp"
 	"github.com/niksmo/runlytics/pkg/metrics"
 	"go.uber.org/zap"
 )
@@ -43,7 +42,7 @@ func SetValueHandler(mux *chi.Mux, service di.ReadService) {
 func (h *ValueHandler) ReadByJSON() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var m metrics.Metrics
-		if err := jsonhttp.ReadRequest(r, &m); err != nil {
+		if err := ReadJSONRequest(r, &m); err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
@@ -69,7 +68,7 @@ func (h *ValueHandler) ReadByJSON() http.HandlerFunc {
 			return
 		}
 
-		err = jsonhttp.WriteResponse(w, http.StatusOK, m)
+		err = WriteJSONResponse(w, http.StatusOK, m)
 		if err != nil {
 			logger.Log.Error("error on write response", zap.Error(err))
 			http.Error(

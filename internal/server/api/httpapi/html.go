@@ -5,8 +5,6 @@ import (
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/niksmo/runlytics/internal/server/app/http/header"
-	"github.com/niksmo/runlytics/internal/server/app/http/mime"
 	"github.com/niksmo/runlytics/pkg/di"
 )
 
@@ -35,7 +33,7 @@ func (handler *HTMLHandler) MetricsHTML() http.HandlerFunc {
 			return
 		}
 
-		w.Header().Set(header.ContentType, mime.HTML)
+		w.Header().Set(ContentType, HTML)
 		w.WriteHeader(http.StatusOK)
 		if _, err = buf.WriteTo(w); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)

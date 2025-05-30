@@ -2,12 +2,15 @@
 package storage
 
 import (
+	"errors"
 	"time"
 
 	"github.com/niksmo/runlytics/internal/server/storage/filestorage"
 	psqlstorage "github.com/niksmo/runlytics/internal/server/storage/postgresql"
 	"github.com/niksmo/runlytics/pkg/di"
 )
+
+var ErrNotExists = errors.New("not exists")
 
 // New is a fabric method that returns storage with [di.Storage] interface.
 func New(
