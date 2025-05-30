@@ -19,16 +19,16 @@ func main() {
 	logger.Init(config.Log.Level)
 	config.PrintConfig(logger.Log)
 
-	application := app.New(config)
-	go application.HTTPServer.MustRun()
-	go application.GRPCServer.MustRun()
-	go application.Storage.MustRun()
-
 	stopCtx, stopFn := signal.NotifyContext(
 		context.Background(),
 		syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT,
 	)
 	defer stopFn()
+
+	application := app.New(config)
+	go application.HTTPServer.MustRun()
+	go application.GRPCServer.MustRun()
+	go application.Storage.MustRun()
 
 	<-stopCtx.Done()
 	application.HTTPServer.Stop()

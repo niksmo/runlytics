@@ -36,6 +36,11 @@ type Stopper interface {
 	Stop()
 }
 
+type MustRunStopper interface {
+	MustRunner
+	Stopper
+}
+
 // MetricsCollector is the interface that groups
 // the GetGaugeMetrics, GetCounterMetrics and Run methods.
 type IMetricsCollector interface {

@@ -14,9 +14,9 @@ import (
 )
 
 type App struct {
-	GRPCServer *grpcapp.App
-	HTTPServer *httpapp.App
-	Storage    di.IStorage
+	GRPCServer di.MustRunStopper
+	HTTPServer di.MustRunStopper
+	Storage    di.MustRunStopper
 }
 
 func New(cfg *config.ServerConfig) *App {
