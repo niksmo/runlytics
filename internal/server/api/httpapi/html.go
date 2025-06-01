@@ -10,11 +10,11 @@ import (
 
 // HTMLHandler works with service and provide MetricsHTML method.
 type HTMLHandler struct {
-	service di.HTMLService
+	service di.IHTMLService
 }
 
 // SetHTMLHandler sets MetricsHTML handler to "/" path.
-func SetHTMLHandler(mux *chi.Mux, service di.HTMLService) {
+func SetHTMLHandler(mux *chi.Mux, service di.IHTMLService) {
 	path := "/"
 	handler := &HTMLHandler{service}
 	mux.Route(path, func(r chi.Router) {

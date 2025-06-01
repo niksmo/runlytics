@@ -45,10 +45,19 @@ func (e *JobErr) Err() error {
 	return e.err
 }
 
+type IJob interface {
+	ID() int64
+	Payload() metrics.MetricsList
+}
+
+type IJobErr interface {
+	Err() error
+}
+
 type WorkerParams struct {
 	Wg         *sync.WaitGroup
-	JobCh      <-chan di.IJob
-	ErrCh      chan<- di.IJobErr
+	JobCh      <-chan IJob
+	ErrCh      chan<- IJobErr
 	URL        string
 	Key        string
 	Encrypter  di.Encrypter

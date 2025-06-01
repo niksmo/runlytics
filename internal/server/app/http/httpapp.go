@@ -23,11 +23,11 @@ type App struct {
 }
 
 type AppParams struct {
-	HTMLService        di.HTMLService
-	UpdateService      di.UpdateService
-	ReadService        di.ReadService
-	HealthCheckService di.HealthCheckService
-	BatchUpdateService di.BatchUpdateService
+	HTMLService        di.IHTMLService
+	UpdateService      di.IUpdateService
+	ReadService        di.IReadService
+	HealthCheckService di.IHealthCheckService
+	BatchUpdateService di.IBatchUpdateService
 	Addr               *net.TCPAddr
 	HashKey            string
 	Decrypter          di.Decrypter
@@ -55,11 +55,11 @@ func New(p AppParams) *App {
 	httpapi.Register(
 		mux,
 		httpapi.RegisterServices{
-			HTMLService:        p.HTMLService,
-			UpdateService:      p.UpdateService,
-			BatchUpdateService: p.BatchUpdateService,
-			ReadService:        p.ReadService,
-			HealthCheckService: p.HealthCheckService,
+			IHTMLService:        p.HTMLService,
+			IUpdateService:      p.UpdateService,
+			IBatchUpdateService: p.BatchUpdateService,
+			IReadService:        p.ReadService,
+			IHealthCheckService: p.HealthCheckService,
 		},
 	)
 

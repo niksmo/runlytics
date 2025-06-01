@@ -6,11 +6,11 @@ import (
 	"net"
 	"os"
 	"runtime"
-	"time"
 
 	"github.com/niksmo/runlytics/pkg/env"
 	"github.com/niksmo/runlytics/pkg/failprint"
 	"github.com/niksmo/runlytics/pkg/flag"
+	"go.uber.org/zap"
 )
 
 const (
@@ -166,10 +166,6 @@ func Load() *AgentConfig {
 
 }
 
-func (c *AgentConfig) HTTPClientTimeout() time.Duration {
-	return c.Metrics.Report - 100*time.Millisecond
-}
-
 func (c *AgentConfig) GetOutboundIP() string {
 	conn, err := net.Dial("udp", c.Server.Addr.String())
 	if err != nil {
@@ -179,6 +175,20 @@ func (c *AgentConfig) GetOutboundIP() string {
 	defer conn.Close()
 	localAddr := conn.LocalAddr().(*net.UDPAddr)
 	return localAddr.IP.String()
+}
+
+func (c *AgentConfig) PrintConfig(logger *zap.Logger) {
+	logger.Info(
+		"Start agent with flags",
+		zap.String("-"+addrFlagName, c.Server.URL()),
+		zap.String("-"+logFlagName, c.Log.Level),
+		zap.String("-"+pollFlagName, c.Metrics.Poll.String()),
+		zap.String("-"+reportFlagName, c.Metrics.Report.String()),
+		zap.String("-"+hashKeyFlagName, c.HashKey.Key),
+		zap.Int("-"+rateLimitFlagName, c.Metrics.RateLimit),
+		zap.String("-"+cryptoKeyFlagName, c.Crypto.Path),
+		zap.String("outboundIP", c.GetOutboundIP()),
+	)
 }
 
 func setupFlagValues(flagSet *flag.FlagSet) values {

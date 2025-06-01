@@ -8,20 +8,15 @@ import (
 	"github.com/niksmo/runlytics/pkg/metrics"
 )
 
-// GaugeMetricsGetter is the interface that wraps the GetGaugeMetrics method.
-type GaugeMetricsGetter interface {
-	GetGaugeMetrics() map[string]float64
+// MetricsGetter is the interface that wraps the GetGaugeMetrics method.
+type MetricsGetter interface {
+	GetMetrics() metrics.MetricsList
 }
 
-// CounterMetricsGetter is the interface
-// that wraps the GetCounterMetrics method.
-type CounterMetricsGetter interface {
-	GetCounterMetrics() map[string]int64
-}
+type SendMetricsFunc func(context.Context, metrics.MetricsList) error
 
-// Runner is the interface that wraps the Run method.
 type Runner interface {
-	Run() error
+	Run()
 }
 
 type MustRunner interface {
@@ -36,17 +31,22 @@ type Stopper interface {
 	Stop()
 }
 
+type RunStopper interface {
+	Runner
+	Stopper
+}
+
 type MustRunStopper interface {
 	MustRunner
 	Stopper
 }
 
-// MetricsCollector is the interface that groups
-// the GetGaugeMetrics, GetCounterMetrics and Run methods.
-type IMetricsCollector interface {
+// MetricsProvider is the interface that groups
+// the GetMetrics, Run and Stop methods.
+type MetricsProvider interface {
+	MetricsGetter
+	Stopper
 	Runner
-	GaugeMetricsGetter
-	CounterMetricsGetter
 }
 
 // Closer is the interface that wraps the basic Close method.
@@ -115,62 +115,34 @@ type IStorage interface {
 	IReadListStorage
 	IUpdateByNameStorage
 	IBatchUpdateStorage
-	Runner
 	MustRunner
 	Pinger
 	Stopper
 }
 
-// HealthCheckService is the interface that wraps the Check method.
-type HealthCheckService interface {
+// IHealthCheckService is the interface that wraps the Check method.
+type IHealthCheckService interface {
 	Check(ctx context.Context) error
 }
 
-// HTMLService is the interface that wraps the RenderMetricsList method.
-type HTMLService interface {
+// IHTMLService is the interface that wraps the RenderMetricsList method.
+type IHTMLService interface {
 	RenderMetricsList(ctx context.Context, buf *bytes.Buffer) error
 }
 
-// ReadService is the interface that wraps the Read method.
-type ReadService interface {
+// IReadService is the interface that wraps the Read method.
+type IReadService interface {
 	Read(context.Context, *metrics.Metrics) error
 }
 
-// UpdateService is the interface that wraps the Update method.
-type UpdateService interface {
+// IUpdateService is the interface that wraps the Update method.
+type IUpdateService interface {
 	Update(context.Context, *metrics.Metrics) error
 }
 
-// BatchUpdateService is the interface that wraps the BatchUpdate method.
-type BatchUpdateService interface {
+// IBatchUpdateService is the interface that wraps the BatchUpdate method.
+type IBatchUpdateService interface {
 	BatchUpdate(context.Context, metrics.MetricsList) error
-}
-
-// IID is the interface that wraps the ID method.
-type IID interface {
-	ID() int64
-}
-
-// IPayload is the interface that wraps the Payload method.
-type IPayload interface {
-	Payload() []metrics.Metrics
-}
-
-// IErr is the interface that wraps the Err method.
-type IErr interface {
-	Err() error
-}
-
-// Job is the interface that wraps the ID and Payload methods.
-type IJob interface {
-	IID
-	IPayload
-}
-
-// JobErr is the interface that wraps the ID and Err methods.
-type IJobErr interface {
-	IID
-	IErr
 }
 
 // Decrypter is the interface that wraps the DecryptMsg method.

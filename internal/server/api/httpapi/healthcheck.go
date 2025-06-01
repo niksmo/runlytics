@@ -9,11 +9,11 @@ import (
 
 // HealthCheckHandler works with service and provides Ping method.
 type HealthCheckHandler struct {
-	service di.HealthCheckService
+	service di.IHealthCheckService
 }
 
 // SetHealthCheckHandler sets Ping handler to "/ping" path.
-func SetHealthCheckHandler(mux *chi.Mux, service di.HealthCheckService) {
+func SetHealthCheckHandler(mux *chi.Mux, service di.IHealthCheckService) {
 	path := "/ping"
 	handler := &HealthCheckHandler{service}
 	mux.Get(path, handler.Ping())

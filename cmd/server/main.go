@@ -15,9 +15,9 @@ import (
 
 func main() {
 	buildinfo.Print()
-	config := config.Load()
-	logger.Init(config.Log.Level)
-	config.PrintConfig(logger.Log)
+	cfg := config.Load()
+	logger.Init(cfg.Log.Level)
+	cfg.PrintConfig(logger.Log)
 
 	stopCtx, stopFn := signal.NotifyContext(
 		context.Background(),
@@ -25,7 +25,7 @@ func main() {
 	)
 	defer stopFn()
 
-	application := app.New(config)
+	application := app.New(cfg)
 	go application.HTTPServer.MustRun()
 	go application.GRPCServer.MustRun()
 	go application.Storage.MustRun()

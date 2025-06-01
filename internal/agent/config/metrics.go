@@ -9,8 +9,6 @@ const (
 	minPollInterval   = 1
 	minReportInterval = 1
 	minRateLimit      = 1
-	jobsBuf           = 1024
-	jobsErrBuf        = 128
 )
 
 type MetricsConfig struct {
@@ -25,8 +23,6 @@ func NewMetricsConfig(p ConfigParams) (mc MetricsConfig) {
 	mc.initReport(p)
 	mc.initRateLimit(p)
 	mc.verifyPollVsReport(p.ErrStream)
-	mc.JobsBuf = jobsBuf
-	mc.JobsErrBuf = jobsErrBuf
 	return
 }
 

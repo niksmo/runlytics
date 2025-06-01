@@ -17,14 +17,14 @@ import (
 // ValueHandler works with service and provides
 // ReadByJSON and ReadByURLParams methods.
 type ValueHandler struct {
-	service di.ReadService
+	service di.IReadService
 }
 
 // SetValueHandler sets ValueHandler to "/value" path.
 //
 //   - "/value/" to ReadByJSON method, only JSON media type is allowed
 //   - "/value/{type}/{name}" to ReadByURLParams method
-func SetValueHandler(mux *chi.Mux, service di.ReadService) {
+func SetValueHandler(mux *chi.Mux, service di.IReadService) {
 	path := "/value"
 	handler := &ValueHandler{service}
 	mux.Route(path, func(r chi.Router) {

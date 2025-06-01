@@ -29,19 +29,19 @@ const (
 )
 
 type RegisterServices struct {
-	di.HTMLService
-	di.UpdateService
-	di.BatchUpdateService
-	di.ReadService
-	di.HealthCheckService
+	di.IHTMLService
+	di.IUpdateService
+	di.IBatchUpdateService
+	di.IReadService
+	di.IHealthCheckService
 }
 
 func Register(mux *chi.Mux, s RegisterServices) {
-	SetHTMLHandler(mux, s.HTMLService)
-	SetUpdateHandler(mux, s.UpdateService)
-	SetBatchUpdateHandler(mux, s.BatchUpdateService)
-	SetValueHandler(mux, s.ReadService)
-	SetHealthCheckHandler(mux, s.HealthCheckService)
+	SetHTMLHandler(mux, s.IHTMLService)
+	SetUpdateHandler(mux, s.IUpdateService)
+	SetBatchUpdateHandler(mux, s.IBatchUpdateService)
+	SetValueHandler(mux, s.IReadService)
+	SetHealthCheckHandler(mux, s.IHealthCheckService)
 }
 
 // ReadRequest decode request body from JSON objects.

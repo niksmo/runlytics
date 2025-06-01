@@ -15,12 +15,12 @@ import (
 
 type serverAPI struct {
 	pb.UnimplementedRunlyticsServer
-	batchUpdateService di.BatchUpdateService
+	batchUpdateService di.IBatchUpdateService
 }
 
 func Register(
 	gRPCServer *grpc.Server,
-	batchUpdateService di.BatchUpdateService,
+	batchUpdateService di.IBatchUpdateService,
 ) {
 	pb.RegisterRunlyticsServer(
 		gRPCServer, &serverAPI{batchUpdateService: batchUpdateService},

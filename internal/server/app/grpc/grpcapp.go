@@ -18,7 +18,7 @@ type App struct {
 }
 
 type AppParams struct {
-	BatchUpdateService di.BatchUpdateService
+	BatchUpdateService di.IBatchUpdateService
 	Addr               *net.TCPAddr
 	HashKey            string
 	Decrypter          di.Decrypter

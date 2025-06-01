@@ -12,13 +12,13 @@ import (
 
 // BatchUpdateHandler working with service and provides BatchUpdate method.
 type BatchUpdateHandler struct {
-	service di.BatchUpdateService
+	service di.IBatchUpdateService
 }
 
 // SetBatchUpdateHandler sets BatchUpdate handler to "/updates" path.
 //
 // Allows only JSON media type.
-func SetBatchUpdateHandler(mux *chi.Mux, service di.BatchUpdateService) {
+func SetBatchUpdateHandler(mux *chi.Mux, service di.IBatchUpdateService) {
 	path := "/updates"
 	handler := &BatchUpdateHandler{service}
 	mux.Route(path, func(r chi.Router) {

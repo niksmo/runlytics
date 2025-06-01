@@ -16,14 +16,14 @@ import (
 // UpdateHandler work with service and provides
 // UpdateByJSON, UpdateByURLParams methods.
 type UpdateHandler struct {
-	service di.UpdateService
+	service di.IUpdateService
 }
 
 // SetUpdateHandler sets UpdateHandler to "/update" path.
 //
 //   - "/update/" to UpdateByJSON method, only JSON media type is allowed
 //   - "/update/{type}/{name}/{value}" to UpdateByURLParams method
-func SetUpdateHandler(mux *chi.Mux, service di.UpdateService) {
+func SetUpdateHandler(mux *chi.Mux, service di.IUpdateService) {
 	path := "/update"
 	handler := &UpdateHandler{service}
 	mux.Route(path, func(r chi.Router) {
