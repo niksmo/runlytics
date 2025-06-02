@@ -5,6 +5,7 @@ import (
 	"github.com/niksmo/runlytics/internal/agent/provider"
 	"github.com/niksmo/runlytics/internal/agent/reportgen"
 	"github.com/niksmo/runlytics/internal/agent/workerpool"
+	grpcworker "github.com/niksmo/runlytics/internal/agent/workerpool/grpc"
 	httpworker "github.com/niksmo/runlytics/internal/agent/workerpool/http"
 	"github.com/niksmo/runlytics/internal/logger"
 	"github.com/niksmo/runlytics/pkg/cipher"
@@ -31,8 +32,15 @@ func New(cfg *config.AgentConfig) *App {
 		HashKey:    cfg.HashKey.Key,
 		OutboundIP: cfg.GetOutboundIP(),
 	}
+
+	var wf di.SendMetricsFunc
+	if cfg.GRPC.IsSet {
+		wf = grpcworker.SendMetrics
+	} else {
+		wf = httpworker.SendMetrics
+	}
 	wPool := workerpool.New(
-		cfg.Metrics.RateLimit, reportGen.C, httpworker.SendMetrics, wo,
+		cfg.Metrics.RateLimit, reportGen.C, wf, wo,
 	)
 
 	return &App{

@@ -86,9 +86,10 @@ func getHashString(data []byte, key string) (string, error) {
 	h, ok := hashPool.Get().(hash.Hash)
 	if !ok {
 		h = hmac.New(sha256.New, []byte(key))
+	} else {
+		h.Reset()
 	}
 	defer hashPool.Put(h)
-	h.Reset()
 	_, err := h.Write(data)
 	if err != nil {
 		return "", fmt.Errorf("%s: %w", op, err)
@@ -121,9 +122,10 @@ func makeReqData(
 	gzipWriter, ok := gzipWriterPool.Get().(*gzip.Writer)
 	if !ok {
 		gzipWriter = gzip.NewWriter(buf)
+	} else {
+		gzipWriter.Reset(buf)
 	}
 	defer gzipWriterPool.Put(gzipWriter)
-	gzipWriter.Reset(buf)
 
 	if _, err = gzipWriter.Write(jsonData); err != nil {
 		return fmt.Errorf("%s: %w", op, err)

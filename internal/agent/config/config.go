@@ -63,6 +63,12 @@ const (
 	cryptoKeyDefault      = ""
 	cryptoKeyUsage        = "Cert path, e.g. '/folder/cert.pem' (required)"
 
+	grpcFlagName     = "grpc"
+	grpcEnvName      = "GRPC_CLIENT"
+	grpcSettingsName = "grpc_client"
+	grpcDefault      = true
+	grpcUsage        = "Use gRPC client instead of http"
+
 	configFileFlagName = "config"
 	configFileEnvName  = "CONFIG"
 	configFileDefault  = ""
@@ -79,6 +85,7 @@ type values struct {
 	hashKey    *string
 	rateLimit  *int
 	cryptoKey  *string
+	grpc       *bool
 	configFile *string
 }
 
@@ -90,6 +97,7 @@ type settings struct {
 	HashKey   *string `json:"hash_key"`
 	RateLimit *int    `json:"rate_limit"`
 	CryptoKey *string `json:"crypto_key"`
+	GRPC      *bool   `json:"grpc_client"`
 }
 
 func newSettings(path string) (settings, error) {
@@ -120,6 +128,7 @@ type AgentConfig struct {
 	Metrics MetricsConfig
 	HashKey HashKeyConfig
 	Crypto  CryptoConfig
+	GRPC    GRPCConfig
 }
 
 func Load() *AgentConfig {
@@ -155,6 +164,7 @@ func Load() *AgentConfig {
 	metricsConfig := NewMetricsConfig(params)
 	hashKeyConfig := NewHashKeyConfig(params)
 	cryptoConfig := NewCryptoConfig(params)
+	grpcConfig := NewGRPCConfig(params)
 
 	return &AgentConfig{
 		Server:  serverConfig,
@@ -162,6 +172,7 @@ func Load() *AgentConfig {
 		Metrics: metricsConfig,
 		HashKey: hashKeyConfig,
 		Crypto:  cryptoConfig,
+		GRPC:    grpcConfig,
 	}
 
 }
@@ -187,6 +198,7 @@ func (c *AgentConfig) PrintConfig(logger *zap.Logger) {
 		zap.String("-"+hashKeyFlagName, c.HashKey.Key),
 		zap.Int("-"+rateLimitFlagName, c.Metrics.RateLimit),
 		zap.String("-"+cryptoKeyFlagName, c.Crypto.Path()),
+		zap.Bool("-"+grpcFlagName, c.GRPC.IsSet),
 		zap.String("outboundIP", c.GetOutboundIP()),
 	)
 }
@@ -206,6 +218,9 @@ func setupFlagValues(flagSet *flag.FlagSet) values {
 	fv.cryptoKey = flagSet.String(
 		cryptoKeyFlagName, cryptoKeyDefault, cryptoKeyUsage,
 	)
+
+	fv.grpc = flagSet.Bool(grpcFlagName, grpcDefault, grpcUsage)
+
 	fv.configFile = flagSet.String(
 		configFileFlagName, configFileDefault, configFileUsage,
 	)
@@ -222,6 +237,7 @@ func setupEnvValues(envSet *env.EnvSet) values {
 	ev.hashKey = envSet.String(hashKeyEnvName)
 	ev.rateLimit = envSet.Int(rateLimitEnvName)
 	ev.cryptoKey = envSet.String(cryptoKeyEnvName)
+	ev.grpc = envSet.Bool(grpcEnvName)
 	ev.configFile = envSet.String(configFileEnvName)
 	return ev
 }
