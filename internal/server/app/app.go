@@ -45,7 +45,7 @@ func New(cfg *config.ServerConfig) *App {
 			Addr:               cfg.GRPCAddr.TCPAddr,
 			Decrypter:          decrypter,
 			HashKey:            cfg.HashKey.Key,
-			TrustedNed:         cfg.TrustedNet.IPNet,
+			TrustedNet:         cfg.TrustedNet.IPNet,
 		},
 	)
 

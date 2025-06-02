@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/niksmo/runlytics/internal/agent/workerpool"
 	"github.com/niksmo/runlytics/internal/logger"
 	"github.com/niksmo/runlytics/pkg/di"
 	"github.com/niksmo/runlytics/pkg/metrics"
@@ -14,6 +15,7 @@ import (
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/metadata"
 )
 
 func SendMetrics(
@@ -35,10 +37,15 @@ func SendMetrics(
 		log.Fatal("failed crate new request", zap.Error(err))
 	}
 
+	md, err := newMetadata(req.GetMetrics(), hk, ip)
+	if err != nil {
+		return fmt.Errorf("%s: %w", op, err)
+	}
+	ctx = metadata.NewOutgoingContext(ctx, md)
+
 	reqStart := time.Now()
 	res, err := c.BatchUpdate(ctx, req)
 	if err != nil {
-		// TODO handle errors correctly
 		return fmt.Errorf("%s: %w", op, err)
 	}
 
@@ -62,13 +69,6 @@ func getClient(addr string) (pb.RunlyticsClient, error) {
 	return pb.NewRunlyticsClient(conn), nil
 }
 
-type Stat struct {
-	ID    string
-	MType string
-	Value float64
-	Delta int64
-}
-
 func newRequest(m metrics.MetricsList) (*pb.BatchUpdateRequest, error) {
 	const op = "grpcworker.newRequest"
 	var b bytes.Buffer
@@ -76,4 +76,21 @@ func newRequest(m metrics.MetricsList) (*pb.BatchUpdateRequest, error) {
 		return nil, fmt.Errorf("%s: %w", op, err)
 	}
 	return &pb.BatchUpdateRequest{Metrics: b.Bytes()}, nil
+}
+
+func newMetadata(out []byte, key, ip string) (metadata.MD, error) {
+	const op = "grpcworker.newMetadata"
+	md := metadata.New(map[string]string{})
+
+	if key != "" {
+		hash, err := workerpool.GetHashString(out, key)
+		if err != nil {
+			return nil, fmt.Errorf("%s: %w", op, err)
+		}
+		md.Append("HashSHA256", hash)
+	}
+
+	md.Append("X-Real-IP", ip)
+
+	return md, nil
 }

@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/gob"
-	"fmt"
 
 	"github.com/niksmo/runlytics/pkg/di"
 	"github.com/niksmo/runlytics/pkg/metrics"
@@ -36,9 +35,7 @@ func (s *serverAPI) BatchUpdate(
 	var ml metrics.MetricsList
 	err := gob.NewDecoder(b).Decode(&ml)
 	if err != nil {
-		return nil, status.Error(
-			codes.InvalidArgument, "failed to decode",
-		)
+		return nil, status.Error(codes.InvalidArgument, "failed to decode")
 	}
 
 	err = ml.Verify(
@@ -46,7 +43,6 @@ func (s *serverAPI) BatchUpdate(
 		metrics.VerifyType,
 	)
 	if err != nil {
-		fmt.Println(ml)
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 

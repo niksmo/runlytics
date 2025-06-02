@@ -24,6 +24,7 @@ type WorkerPool struct {
 	pollCount [2]int64
 	wf        di.SendMetricsFunc
 	wo        WorkerOpts
+	grp       *errgroup.Group
 }
 
 func New(
@@ -57,7 +58,9 @@ func (p *WorkerPool) Run() {
 	}
 }
 
-func (p *WorkerPool) Stop() {}
+func (p *WorkerPool) Stop() {
+	p.grp.Wait()
+}
 
 func (p *WorkerPool) findPollCountIdx(m metrics.MetricsList) (int, bool) {
 	for i, v := range m {
@@ -108,6 +111,7 @@ func (p *WorkerPool) divideInput(m metrics.MetricsList) []metrics.MetricsList {
 func (p *WorkerPool) doWork(output []metrics.MetricsList) error {
 	const op = "workerpool.doWork"
 	grp, ctx := errgroup.WithContext(context.Background())
+	p.grp = grp
 
 	for _, m := range output {
 		ml := m

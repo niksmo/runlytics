@@ -4,17 +4,14 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
-	"crypto/hmac"
-	"crypto/sha256"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"hash"
 	"io"
 	"net/http"
 	"sync"
 	"time"
 
+	"github.com/niksmo/runlytics/internal/agent/workerpool"
 	"github.com/niksmo/runlytics/internal/logger"
 	"github.com/niksmo/runlytics/pkg/di"
 	"github.com/niksmo/runlytics/pkg/metrics"
@@ -26,7 +23,6 @@ const headerHashKey = "HashSHA256"
 var (
 	bufferPool     = sync.Pool{}
 	gzipWriterPool = sync.Pool{}
-	hashPool       = sync.Pool{}
 )
 
 func SendMetrics(
@@ -81,22 +77,6 @@ func SendMetrics(
 	return nil
 }
 
-func getHashString(data []byte, key string) (string, error) {
-	const op = "httpworker.getHashString"
-	h, ok := hashPool.Get().(hash.Hash)
-	if !ok {
-		h = hmac.New(sha256.New, []byte(key))
-	} else {
-		h.Reset()
-	}
-	defer hashPool.Put(h)
-	_, err := h.Write(data)
-	if err != nil {
-		return "", fmt.Errorf("%s: %w", op, err)
-	}
-	return hex.EncodeToString(h.Sum(nil)), nil
-}
-
 func makeReqData(
 	buf *bytes.Buffer,
 	sha256 *string,
@@ -112,7 +92,7 @@ func makeReqData(
 	}
 
 	if key != "" {
-		*sha256, err = getHashString(jsonData, key)
+		*sha256, err = workerpool.GetHashString(jsonData, key)
 		if err != nil {
 			return fmt.Errorf("%s: %w", op, err)
 		}

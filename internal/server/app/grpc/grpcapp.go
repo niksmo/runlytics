@@ -7,6 +7,8 @@ import (
 	"github.com/niksmo/runlytics/internal/logger"
 	"github.com/niksmo/runlytics/internal/server/api/grpcapi"
 	"github.com/niksmo/runlytics/internal/server/app/grpc/interceptor"
+	"github.com/niksmo/runlytics/internal/server/app/grpc/interceptor/hashcheck"
+	"github.com/niksmo/runlytics/internal/server/app/grpc/interceptor/netcheck"
 	"github.com/niksmo/runlytics/pkg/di"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
@@ -22,7 +24,7 @@ type AppParams struct {
 	Addr               *net.TCPAddr
 	HashKey            string
 	Decrypter          di.Decrypter
-	TrustedNed         *net.IPNet
+	TrustedNet         *net.IPNet
 }
 
 func New(p AppParams) *App {
@@ -30,6 +32,8 @@ func New(p AppParams) *App {
 		grpc.ChainUnaryInterceptor(
 			interceptor.WithRecovery(),
 			interceptor.WithLog(),
+			netcheck.New(p.TrustedNet),
+			hashcheck.New(p.HashKey),
 		),
 	)
 	grpcapi.Register(gRPCServer, p.BatchUpdateService)
