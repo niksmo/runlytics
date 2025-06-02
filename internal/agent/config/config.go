@@ -186,7 +186,7 @@ func (c *AgentConfig) PrintConfig(logger *zap.Logger) {
 		zap.String("-"+reportFlagName, c.Metrics.Report.String()),
 		zap.String("-"+hashKeyFlagName, c.HashKey.Key),
 		zap.Int("-"+rateLimitFlagName, c.Metrics.RateLimit),
-		zap.String("-"+cryptoKeyFlagName, c.Crypto.Path),
+		zap.String("-"+cryptoKeyFlagName, c.Crypto.Path()),
 		zap.String("outboundIP", c.GetOutboundIP()),
 	)
 }

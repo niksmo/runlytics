@@ -13,7 +13,7 @@ type MetricsGetter interface {
 	GetMetrics() metrics.MetricsList
 }
 
-type SendMetricsFunc func(context.Context, metrics.MetricsList) error
+type SendMetricsFunc func(ctx context.Context, m metrics.MetricsList, enc Encrypter, url, key, ip string) error
 
 type Runner interface {
 	Run()

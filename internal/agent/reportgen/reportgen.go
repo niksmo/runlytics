@@ -1,4 +1,4 @@
-package generator
+package reportgen
 
 import (
 	"time"
@@ -17,7 +17,7 @@ type ReportGen struct {
 	ticker   *time.Ticker
 }
 
-func NewReportGen(p di.MetricsProvider, report time.Duration) *ReportGen {
+func New(p di.MetricsProvider, report time.Duration) *ReportGen {
 	c := make(chan metrics.MetricsList, 1)
 	return &ReportGen{
 		provider: p,

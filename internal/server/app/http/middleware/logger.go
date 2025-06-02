@@ -47,7 +47,7 @@ func Logger(next http.Handler) http.Handler {
 			zap.String("method", r.Method),
 			zap.Int("status", lrw.responseInfo.status),
 			zap.Duration("duration", time.Since(start)),
-			zap.Int("size", lrw.responseInfo.size),
+			zap.Int("resSize", lrw.responseInfo.size),
 		)
 	}
 

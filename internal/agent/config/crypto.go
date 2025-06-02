@@ -8,7 +8,6 @@ import (
 )
 
 type CryptoConfig struct {
-	Path string
 	Data []byte
 	f    *os.File
 }
@@ -17,6 +16,13 @@ func NewCryptoConfig(p ConfigParams) (cc CryptoConfig) {
 	cc.initFile(p)
 	cc.initData(p.ErrStream)
 	return
+}
+
+func (cc *CryptoConfig) Path() string {
+	if cc.f != nil {
+		return cc.f.Name()
+	}
+	return ""
 }
 
 func (cc *CryptoConfig) initFile(p ConfigParams) {
