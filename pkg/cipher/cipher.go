@@ -8,7 +8,6 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"errors"
-	"hash"
 )
 
 var (
@@ -19,14 +18,23 @@ var (
 	ErrEncryptMsg      = errors.New("failed to encrypt message")
 )
 
+type (
+	Encrypter interface {
+		EncryptMsg([]byte) ([]byte, error)
+	}
+
+	Decrypter interface {
+		DecryptMsg([]byte) ([]byte, error)
+	}
+)
+
 // Encrypter provides simple message encrypting.
-type Encrypter struct {
+type encrypterX509 struct {
 	publicKey *rsa.PublicKey
-	hash      hash.Hash
 }
 
 // NewEncrypter returns Encrypter pointer.
-func NewEncrypter(PEMData []byte) (*Encrypter, error) {
+func NewEncrypterX509(PEMData []byte) (Encrypter, error) {
 	block, _ := pem.Decode(PEMData)
 
 	cert, err := x509.ParseCertificate(block.Bytes)
@@ -37,13 +45,13 @@ func NewEncrypter(PEMData []byte) (*Encrypter, error) {
 	if !ok {
 		return nil, ErrPublicKeyType
 	}
-	ecrypter := &Encrypter{publicKey: rsaPublicKey, hash: sha256.New()}
-	return ecrypter, nil
+	encrypter := &encrypterX509{publicKey: rsaPublicKey}
+	return encrypter, nil
 }
 
 // EncryptMsg returns ciphered message data.
-func (e *Encrypter) EncryptMsg(msg []byte) ([]byte, error) {
-	data, err := rsa.EncryptOAEP(e.hash, rand.Reader, e.publicKey, msg, nil)
+func (e *encrypterX509) EncryptMsg(msg []byte) ([]byte, error) {
+	data, err := rsa.EncryptOAEP(sha256.New(), rand.Reader, e.publicKey, msg, nil)
 	if err != nil {
 		return nil, errors.Join(ErrEncryptMsg, err)
 	}
@@ -51,27 +59,26 @@ func (e *Encrypter) EncryptMsg(msg []byte) ([]byte, error) {
 }
 
 // Decrypter provides simple message decrypting.
-type Decrypter struct {
+type decrypterX509 struct {
 	privateKey *rsa.PrivateKey
-	hash       hash.Hash
 }
 
 // NewDecrypter returns Decrypter pointer.
 // If PEMData is invalid error in occur.
-func NewDecrypter(PEMData []byte) (*Decrypter, error) {
+func NewDecrypterX509(PEMData []byte) (*decrypterX509, error) {
 	block, _ := pem.Decode(PEMData)
 
 	rsaPrivateKey, err := x509.ParsePKCS1PrivateKey(block.Bytes)
 	if err != nil {
 		return nil, errors.Join(ErrParsePrivateKey, err)
 	}
-	decrypter := &Decrypter{privateKey: rsaPrivateKey, hash: sha256.New()}
+	decrypter := &decrypterX509{privateKey: rsaPrivateKey}
 	return decrypter, nil
 }
 
 // DecryptMsg returns unciphered message data.
-func (d *Decrypter) DecryptMsg(msg []byte) ([]byte, error) {
-	data, err := rsa.DecryptOAEP(d.hash, rand.Reader, d.privateKey, msg, nil)
+func (d *decrypterX509) DecryptMsg(msg []byte) ([]byte, error) {
+	data, err := rsa.DecryptOAEP(sha256.New(), rand.Reader, d.privateKey, msg, nil)
 	if err != nil {
 		return nil, err
 	}

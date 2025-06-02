@@ -10,11 +10,11 @@ import (
 
 // UpdateService works with repository and provides Update method.
 type UpdateService struct {
-	repository di.UpdateByNameRepository
+	repository di.IUpdateByNameStorage
 }
 
 // NewUpdateService returns UpdateService pointer.
-func NewUpdateService(repository di.UpdateByNameRepository) *UpdateService {
+func NewUpdateService(repository di.IUpdateByNameStorage) *UpdateService {
 	return &UpdateService{repository}
 }
 
@@ -39,31 +39,26 @@ func (s *UpdateService) Update(
 func (s *UpdateService) updateGauge(
 	ctx context.Context, m *metrics.Metrics,
 ) error {
-	if m.Value == nil {
-		return server.ErrInternal
-	}
 	v, err := s.repository.UpdateGaugeByName(
-		ctx, m.ID, *m.Value,
+		ctx, m.ID, m.Value,
 	)
 	if err != nil {
 		return err
 	}
-	m.Value = &v
+	m.Value = v
 	return nil
 }
 
 func (s *UpdateService) updateCounter(
 	ctx context.Context, m *metrics.Metrics,
 ) error {
-	if m.Delta == nil {
-		return server.ErrInternal
-	}
+
 	d, err := s.repository.UpdateCounterByName(
-		ctx, m.ID, *m.Delta,
+		ctx, m.ID, m.Delta,
 	)
 	if err != nil {
 		return err
 	}
-	m.Delta = &d
+	m.Delta = d
 	return nil
 }

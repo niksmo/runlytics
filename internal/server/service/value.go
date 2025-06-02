@@ -10,11 +10,11 @@ import (
 
 // ReadService works with repository and provides Read method.
 type ReadService struct {
-	repository di.ReadByNameRepository
+	repository di.IReadByNameStorage
 }
 
-// NewValueService returns ReadService pointer.
-func NewValueService(repository di.ReadByNameRepository) *ReadService {
+// NewReadService returns ReadService pointer.
+func NewReadService(repository di.IReadByNameStorage) *ReadService {
 	return &ReadService{repository}
 }
 
@@ -43,7 +43,7 @@ func (s *ReadService) readGauge(
 	if err != nil {
 		return err
 	}
-	m.Value = &v
+	m.Value = v
 	return nil
 }
 
@@ -54,6 +54,6 @@ func (s *ReadService) readCounter(
 	if err != nil {
 		return err
 	}
-	m.Delta = &d
+	m.Delta = d
 	return nil
 }
