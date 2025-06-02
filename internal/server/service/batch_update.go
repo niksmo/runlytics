@@ -38,14 +38,8 @@ func (s *BatchUpdateService) BatchUpdate(
 	for _, m := range ml {
 		switch m.MType {
 		case metrics.MTypeGauge:
-			if m.Value == nil {
-				return server.ErrInternal
-			}
 			gl = append(gl, m)
 		case metrics.MTypeCounter:
-			if m.Delta == nil {
-				return server.ErrInternal
-			}
 			cl = append(cl, m)
 		default:
 			return server.ErrInternal

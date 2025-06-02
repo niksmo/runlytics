@@ -36,6 +36,7 @@ func New(cfg *config.AgentConfig) *App {
 	var wf di.SendMetricsFunc
 	if cfg.GRPC.IsSet {
 		wf = grpcworker.SendMetrics
+		wo.URL = cfg.Server.Addr.String()
 	} else {
 		wf = httpworker.SendMetrics
 	}

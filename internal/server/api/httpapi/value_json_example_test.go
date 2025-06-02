@@ -28,7 +28,7 @@ func (service *ValueByJSONService) Read(
 	retArgs := service.Called(context.Background(), m)
 	if m != nil {
 		v := 123.45
-		m.Value = &v
+		m.Value = v
 	}
 	return retArgs.Error(0)
 }

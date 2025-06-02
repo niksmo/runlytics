@@ -132,7 +132,7 @@ func (ps *PSQLStorage) UpdateCounterList(
 	defer stmt.Close()
 
 	for _, item := range mSlice {
-		_, err = stmt.ExecContext(ctx, item.ID, *item.Delta)
+		_, err = stmt.ExecContext(ctx, item.ID, item.Delta)
 		if err != nil {
 			err = rollbackWithRetries(ctx, tx, logPrefix+": rollback")
 			if err != nil {
@@ -175,7 +175,7 @@ func (ps *PSQLStorage) UpdateGaugeList(
 	defer stmt.Close()
 
 	for _, item := range mSlice {
-		_, err = stmt.ExecContext(ctx, item.ID, *item.Value)
+		_, err = stmt.ExecContext(ctx, item.ID, item.Value)
 		if err != nil {
 			err = rollbackWithRetries(ctx, tx, logPrefix+": rollback")
 			if err != nil {

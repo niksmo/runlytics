@@ -178,7 +178,7 @@ func TestUpdateByJSONHandler(t *testing.T) {
 		schemeReq.ID = "0"
 		schemeReq.MType = metrics.MTypeGauge
 		value := 123.45
-		schemeReq.Value = &value
+		schemeReq.Value = value
 		updateErr := errors.New("test error")
 
 		mockService := new(MockUpdateService)
@@ -218,7 +218,7 @@ func TestUpdateByJSONHandler(t *testing.T) {
 		schemeReq.ID = "0"
 		schemeReq.MType = metrics.MTypeGauge
 		value := 123.45
-		schemeReq.Value = &value
+		schemeReq.Value = value
 
 		mockService := new(MockUpdateService)
 		mockService.On("Update", context.Background(), &schemeReq).Return(nil)
@@ -293,7 +293,7 @@ func TestUpdateByJSONHandler(t *testing.T) {
 			schemeReq.ID = "0"
 			schemeReq.MType = metrics.MTypeGauge
 			value := 123.45
-			schemeReq.Value = &value
+			schemeReq.Value = value
 
 			mockService := new(MockUpdateService)
 			mockService.On(
@@ -341,7 +341,7 @@ func TestUpdateByJSONHandler(t *testing.T) {
 			schemeReq.ID = "0"
 			schemeReq.MType = metrics.MTypeGauge
 			value := 123.45
-			schemeReq.Value = &value
+			schemeReq.Value = value
 
 			mockService := new(MockUpdateService)
 			mockService.On(
@@ -471,7 +471,7 @@ func TestUpdateByURLParamsHandler(t *testing.T) {
 		scheme.ID = id
 		scheme.MType = mType
 		schemeValue := 123.45
-		scheme.Value = &schemeValue
+		scheme.Value = schemeValue
 
 		updateErr := errors.New("test error")
 
@@ -515,7 +515,7 @@ func TestUpdateByURLParamsHandler(t *testing.T) {
 		schemeReq.ID = id
 		schemeReq.MType = mType
 		schemeValue := 123.45
-		schemeReq.Value = &schemeValue
+		schemeReq.Value = schemeValue
 
 		mockService := new(MockUpdateService)
 		mockService.On(

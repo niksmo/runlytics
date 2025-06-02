@@ -43,7 +43,7 @@ func (s *ReadService) readGauge(
 	if err != nil {
 		return err
 	}
-	m.Value = &v
+	m.Value = v
 	return nil
 }
 
@@ -54,6 +54,6 @@ func (s *ReadService) readCounter(
 	if err != nil {
 		return err
 	}
-	m.Delta = &d
+	m.Delta = d
 	return nil
 }

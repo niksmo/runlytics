@@ -137,7 +137,7 @@ func (fs *FileStorage) UpdateCounterList(
 	ctx context.Context, mSlice metrics.MetricsList,
 ) error {
 	for _, item := range mSlice {
-		fs.UpdateCounterByName(ctx, item.ID, *item.Delta)
+		fs.UpdateCounterByName(ctx, item.ID, item.Delta)
 	}
 	return nil
 }
@@ -147,7 +147,7 @@ func (fs *FileStorage) UpdateGaugeList(
 	ctx context.Context, mSlice metrics.MetricsList,
 ) error {
 	for _, item := range mSlice {
-		fs.UpdateGaugeByName(ctx, item.ID, *item.Value)
+		fs.UpdateGaugeByName(ctx, item.ID, item.Value)
 	}
 	return nil
 }

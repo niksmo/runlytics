@@ -31,8 +31,8 @@ func ExampleSetBatchUpdateHandler() {
 	m1delta := int64(12345)
 
 	metricsList := metrics.MetricsList{
-		{ID: "0", MType: metrics.MTypeGauge, Value: &m0value},
-		{ID: "1", MType: metrics.MTypeCounter, Delta: &m1delta},
+		{ID: "0", MType: metrics.MTypeGauge, Value: m0value},
+		{ID: "1", MType: metrics.MTypeCounter, Delta: m1delta},
 	}
 
 	batchUpdateService := new(ExampleBatchUpdateService)

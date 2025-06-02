@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/gob"
+	"fmt"
 
 	"github.com/niksmo/runlytics/pkg/di"
 	"github.com/niksmo/runlytics/pkg/metrics"
@@ -43,10 +44,9 @@ func (s *serverAPI) BatchUpdate(
 	err = ml.Verify(
 		metrics.VerifyID,
 		metrics.VerifyType,
-		metrics.VerifyDelta,
-		metrics.VerifyValue,
 	)
 	if err != nil {
+		fmt.Println(ml)
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 

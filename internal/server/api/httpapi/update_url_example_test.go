@@ -36,7 +36,7 @@ func ExampleSetUpdateHandler_updateByURLParams() {
 	var scheme metrics.Metrics
 	scheme.ID = id
 	scheme.MType = mType
-	scheme.Value = &schemeValue
+	scheme.Value = schemeValue
 
 	updateService := new(UpdateByURLService)
 	updateService.On(

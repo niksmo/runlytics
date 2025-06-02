@@ -34,7 +34,7 @@ func ExampleSetUpdateHandler_updateByJSON() {
 	scheme.ID = "0"
 	scheme.MType = metrics.MTypeGauge
 	value := 123.45
-	scheme.Value = &value
+	scheme.Value = value
 
 	updateService := new(UpdateByJSONService)
 	updateService.On("Update", context.Background(), &scheme).Return(nil)

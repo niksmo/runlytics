@@ -102,7 +102,5 @@ func checkMetricsForUpdate(m metrics.Metrics) error {
 	return m.Verify(
 		metrics.VerifyID,
 		metrics.VerifyType,
-		metrics.VerifyDelta,
-		metrics.VerifyValue,
 	)
 }

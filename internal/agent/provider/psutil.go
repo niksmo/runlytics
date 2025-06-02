@@ -59,13 +59,13 @@ func (s *psUtilStat) GetMetrics() metrics.MetricsList {
 
 	for n, v := range gData {
 		m = append(
-			m, metrics.Metrics{ID: n, Value: &v, MType: metrics.MTypeGauge},
+			m, metrics.Metrics{ID: n, Value: v, MType: metrics.MTypeGauge},
 		)
 	}
 
 	for n, v := range cData {
 		m = append(
-			m, metrics.Metrics{ID: n, Delta: &v, MType: metrics.MTypeCounter},
+			m, metrics.Metrics{ID: n, Delta: v, MType: metrics.MTypeCounter},
 		)
 	}
 

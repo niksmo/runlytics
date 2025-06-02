@@ -133,14 +133,12 @@ func TestPSQLStorage(t *testing.T) {
 			var m0 metrics.Metrics
 			m0.ID = "0"
 			m0.MType = metrics.MTypeGauge
-			m0v := 5.0
-			m0.Value = &m0v
+			m0.Value = 5.0
 
 			var m1 metrics.Metrics
 			m1.ID = "1"
 			m1.MType = metrics.MTypeGauge
-			m1v := 7.0
-			m1.Value = &m1v
+			m1.Value = 7.0
 
 			gaugeSlice := metrics.MetricsList{m0, m1}
 
@@ -169,7 +167,7 @@ func TestPSQLStorage(t *testing.T) {
 				)
 				require.NoError(t, rows.Scan(&name, &value))
 				assert.Equal(t, gaugeSlice[rowNumber].ID, name)
-				assert.InDelta(t, *gaugeSlice[rowNumber].Value, value, 0)
+				assert.InDelta(t, gaugeSlice[rowNumber].Value, value, 0)
 				rowNumber++
 			}
 			assert.NoError(t, rows.Err())
@@ -184,20 +182,17 @@ func TestPSQLStorage(t *testing.T) {
 			var m0 metrics.Metrics
 			m0.ID = "0"
 			m0.MType = metrics.MTypeGauge
-			m0v := 5.0
-			m0.Value = &m0v
+			m0.Value = 5.0
 
 			var m1 metrics.Metrics
 			m1.ID = "1"
 			m1.MType = metrics.MTypeGauge
-			m1v := 7.0
-			m1.Value = &m1v
+			m1.Value = 7.0
 
 			var m2 metrics.Metrics
 			m2.ID = "0"
 			m2.MType = metrics.MTypeGauge
-			m2v := 5.0
-			m2.Value = &m2v
+			m2.Value = 5.0
 
 			gaugeSlice := metrics.MetricsList{m0, m1, m2}
 
@@ -231,7 +226,7 @@ func TestPSQLStorage(t *testing.T) {
 				)
 				require.NoError(t, rows.Scan(&name, &value))
 				assert.Equal(t, expectedSlice[rowNumber].ID, name)
-				assert.InDelta(t, *expectedSlice[rowNumber].Value, value, 0)
+				assert.InDelta(t, expectedSlice[rowNumber].Value, value, 0)
 				rowNumber++
 			}
 			assert.NoError(t, rows.Err())
@@ -246,14 +241,12 @@ func TestPSQLStorage(t *testing.T) {
 			var m0 metrics.Metrics
 			m0.ID = "0"
 			m0.MType = metrics.MTypeCounter
-			m0v := int64(5)
-			m0.Delta = &m0v
+			m0.Delta = 5
 
 			var m1 metrics.Metrics
 			m1.ID = "1"
 			m1.MType = metrics.MTypeCounter
-			m1v := int64(7)
-			m1.Delta = &m1v
+			m1.Delta = 7
 
 			counterSlice := metrics.MetricsList{m0, m1}
 
@@ -282,7 +275,7 @@ func TestPSQLStorage(t *testing.T) {
 				)
 				require.NoError(t, rows.Scan(&name, &delta))
 				assert.Equal(t, counterSlice[rowNumber].ID, name)
-				assert.Equal(t, *counterSlice[rowNumber].Delta, delta)
+				assert.Equal(t, counterSlice[rowNumber].Delta, delta)
 				rowNumber++
 			}
 			assert.NoError(t, rows.Err())
@@ -297,20 +290,17 @@ func TestPSQLStorage(t *testing.T) {
 			var m0 metrics.Metrics
 			m0.ID = "0"
 			m0.MType = metrics.MTypeCounter
-			m0v := int64(5)
-			m0.Delta = &m0v
+			m0.Delta = 5
 
 			var m1 metrics.Metrics
 			m1.ID = "1"
 			m1.MType = metrics.MTypeCounter
-			m1v := int64(7)
-			m1.Delta = &m1v
+			m1.Delta = 7
 
 			var m2 metrics.Metrics
 			m2.ID = "0"
 			m2.MType = metrics.MTypeCounter
-			m2v := int64(10)
-			m2.Delta = &m2v
+			m2.Delta = 10
 
 			counterSlice := metrics.MetricsList{m0, m1, m2}
 
@@ -334,14 +324,14 @@ func TestPSQLStorage(t *testing.T) {
 			var expectM0 metrics.Metrics
 			expectM0.ID = "0"
 			expectM0.MType = metrics.MTypeCounter
-			expectM0Delta := (*counterSlice[0].Delta) + (*counterSlice[2].Delta)
-			expectM0.Delta = &expectM0Delta
+			expectM0Delta := (counterSlice[0].Delta) + (counterSlice[2].Delta)
+			expectM0.Delta = expectM0Delta
 
 			var expectM1 metrics.Metrics
 			expectM1.ID = "1"
 			expectM1.MType = metrics.MTypeCounter
-			expectM1Delta := *counterSlice[1].Delta
-			expectM1.Delta = &expectM1Delta
+			expectM1Delta := counterSlice[1].Delta
+			expectM1.Delta = expectM1Delta
 
 			expectedSlice := []metrics.Metrics{expectM0, expectM1}
 
@@ -353,7 +343,7 @@ func TestPSQLStorage(t *testing.T) {
 				)
 				require.NoError(t, rows.Scan(&name, &delta))
 				assert.Equal(t, expectedSlice[rowNumber].ID, name)
-				assert.Equal(t, *expectedSlice[rowNumber].Delta, delta)
+				assert.Equal(t, expectedSlice[rowNumber].Delta, delta)
 				rowNumber++
 			}
 			assert.NoError(t, rows.Err())

@@ -26,8 +26,7 @@ func (service *ValueByURLService) Read(
 ) error {
 	retArgs := service.Called(context.Background(), m)
 	if m != nil {
-		v := 123.45
-		m.Value = &v
+		m.Value = 123.45
 	}
 	return retArgs.Error(0)
 }

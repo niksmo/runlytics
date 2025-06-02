@@ -40,8 +40,6 @@ func (h *BatchUpdateHandler) BatchUpdate() http.HandlerFunc {
 		err := ml.Verify(
 			metrics.VerifyID,
 			metrics.VerifyType,
-			metrics.VerifyDelta,
-			metrics.VerifyValue,
 		)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)

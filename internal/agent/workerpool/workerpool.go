@@ -70,9 +70,9 @@ func (p *WorkerPool) findPollCountIdx(m metrics.MetricsList) (int, bool) {
 
 func (p *WorkerPool) handlePollCount(idx int, m metrics.MetricsList) {
 	p.pollCount[0] = p.pollCount[1]
-	d := *m[idx].Delta - p.pollCount[1]
-	p.pollCount[1] = *m[idx].Delta
-	m[idx].Delta = &d
+	d := m[idx].Delta - p.pollCount[1]
+	p.pollCount[1] = m[idx].Delta
+	m[idx].Delta = d
 }
 
 func (p *WorkerPool) rollbackPollCount() {

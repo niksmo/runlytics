@@ -34,11 +34,9 @@ func (service *MockValueService) Read(
 	if m != nil {
 		switch m.MType {
 		case metrics.MTypeGauge:
-			v := 123.45
-			m.Value = &v
+			m.Value = 123.45
 		case metrics.MTypeCounter:
-			d := int64(12345)
-			m.Delta = &d
+			m.Delta = 12345
 		}
 	}
 	return retArgs.Error(0)
