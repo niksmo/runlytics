@@ -7,6 +7,7 @@ import (
 	"github.com/niksmo/runlytics/internal/logger"
 	"github.com/niksmo/runlytics/internal/server/api/grpcapi"
 	"github.com/niksmo/runlytics/internal/server/app/grpc/interceptor"
+	"github.com/niksmo/runlytics/internal/server/app/grpc/interceptor/decrypt"
 	"github.com/niksmo/runlytics/internal/server/app/grpc/interceptor/hashcheck"
 	"github.com/niksmo/runlytics/internal/server/app/grpc/interceptor/netcheck"
 	"github.com/niksmo/runlytics/pkg/di"
@@ -32,6 +33,7 @@ func New(p AppParams) *App {
 		grpc.ChainUnaryInterceptor(
 			interceptor.WithRecovery(),
 			interceptor.WithLog(),
+			decrypt.New(p.Decrypter),
 			netcheck.New(p.TrustedNet),
 			hashcheck.New(p.HashKey),
 		),

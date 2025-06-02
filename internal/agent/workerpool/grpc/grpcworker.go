@@ -32,16 +32,23 @@ func SendMetrics(
 	if err != nil {
 		log.Fatal("failed to get grpc client", zap.Error(err))
 	}
-	req, err := newRequest(m)
+
+	data, err := serialize(m)
 	if err != nil {
-		log.Fatal("failed crate new request", zap.Error(err))
+		log.Fatal("failed serialize payload", zap.Error(err))
 	}
 
-	md, err := newMetadata(req.GetMetrics(), hk, ip)
+	md, err := newMetadata(data, hk, ip)
 	if err != nil {
-		return fmt.Errorf("%s: %w", op, err)
+		log.Fatal("failed set metadata", zap.Error(err))
 	}
 	ctx = metadata.NewOutgoingContext(ctx, md)
+
+	encrypted, err := encrypt(enc, data)
+	if err != nil {
+		log.Fatal("failed encrypt payload", zap.Error(err))
+	}
+	req := newRequest(encrypted)
 
 	reqStart := time.Now()
 	res, err := c.BatchUpdate(ctx, req)
@@ -69,13 +76,26 @@ func getClient(addr string) (pb.RunlyticsClient, error) {
 	return pb.NewRunlyticsClient(conn), nil
 }
 
-func newRequest(m metrics.MetricsList) (*pb.BatchUpdateRequest, error) {
-	const op = "grpcworker.newRequest"
+func serialize(m metrics.MetricsList) ([]byte, error) {
+	const op = "grpcworker.serialize"
 	var b bytes.Buffer
 	if err := gob.NewEncoder(&b).Encode(m); err != nil {
 		return nil, fmt.Errorf("%s: %w", op, err)
 	}
-	return &pb.BatchUpdateRequest{Metrics: b.Bytes()}, nil
+	return b.Bytes(), nil
+}
+
+func encrypt(encoder di.Encrypter, data []byte) ([]byte, error) {
+	const op = "grpcworker.encrypt"
+	data, err := encoder.EncryptMsg(data)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", op, err)
+	}
+	return data, err
+}
+
+func newRequest(data []byte) *pb.BatchUpdateRequest {
+	return &pb.BatchUpdateRequest{Metrics: data}
 }
 
 func newMetadata(out []byte, key, ip string) (metadata.MD, error) {
