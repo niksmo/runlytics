@@ -27,6 +27,12 @@ const (
 	addrDefault      = "localhost:8080"
 	addrUsage        = "TCP address for metrics emitting, e.g. '192.168.1.101:8080'"
 
+	grpcFlagName     = "grpc"
+	grpcEnvName      = "GRPC_ADDRESS"
+	grpcSettingsName = "grpc_address"
+	grpcDefault      = "localhost:8081"
+	grpcUsage        = "TCP address for metrics emitting, e.g. '192.168.1.101:8080'"
+
 	logFlagName     = "log"
 	logEnvName      = "LOG_LVL"
 	logSettingsName = "log"
@@ -63,12 +69,6 @@ const (
 	cryptoKeyDefault      = ""
 	cryptoKeyUsage        = "Cert path, e.g. '/folder/cert.pem' (required)"
 
-	grpcFlagName     = "grpc"
-	grpcEnvName      = "GRPC_CLIENT"
-	grpcSettingsName = "grpc_client"
-	grpcDefault      = true
-	grpcUsage        = "Use gRPC client instead of http"
-
 	configFileFlagName = "config"
 	configFileEnvName  = "CONFIG"
 	configFileDefault  = ""
@@ -79,25 +79,25 @@ var rateLimitDefault = runtime.NumCPU()
 
 type values struct {
 	addr       *string
+	grpc       *string
 	log        *string
 	poll       *int
 	report     *int
 	hashKey    *string
 	rateLimit  *int
 	cryptoKey  *string
-	grpc       *bool
 	configFile *string
 }
 
 type settings struct {
 	Address   *string `json:"address"`
+	GRPC      *string `json:"grpc_address"`
 	Log       *string `json:"log"`
 	Poll      *int    `json:"poll_interval"`
 	Report    *int    `json:"report_interval"`
 	HashKey   *string `json:"hash_key"`
 	RateLimit *int    `json:"rate_limit"`
 	CryptoKey *string `json:"crypto_key"`
-	GRPC      *bool   `json:"grpc_client"`
 }
 
 func newSettings(path string) (settings, error) {
@@ -128,7 +128,6 @@ type AgentConfig struct {
 	Metrics MetricsConfig
 	HashKey HashKeyConfig
 	Crypto  CryptoConfig
-	GRPC    GRPCConfig
 }
 
 func Load() *AgentConfig {
@@ -164,7 +163,6 @@ func Load() *AgentConfig {
 	metricsConfig := NewMetricsConfig(params)
 	hashKeyConfig := NewHashKeyConfig(params)
 	cryptoConfig := NewCryptoConfig(params)
-	grpcConfig := NewGRPCConfig(params)
 
 	return &AgentConfig{
 		Server:  serverConfig,
@@ -172,13 +170,12 @@ func Load() *AgentConfig {
 		Metrics: metricsConfig,
 		HashKey: hashKeyConfig,
 		Crypto:  cryptoConfig,
-		GRPC:    grpcConfig,
 	}
 
 }
 
 func (c *AgentConfig) GetOutboundIP() string {
-	conn, err := net.Dial("udp", c.Server.Addr.String())
+	conn, err := net.Dial("udp", c.Server.HTTPAddr.String())
 	if err != nil {
 		failprint.Println(err)
 		os.Exit(2)
@@ -192,13 +189,13 @@ func (c *AgentConfig) PrintConfig(logger *zap.Logger) {
 	logger.Info(
 		"Start agent with flags",
 		zap.String("-"+addrFlagName, c.Server.URL()),
+		zap.String("-"+grpcFlagName, c.Server.GRPCAddr.String()),
 		zap.String("-"+logFlagName, c.Log.Level),
 		zap.String("-"+pollFlagName, c.Metrics.Poll.String()),
 		zap.String("-"+reportFlagName, c.Metrics.Report.String()),
 		zap.String("-"+hashKeyFlagName, c.HashKey.Key),
 		zap.Int("-"+rateLimitFlagName, c.Metrics.RateLimit),
 		zap.String("-"+cryptoKeyFlagName, c.Crypto.Path()),
-		zap.Bool("-"+grpcFlagName, c.GRPC.IsSet),
 		zap.String("outboundIP", c.GetOutboundIP()),
 	)
 }
@@ -207,6 +204,7 @@ func setupFlagValues(flagSet *flag.FlagSet) values {
 	var fv values
 
 	fv.addr = flagSet.String(addrFlagName, addrDefault, addrUsage)
+	fv.grpc = flagSet.String(grpcFlagName, grpcDefault, grpcUsage)
 	fv.log = flagSet.String(logFlagName, logDefault, logUsage)
 	fv.poll = flagSet.Int(pollFlagName, pollDefault, pollUsage)
 	fv.report = flagSet.Int(reportFlagName, reportDefault, reportUsage)
@@ -218,9 +216,6 @@ func setupFlagValues(flagSet *flag.FlagSet) values {
 	fv.cryptoKey = flagSet.String(
 		cryptoKeyFlagName, cryptoKeyDefault, cryptoKeyUsage,
 	)
-
-	fv.grpc = flagSet.Bool(grpcFlagName, grpcDefault, grpcUsage)
-
 	fv.configFile = flagSet.String(
 		configFileFlagName, configFileDefault, configFileUsage,
 	)
@@ -231,13 +226,13 @@ func setupFlagValues(flagSet *flag.FlagSet) values {
 func setupEnvValues(envSet *env.EnvSet) values {
 	var ev values
 	ev.addr = envSet.String(addrEnvName)
+	ev.grpc = envSet.String(grpcEnvName)
 	ev.log = envSet.String(logEnvName)
 	ev.poll = envSet.Int(pollEnvName)
 	ev.report = envSet.Int(reportEnvName)
 	ev.hashKey = envSet.String(hashKeyEnvName)
 	ev.rateLimit = envSet.Int(rateLimitEnvName)
 	ev.cryptoKey = envSet.String(cryptoKeyEnvName)
-	ev.grpc = envSet.Bool(grpcEnvName)
 	ev.configFile = envSet.String(configFileEnvName)
 	return ev
 }

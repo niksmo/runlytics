@@ -71,8 +71,8 @@ type Stat struct {
 
 func newRequest(m metrics.MetricsList) (*pb.BatchUpdateRequest, error) {
 	const op = "grpcworker.newRequest"
-	b := new(bytes.Buffer)
-	if err := gob.NewEncoder(b).Encode(m); err != nil {
+	var b bytes.Buffer
+	if err := gob.NewEncoder(&b).Encode(m); err != nil {
 		return nil, fmt.Errorf("%s: %w", op, err)
 	}
 	return &pb.BatchUpdateRequest{Metrics: b.Bytes()}, nil

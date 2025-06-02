@@ -28,17 +28,17 @@ func New(cfg *config.AgentConfig) *App {
 	}
 	wo := workerpool.WorkerOpts{
 		Encrypter:  encrypter,
-		URL:        cfg.Server.URL(),
 		HashKey:    cfg.HashKey.Key,
 		OutboundIP: cfg.GetOutboundIP(),
 	}
 
 	var wf di.SendMetricsFunc
-	if cfg.GRPC.IsSet {
+	if cfg.Server.GRPCAddr != nil {
 		wf = grpcworker.SendMetrics
-		wo.URL = cfg.Server.Addr.String()
+		wo.URL = cfg.Server.GRPCAddr.String()
 	} else {
 		wf = httpworker.SendMetrics
+		wo.URL = cfg.Server.URL()
 	}
 	wPool := workerpool.New(
 		cfg.Metrics.RateLimit, reportGen.C, wf, wo,
