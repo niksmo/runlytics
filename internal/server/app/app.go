@@ -37,11 +37,11 @@ func New(cfg *config.ServerConfig) *App {
 	updateS := service.NewUpdateService(storage)
 	readS := service.NewReadService(storage)
 	healthCheckS := service.NewHealthCheckService(storage)
-	batchUpdateService := service.NewBatchUpdateService(storage)
+	batchUpdateS := service.NewBatchUpdateService(storage)
 
 	gRPCApp := grpcapp.New(
 		grpcapp.AppParams{
-			BatchUpdateService: batchUpdateService,
+			BatchUpdateService: batchUpdateS,
 			Addr:               cfg.GRPCAddr.TCPAddr,
 			Decrypter:          decrypter,
 			HashKey:            cfg.HashKey.Key,
@@ -55,7 +55,7 @@ func New(cfg *config.ServerConfig) *App {
 			UpdateService:      updateS,
 			ReadService:        readS,
 			HealthCheckService: healthCheckS,
-			BatchUpdateService: batchUpdateService,
+			BatchUpdateService: batchUpdateS,
 			Addr:               cfg.HTTPAddr.TCPAddr,
 			Decrypter:          decrypter,
 			HashKey:            cfg.HashKey.Key,

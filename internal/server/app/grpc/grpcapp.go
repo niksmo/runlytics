@@ -39,7 +39,6 @@ func New(p AppParams) *App {
 		),
 	)
 	grpcapi.Register(gRPCServer, p.BatchUpdateService)
-
 	return &App{gRPCServer: gRPCServer, addr: p.Addr}
 }
 
