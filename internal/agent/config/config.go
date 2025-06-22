@@ -3,14 +3,14 @@ package config
 import (
 	"encoding/json"
 	"fmt"
-	"net/url"
+	"net"
 	"os"
 	"runtime"
-	"time"
 
 	"github.com/niksmo/runlytics/pkg/env"
 	"github.com/niksmo/runlytics/pkg/failprint"
 	"github.com/niksmo/runlytics/pkg/flag"
+	"go.uber.org/zap"
 )
 
 const (
@@ -24,8 +24,14 @@ const (
 	addrFlagName     = "a"
 	addrEnvName      = "ADDRESS"
 	addrSettingsName = "address"
-	addrDefault      = "http://localhost:8080"
-	addrUsage        = "Host address for metrics emitting, e.g. 'http://example.com:8080'"
+	addrDefault      = "localhost:8080"
+	addrUsage        = "TCP address for metrics emitting, e.g. '192.168.1.101:8080'"
+
+	grpcFlagName     = "grpc"
+	grpcEnvName      = "GRPC_ADDRESS"
+	grpcSettingsName = "grpc_address"
+	grpcDefault      = "localhost:8081"
+	grpcUsage        = "TCP address for metrics emitting, e.g. '192.168.1.101:8080'"
 
 	logFlagName     = "log"
 	logEnvName      = "LOG_LVL"
@@ -71,24 +77,9 @@ const (
 
 var rateLimitDefault = runtime.NumCPU()
 
-const (
-	jobsBuf    = 1024
-	jobsErrBuf = 128
-)
-
-type flagValues struct {
+type values struct {
 	addr       *string
-	log        *string
-	poll       *int
-	report     *int
-	hashKey    *string
-	rateLimit  *int
-	cryptoKey  *string
-	configFile *string
-}
-
-type envValues struct {
-	addr       *string
+	grpc       *string
 	log        *string
 	poll       *int
 	report     *int
@@ -100,6 +91,7 @@ type envValues struct {
 
 type settings struct {
 	Address   *string `json:"address"`
+	GRPC      *string `json:"grpc_address"`
 	Log       *string `json:"log"`
 	Poll      *int    `json:"poll_interval"`
 	Report    *int    `json:"report_interval"`
@@ -122,22 +114,26 @@ func newSettings(path string) (settings, error) {
 	return s, nil
 }
 
-type Config struct {
-	addr             *url.URL
-	logLvl           string
-	poll             time.Duration
-	report           time.Duration
-	hashKey          string
-	rateLimit        int
-	cryptoKeyFile    *os.File
-	cryptoKeyPEMData []byte
+type ConfigParams struct {
+	FlagValues, EnvValues values
+	FlagSet               *flag.FlagSet
+	EnvSet                *env.EnvSet
+	Settings              settings
+	ErrStream             chan<- error
 }
 
-func Load() *Config {
+type AgentConfig struct {
+	Server  ServerConfig
+	Log     LogConfig
+	Metrics MetricsConfig
+	HashKey HashKeyConfig
+	Crypto  CryptoConfig
+}
+
+func Load() *AgentConfig {
 	var (
-		flagSet       = flag.New()
-		envSet        = env.New()
-		cryptoKeyData []byte
+		flagSet = flag.New()
+		envSet  = env.New()
 	)
 	flagV := setupFlagValues(flagSet)
 	envV := setupEnvValues(envSet)
@@ -150,122 +146,65 @@ func Load() *Config {
 	settings := loadSettings(flagV.configFile, envV.configFile, flagSet, envSet)
 
 	errStream := make(chan error)
+	defer close(errStream)
 	go failprint.PrintFailWorker(errStream, failprint.ExitOnError)
 
-	addrConfig := getAddrConfig(
-		flagV.addr, envV.addr, flagSet, envSet, settings, errStream,
-	)
-
-	logConfig := getLogConfig(
-		flagV.log, envV.log, flagSet, envSet, settings, errStream,
-	)
-
-	pollConfig := getPollConfig(
-		flagV.poll, envV.poll, flagSet, envSet, settings, errStream,
-	)
-
-	reportConfig := getReportConfig(
-		flagV.report, envV.report, flagSet, envSet, settings, errStream,
-	)
-
-	verifyPollVsReport(pollConfig, reportConfig, errStream)
-
-	hashKeyConfig := getHashKeyConfig(
-		flagV.hashKey, envV.hashKey, flagSet, envSet, settings,
-	)
-
-	rateLimitConfig := getRateLimitConfig(
-		flagV.rateLimit, envV.rateLimit, flagSet, envSet, settings, errStream,
-	)
-
-	cryptoKeyFile := getCryptoKeyFile(
-		flagV.cryptoKey, envV.cryptoKey, flagSet, envSet, settings, errStream,
-	)
-
-	if cryptoKeyFile != nil {
-		cryptoKeyData = getCryptoKeyData(cryptoKeyFile, errStream)
+	params := ConfigParams{
+		FlagValues: flagV,
+		EnvValues:  envV,
+		FlagSet:    flagSet,
+		EnvSet:     envSet,
+		Settings:   settings,
+		ErrStream:  errStream,
 	}
 
-	close(errStream)
+	serverConfig := NewServerConfig(params)
+	logConfig := NewLogConfig(params)
+	metricsConfig := NewMetricsConfig(params)
+	hashKeyConfig := NewHashKeyConfig(params)
+	cryptoConfig := NewCryptoConfig(params)
 
-	return &Config{
-		addr:             addrConfig,
-		logLvl:           logConfig,
-		poll:             pollConfig,
-		report:           reportConfig,
-		hashKey:          hashKeyConfig,
-		rateLimit:        rateLimitConfig,
-		cryptoKeyFile:    cryptoKeyFile,
-		cryptoKeyPEMData: cryptoKeyData,
+	return &AgentConfig{
+		Server:  serverConfig,
+		Log:     logConfig,
+		Metrics: metricsConfig,
+		HashKey: hashKeyConfig,
+		Crypto:  cryptoConfig,
 	}
 
 }
 
-func (c *Config) LogLvl() string {
-	return c.logLvl
-}
-
-func (c *Config) Addr() *url.URL {
-	URL := *c.addr
-	return &URL
-}
-
-func (c *Config) Poll() time.Duration {
-	return c.poll
-}
-
-func (c *Config) Report() time.Duration {
-	return c.report
-}
-
-func (c *Config) Key() string {
-	return c.hashKey
-}
-
-func (c *Config) RateLimit() int {
-	return c.rateLimit
-}
-
-func (c *Config) JobsBuf() int {
-	return jobsBuf
-}
-
-func (c *Config) JobsErrBuf() int {
-	return jobsErrBuf
-}
-
-func (c *Config) HTTPClientTimeout() time.Duration {
-	return c.Report() - 100*time.Millisecond
-}
-
-// CryptoKeyPath returns cert path.
-func (c *Config) CryptoKeyPath() string {
-	if c.cryptoKeyFile != nil {
-		return c.cryptoKeyFile.Name()
+func (c *AgentConfig) GetOutboundIP() string {
+	conn, err := net.Dial("udp", c.Server.HTTPAddr.String())
+	if err != nil {
+		failprint.Println(err)
+		os.Exit(2)
 	}
-	return ""
+	defer conn.Close()
+	localAddr := conn.LocalAddr().(*net.UDPAddr)
+	return localAddr.IP.String()
 }
 
-// CryptoKeyData returns cert file data.
-func (c *Config) CryptoKeyData() []byte {
-	return c.cryptoKeyPEMData
+func (c *AgentConfig) PrintConfig(logger *zap.Logger) {
+	logger.Info(
+		"Start agent with flags",
+		zap.String("-"+addrFlagName, c.Server.URL()),
+		zap.String("-"+grpcFlagName, c.Server.GRPCAddr.String()),
+		zap.String("-"+logFlagName, c.Log.Level),
+		zap.String("-"+pollFlagName, c.Metrics.Poll.String()),
+		zap.String("-"+reportFlagName, c.Metrics.Report.String()),
+		zap.String("-"+hashKeyFlagName, c.HashKey.Key),
+		zap.Int("-"+rateLimitFlagName, c.Metrics.RateLimit),
+		zap.String("-"+cryptoKeyFlagName, c.Crypto.Path()),
+		zap.String("outboundIP", c.GetOutboundIP()),
+	)
 }
 
-func verifyPollVsReport(
-	poll, report time.Duration, errStream chan<- error,
-) {
-	if report < poll {
-		errStream <- fmt.Errorf(
-			"report '%v' should be more or equal poll '%v'",
-			report.Seconds(), poll.Seconds(),
-		)
-	}
-}
-
-func setupFlagValues(flagSet *flag.FlagSet) flagValues {
-	var fv flagValues
+func setupFlagValues(flagSet *flag.FlagSet) values {
+	var fv values
 
 	fv.addr = flagSet.String(addrFlagName, addrDefault, addrUsage)
+	fv.grpc = flagSet.String(grpcFlagName, grpcDefault, grpcUsage)
 	fv.log = flagSet.String(logFlagName, logDefault, logUsage)
 	fv.poll = flagSet.Int(pollFlagName, pollDefault, pollUsage)
 	fv.report = flagSet.Int(reportFlagName, reportDefault, reportUsage)
@@ -284,9 +223,10 @@ func setupFlagValues(flagSet *flag.FlagSet) flagValues {
 	return fv
 }
 
-func setupEnvValues(envSet *env.EnvSet) envValues {
-	var ev envValues
+func setupEnvValues(envSet *env.EnvSet) values {
+	var ev values
 	ev.addr = envSet.String(addrEnvName)
+	ev.grpc = envSet.String(grpcEnvName)
 	ev.log = envSet.String(logEnvName)
 	ev.poll = envSet.Int(pollEnvName)
 	ev.report = envSet.Int(reportEnvName)

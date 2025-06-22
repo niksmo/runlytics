@@ -19,10 +19,10 @@ type VerifyOp func(m Metrics) error
 
 // A Metrics describes metrics object.
 type Metrics struct {
-	Value *float64 `json:"value,omitempty"` // for gauge
-	Delta *int64   `json:"delta,omitempty"` // for counter
-	ID    string   `json:"id"`
-	MType string   `json:"type"` // use gauge or counter constants
+	ID    string  `json:"id"`
+	MType string  `json:"type"`            // use gauge or counter constants
+	Delta int64   `json:"delta,omitempty"` // for counter
+	Value float64 `json:"value,omitempty"` // for gauge
 }
 
 // NewFromStrArgs constructor returns a new metrics.
@@ -44,12 +44,12 @@ func NewFromStrArgs(id, mType, value string) Metrics {
 	case MTypeGauge:
 		v, err := strconv.ParseFloat(value, 64)
 		if err == nil {
-			m.Value = &v
+			m.Value = v
 		}
 	case MTypeCounter:
 		v, err := strconv.ParseInt(value, 10, 64)
 		if err == nil {
-			m.Delta = &v
+			m.Delta = v
 		}
 	}
 	return m
@@ -116,16 +116,10 @@ func (ml MetricsList) GetValue() string {
 	return b.String()
 }
 
-func valueToStr(v *float64) string {
-	if v == nil {
-		return ""
-	}
-	return strconv.FormatFloat(*v, 'f', -1, 64)
+func valueToStr(v float64) string {
+	return strconv.FormatFloat(v, 'f', -1, 64)
 }
 
-func deltaToStr(d *int64) string {
-	if d == nil {
-		return ""
-	}
-	return strconv.FormatInt(*d, 10)
+func deltaToStr(d int64) string {
+	return strconv.FormatInt(d, 10)
 }

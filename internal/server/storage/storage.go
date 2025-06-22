@@ -2,19 +2,23 @@
 package storage
 
 import (
-	"database/sql"
+	"errors"
+	"time"
 
+	"github.com/niksmo/runlytics/internal/server/storage/filestorage"
+	psqlstorage "github.com/niksmo/runlytics/internal/server/storage/postgresql"
 	"github.com/niksmo/runlytics/pkg/di"
 )
 
-// New is a fabric method that returns storage with [di.Repository] interface.
-func New(db *sql.DB, fo di.FileOperator, config di.ServerConfig) di.Repository {
-	if config.IsDatabase() {
-		return NewPSQL(db)
+var ErrNotExists = errors.New("not exists")
+
+// New is a fabric method that returns storage with [di.Storage] interface.
+func New(
+	fo di.FileOperator, dsn string, saveInterval time.Duration, restore bool,
+) di.IStorage {
+	if dsn != "" {
+		return psqlstorage.New(dsn)
 	}
-	return NewMemory(
-		fo,
-		config.SaveInterval(),
-		config.Restore(),
-	)
+
+	return filestorage.New(fo, saveInterval, restore)
 }

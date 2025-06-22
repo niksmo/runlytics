@@ -2,7 +2,7 @@ package main
 
 import (
 	testifylint "github.com/Antonboom/testifylint/analyzer"
-	"github.com/niksmo/runlytics/pkg/osexit"
+	"github.com/niksmo/runlytics/pkg/analyzer/osexit"
 	"github.com/timakin/bodyclose/passes/bodyclose"
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/multichecker"

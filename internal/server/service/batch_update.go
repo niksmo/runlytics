@@ -10,12 +10,12 @@ import (
 
 // BatchUpdateService works with repository and provides BatchUpdate method.
 type BatchUpdateService struct {
-	repository di.BatchUpdate
+	repository di.IBatchUpdateStorage
 }
 
 // NewBatchUpdateService returns BatchUpdateService pointer.
 func NewBatchUpdateService(
-	repository di.BatchUpdate,
+	repository di.IBatchUpdateStorage,
 ) *BatchUpdateService {
 	return &BatchUpdateService{repository}
 }
@@ -38,14 +38,8 @@ func (s *BatchUpdateService) BatchUpdate(
 	for _, m := range ml {
 		switch m.MType {
 		case metrics.MTypeGauge:
-			if m.Value == nil {
-				return server.ErrInternal
-			}
 			gl = append(gl, m)
 		case metrics.MTypeCounter:
-			if m.Delta == nil {
-				return server.ErrInternal
-			}
 			cl = append(cl, m)
 		default:
 			return server.ErrInternal

@@ -4,170 +4,145 @@ package di
 import (
 	"bytes"
 	"context"
-	"sync"
-	"time"
 
 	"github.com/niksmo/runlytics/pkg/metrics"
 )
 
-// GaugeMetricsGetter is the interface that wraps the GetGaugeMetrics method.
-type GaugeMetricsGetter interface {
-	GetGaugeMetrics() map[string]float64
+// MetricsGetter is the interface that wraps the GetGaugeMetrics method.
+type MetricsGetter interface {
+	GetMetrics() metrics.MetricsList
 }
 
-// CounterMetricsGetter is the interface
-// that wraps the GetCounterMetrics method.
-type CounterMetricsGetter interface {
-	GetCounterMetrics() map[string]int64
-}
+type SendMetricsFunc func(ctx context.Context, m metrics.MetricsList, enc Encrypter, url, key, ip string) error
 
-// Runner is the interface that wraps the Run method.
 type Runner interface {
 	Run()
 }
 
-// MetricsCollector is the interface that groups
-// the GetGaugeMetrics, GetCounterMetrics and Run methods.
-type MetricsCollector interface {
+type MustRunner interface {
+	MustRun()
+}
+
+type Pinger interface {
+	Ping(context.Context) error
+}
+
+type Stopper interface {
+	Stop()
+}
+
+type RunStopper interface {
 	Runner
-	GaugeMetricsGetter
-	CounterMetricsGetter
+	Stopper
 }
 
-// Looger is the interface that wraps the Debugw, Infow and Errorw methods.
-type Logger interface {
-	Debugw(msg string, keysAndValues ...any)
-	Infow(msg string, keysAndValues ...any)
-	Errorw(msg string, keysAndValues ...any)
+type MustRunStopper interface {
+	MustRunner
+	Stopper
 }
 
-// ServerConfig is the interface that wraps
-// the IsDatabase, SaveInterval and Restore methods.
-type ServerConfig interface {
-	IsDatabase() bool
-	SaveInterval() time.Duration
-	Restore() bool
+// MetricsProvider is the interface that groups
+// the GetMetrics, Run and Stop methods.
+type MetricsProvider interface {
+	MetricsGetter
+	Stopper
+	Runner
 }
 
-// FileCloser is the interface that wraps the basic Close method.
-type FileCloser interface {
+// Closer is the interface that wraps the basic Close method.
+type Closer interface {
 	Close() error
 }
 
-// FileClearer is the interface that wraps the basic Clear method.
-type FileClearer interface {
+// IClear is the interface that wraps the basic Clear method.
+type IClear interface {
 	Clear() error
 }
 
-// FileLoader is the interface that wraps the basic Load method.
-type FileLoader interface {
+// Loader is the interface that wraps the basic Load method.
+type Loader interface {
 	Load() ([]byte, error)
 }
 
-// FileSaver is the interface that wraps the basic Save method.
-type FileSaver interface {
+// Saver is the interface that wraps the basic Save method.
+type Saver interface {
 	Save([]byte) error
 }
 
 // FileOperator is the interface that wraps the
 // Clear, Load, Save and Close methods.
 type FileOperator interface {
-	FileClearer
-	FileCloser
-	FileLoader
-	FileSaver
+	IClear
+	Closer
+	Loader
+	Saver
 }
 
-// UpdateByNameRepository is the interface that wraps the
+// IUpdateByNameStorage is the interface that wraps the
 // UpdateCounterByName and UpdateGaugeByName methods.
-type UpdateByNameRepository interface {
+type IUpdateByNameStorage interface {
 	UpdateCounterByName(ctx context.Context, name string, value int64) (int64, error)
 	UpdateGaugeByName(ctx context.Context, name string, value float64) (float64, error)
 }
 
-// BatchUpdate is the interface that wraps the
+// IBatchUpdateStorage is the interface that wraps the
 // UpdateCounterList and UpdateGaugeList methods.
-type BatchUpdate interface {
+type IBatchUpdateStorage interface {
 	UpdateCounterList(ctx context.Context, slice metrics.MetricsList) error
 	UpdateGaugeList(ctx context.Context, slice metrics.MetricsList) error
 }
 
-// ReadByNameRepository is the interface that wraps the
+// IReadByNameStorage is the interface that wraps the
 // ReadCounterByName and ReadGaugeByName methods.
-type ReadByNameRepository interface {
+type IReadByNameStorage interface {
 	ReadCounterByName(ctx context.Context, name string) (int64, error)
 	ReadGaugeByName(ctx context.Context, name string) (float64, error)
 }
 
-// ReadListRepository is the interface that wraps the
+// IReadListStorage is the interface that wraps the
 // ReadGauge and ReadCounter methods.
-type ReadListRepository interface {
+type IReadListStorage interface {
 	ReadGauge(context.Context) (map[string]float64, error)
 	ReadCounter(context.Context) (map[string]int64, error)
 }
 
-// Repository is the interface that groups
+// Storage is the interface that groups
 // the UpdateCounterByName, UpdateGaugeByName, UpdateCounterList,
 // UpdateGaugeList,ReadCounterByName, ReadGaugeByName,
 // ReadGauge, ReadCounter and Run methods.
-type Repository interface {
-	ReadByNameRepository
-	ReadListRepository
-	UpdateByNameRepository
-	BatchUpdate
-	Run(stopCtx context.Context, wg *sync.WaitGroup)
+type IStorage interface {
+	IReadByNameStorage
+	IReadListStorage
+	IUpdateByNameStorage
+	IBatchUpdateStorage
+	MustRunner
+	Pinger
+	Stopper
 }
 
-// HealthCheckService is the interface that wraps the Check method.
-type HealthCheckService interface {
+// IHealthCheckService is the interface that wraps the Check method.
+type IHealthCheckService interface {
 	Check(ctx context.Context) error
 }
 
-// HTMLService is the interface that wraps the RenderMetricsList method.
-type HTMLService interface {
+// IHTMLService is the interface that wraps the RenderMetricsList method.
+type IHTMLService interface {
 	RenderMetricsList(ctx context.Context, buf *bytes.Buffer) error
 }
 
-// ReadService is the interface that wraps the Read method.
-type ReadService interface {
+// IReadService is the interface that wraps the Read method.
+type IReadService interface {
 	Read(context.Context, *metrics.Metrics) error
 }
 
-// UpdateService is the interface that wraps the Update method.
-type UpdateService interface {
+// IUpdateService is the interface that wraps the Update method.
+type IUpdateService interface {
 	Update(context.Context, *metrics.Metrics) error
 }
 
-// BatchUpdateService is the interface that wraps the BatchUpdate method.
-type BatchUpdateService interface {
+// IBatchUpdateService is the interface that wraps the BatchUpdate method.
+type IBatchUpdateService interface {
 	BatchUpdate(context.Context, metrics.MetricsList) error
-}
-
-// IID is the interface that wraps the ID method.
-type IID interface {
-	ID() int64
-}
-
-// IPayload is the interface that wraps the Payload method.
-type IPayload interface {
-	Payload() []metrics.Metrics
-}
-
-// IErr is the interface that wraps the Err method.
-type IErr interface {
-	Err() error
-}
-
-// Job is the interface that wraps the ID and Payload methods.
-type Job interface {
-	IID
-	IPayload
-}
-
-// JobErr is the interface that wraps the ID and Err methods.
-type JobErr interface {
-	IID
-	IErr
 }
 
 // Decrypter is the interface that wraps the DecryptMsg method.
